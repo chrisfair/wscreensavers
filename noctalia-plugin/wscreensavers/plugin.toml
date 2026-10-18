@@ -1,0 +1,37 @@
+id = "christopher/wscreensavers"
+name = "WScreenSavers"
+version = "1.0.0"
+plugin_api = 9
+author = "christopher"
+license = "GPL-3.0"
+dependencies = ["wscreensavers"]
+tags = ["bar", "panel", "screensaver", "xscreensaver", "wallpaper", "lock", "wayland", "utility"]
+icon = "device-tv"
+description = "Control native Wayland XScreenSavers, live desktop wallpapers, multi-monitor modes, and PAM screen locking."
+
+[[panel]]
+id = "controls"
+entry = "panel.luau"
+width = 840
+height = 880
+placement = "floating"
+position = "center"
+open_near_click = true
+
+[[widget]]
+id = "saver"
+entry = "widget.luau"
+
+  [[widget.setting]]
+  key = "glyph"
+  type = "glyph"
+  label_key = "settings.glyph.label"
+  description_key = "settings.glyph.description"
+  default = "device-tv"
+
+  [[widget.setting]]
+  key = "show_name"
+  type = "bool"
+  label_key = "settings.show_name.label"
+  description_key = "settings.show_name.description"
+  default = false

@@ -20,6 +20,7 @@ import (
 
 	"wscreensavers/internal/api"
 	"wscreensavers/internal/config"
+	"wscreensavers/internal/ctl"
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/layershell"
 )
@@ -36,6 +37,19 @@ func init() {
 }
 
 func main() {
+	cfgMgr, err := config.NewManager("")
+	if err != nil {
+		log.Fatalf("Failed to initialize config manager: %v", err)
+	}
+
+	if len(os.Args) >= 2 && os.Args[1] == "ctl" {
+		if err := ctl.Run(cfgMgr, os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	var (
 		saverMode     = flag.Bool("saver", false, "Launch fullscreen Wayland screensaver overlay across all monitors")
 		lockMode      = flag.Bool("lock", false, "Launch fullscreen locked Wayland screensaver overlay across all monitors")
@@ -47,11 +61,6 @@ func main() {
 		listenAddr    = flag.String("addr", "127.0.0.1:8642", "HTTP API listen address")
 	)
 	flag.Parse()
-
-	cfgMgr, err := config.NewManager("")
-	if err != nil {
-		log.Fatalf("Failed to initialize config manager: %v", err)
-	}
 
 	distFS, err := fs.Sub(assets, "frontend/dist")
 	if err != nil {
