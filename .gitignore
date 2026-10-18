@@ -1,0 +1,6 @@
+/wscreensavers
+/frontend/node_modules/
+/frontend/dist/
+/pkg/
+/src/
+*.pkg.tar.zst

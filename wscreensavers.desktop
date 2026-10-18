@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=WScreenSavers
+GenericName=Wayland Screensaver & Live Wallpaper Suite
+Comment=Configure Wayland screensavers, XScreenSaver modules, PAM lock screen, and live wallpapers
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 wscreensavers
+Icon=wscreensavers
+Terminal=false
+Type=Application
+Categories=Settings;DesktopSettings;GTK;Utility;
+Keywords=screensaver;xscreensaver;wayland;lock;wallpaper;matrix;
+StartupNotify=true
+StartupWMClass=wscreensavers

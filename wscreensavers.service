@@ -1,0 +1,14 @@
+[Unit]
+Description=WScreenSavers Wayland Idle & Live Wallpaper Daemon
+Documentation=https://github.com/chrisfair/wscreensavers
+After=graphical-session.target wayland-session.target
+
+[Service]
+Type=simple
+Environment=WEBKIT_DISABLE_DMABUF_RENDERER=1
+ExecStart=/usr/bin/wscreensavers --daemon
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

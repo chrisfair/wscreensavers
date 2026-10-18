@@ -1,0 +1,477 @@
+// Package catalog provides the built-in collection of native Wayland XScreenSaver
+// recreations along with their customizable parameter schemas and default values.
+package catalog
+
+import "wscreensavers/internal/models"
+
+// BuiltinSavers returns the complete registry of built-in hardware-accelerated
+// WebGL2 / GLSL / Canvas2D XScreenSaver ports.
+func BuiltinSavers() []models.Screensaver {
+	return []models.Screensaver{
+		{
+			ID:          "glmatrix",
+			Name:        "GLMatrix",
+			Category:    "Matrix & Cyber",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski (1999) / Wayland Port",
+			Year:        "1999",
+			AccentColor: "#10b981",
+			Tags:        []string{"3D", "Matrix", "OpenGL", "Cyberpunk", "Classic"},
+			Description: "3D rendering of the dropping katakana glyph code from The Matrix with volumetric phosphor glow, depth fog, and camera drift.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "Fall Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 3.0, Step: 0.1, LowLabel: "Slow", HighLabel: "Warp"},
+				{ID: "density", Label: "Stream Density", Type: models.ParamRange, Default: 75.0, Min: 20.0, Max: 160.0, Step: 5.0, LowLabel: "Sparse", HighLabel: "Dense"},
+				{ID: "mode3d", Label: "3D Camera Sway & Depth", Type: models.ParamBoolean, Default: true},
+				{ID: "colorMode", Label: "Phosphor Palette", Type: models.ParamSelect, Default: "matrix", Options: []models.SelectOption{
+					{Label: "Matrix Emerald (P31)", Value: "matrix"},
+					{Label: "Amber Terminal (P3)", Value: "amber"},
+					{Label: "Cyber Cyan", Value: "cyan"},
+					{Label: "Crimson Red", Value: "red"},
+				}},
+				{ID: "glow", Label: "CRT Bloom Intensity", Type: models.ParamRange, Default: 0.8, Min: 0.0, Max: 1.5, Step: 0.1},
+			},
+		},
+		{
+			ID:          "flurry",
+			Name:        "Flurry",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Calum Robinson (2002) / XScreenSaver",
+			Year:        "2002",
+			AccentColor: "#ec4899",
+			Tags:        []string{"Particles", "Glow", "OpenGL", "Smooth"},
+			Description: "Luminous multi-stream particle smoke trails swirling around an oscillating gravitational attractor with additive color blending.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "streams", Label: "Smoke Streams", Type: models.ParamRange, Default: 5.0, Min: 1.0, Max: 12.0, Step: 1.0},
+				{ID: "speed", Label: "Turbulence Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 2.5, Step: 0.1},
+				{ID: "preset", Label: "Color Preset", Type: models.ParamSelect, Default: "rainbow", Options: []models.SelectOption{
+					{Label: "Classic Rainbow", Value: "rainbow"},
+					{Label: "Fire & Ember", Value: "fire"},
+					{Label: "Deep Ocean", Value: "water"},
+					{Label: "Psychedelic", Value: "psychedelic"},
+				}},
+				{ID: "trailLength", Label: "Persistence / Trail", Type: models.ParamRange, Default: 0.92, Min: 0.75, Max: 0.98, Step: 0.01},
+			},
+		},
+		{
+			ID:          "pipes3d",
+			Name:        "3D Pipes",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "SGI / Marcelo Vianna (1997)",
+			Year:        "1997",
+			AccentColor: "#3b82f6",
+			Tags:        []string{"3D", "Retro", "Geometry", "SGI"},
+			Description: "Self-building 3D metallic plumbing networks with ball joints, 90-degree elbows, valves, and occasional Utah teapot Easter eggs.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "pipeCount", Label: "Concurrent Pipe Builders", Type: models.ParamRange, Default: 4.0, Min: 1.0, Max: 8.0, Step: 1.0},
+				{ID: "speed", Label: "Growth Speed", Type: models.ParamRange, Default: 1.2, Min: 0.3, Max: 3.0, Step: 0.1},
+				{ID: "gridSize", Label: "3D Lattice Size", Type: models.ParamRange, Default: 14.0, Min: 8.0, Max: 22.0, Step: 2.0},
+				{ID: "rotateCamera", Label: "Orbiting 3D Camera", Type: models.ParamBoolean, Default: true},
+				{ID: "joints", Label: "Ball Joints at Elbows", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "boing",
+			Name:        "Amiga Boing",
+			Category:    "Retro & Whimsical",
+			Source:      models.SourceNative,
+			Author:      "RJ Mical & Dale Luck (1984) / Jamie Zawinski",
+			Year:        "1984",
+			AccentColor: "#ef4444",
+			Tags:        []string{"Amiga", "3D", "Retro", "1984"},
+			Description: "Faithful recreation of the iconic 1984 Amiga 1000 bouncing red-and-white checkered sphere with purple wireframe room grid and drop shadow.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "Bounce Velocity", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1},
+				{ID: "spinSpeed", Label: "Sphere Rotation", Type: models.ParamRange, Default: 1.0, Min: 0.1, Max: 3.0, Step: 0.1},
+				{ID: "showGrid", Label: "Amiga Wireframe Grid", Type: models.ParamBoolean, Default: true},
+				{ID: "scanlines", Label: "CRT Scanlines", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "flyingtoasters",
+			Name:        "Flying Toasters",
+			Category:    "Retro & Whimsical",
+			Source:      models.SourceNative,
+			Author:      "Berkeley Systems (1989) / Jamie Zawinski",
+			Year:        "1989",
+			AccentColor: "#f59e0b",
+			Tags:        []string{"After Dark", "Retro", "Whimsical", "3D"},
+			Description: "Chrome 3D/isometric winged toasters with flapping feather wings and freshly toasted bread slices soaring through the midnight sky.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "toasters", Label: "Toaster Count", Type: models.ParamRange, Default: 14.0, Min: 4.0, Max: 35.0, Step: 1.0},
+				{ID: "toast", Label: "Slices of Toast", Type: models.ParamRange, Default: 12.0, Min: 0.0, Max: 30.0, Step: 1.0},
+				{ID: "speed", Label: "Flight Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1},
+				{ID: "toastiness", Label: "Toast Darkness", Type: models.ParamSelect, Default: "golden", Options: []models.SelectOption{
+					{Label: "Lightly Warm", Value: "light"},
+					{Label: "Golden Brown", Value: "golden"},
+					{Label: "Extra Crispy", Value: "dark"},
+				}},
+			},
+		},
+		{
+			ID:          "starwars",
+			Name:        "StarWars Crawl",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski & Claudio Mata (1998)",
+			Year:        "1998",
+			AccentColor: "#eab308",
+			Tags:        []string{"3D", "Text", "Space", "Classic"},
+			Description: "Perspective-warped golden text receding into a deep starfield, streaming live system logs, kernel release notes, or custom lore.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "Scroll Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 3.0, Step: 0.1},
+				{ID: "stars", Label: "Background Stars", Type: models.ParamRange, Default: 400.0, Min: 100.0, Max: 1000.0, Step: 50.0},
+				{ID: "textSource", Label: "Text Source", Type: models.ParamSelect, Default: "unix_lore", Options: []models.SelectOption{
+					{Label: "Unix & Wayland Rebellion Lore", Value: "unix_lore"},
+					{Label: "System Kernel & Uptime Status", Value: "system"},
+					{Label: "Hacker Jargon File", Value: "jargon"},
+				}},
+			},
+		},
+		{
+			ID:          "geodesicgears",
+			Name:        "Geodesic Gears",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Brian Paul / Jamie Zawinski (glxgears / pinion)",
+			Year:        "1999",
+			AccentColor: "#06b6d4",
+			Tags:        []string{"3D", "Mechanical", "Gears", "OpenGL"},
+			Description: "Precision-meshed 3D planetary and involute gears rotating in synchronized mechanical harmony with specular metallic shading.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "RPM Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 3.0, Step: 0.1},
+				{ID: "gearCount", Label: "Gear Complexity", Type: models.ParamRange, Default: 9.0, Min: 3.0, Max: 18.0, Step: 1.0},
+				{ID: "wireframe", Label: "CAD Blueprint Wireframe", Type: models.ParamBoolean, Default: false},
+			},
+		},
+		{
+			ID:          "attractors",
+			Name:        "Strange Attractors",
+			Category:    "Space & Physics",
+			Source:      models.SourceNative,
+			Author:      "Paul Bourke / Jamie Zawinski",
+			Year:        "1997",
+			AccentColor: "#a855f7",
+			Tags:        []string{"Chaos", "Math", "3D", "Physics"},
+			Description: "Real-time Runge-Kutta integration of 3D chaotic differential equations (Lorenz, Rössler, Aizawa, and Thomas attractors) with glowing ribbon trails.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "system", Label: "Chaotic System", Type: models.ParamSelect, Default: "lorenz", Options: []models.SelectOption{
+					{Label: "Lorenz Butterfly", Value: "lorenz"},
+					{Label: "Aizawa Sphere", Value: "aizawa"},
+					{Label: "Thomas Cyclically Symmetric", Value: "thomas"},
+					{Label: "Rössler Attractor", Value: "rossler"},
+				}},
+				{ID: "particles", Label: "Particle Count", Type: models.ParamRange, Default: 1200.0, Min: 200.0, Max: 3000.0, Step: 100.0},
+				{ID: "speed", Label: "Integration Timestep", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 2.5, Step: 0.1},
+			},
+		},
+		{
+			ID:          "hyperspace",
+			Name:        "Hyperspace",
+			Category:    "Space & Physics",
+			Source:      models.SourceNative,
+			Author:      "Terence M. Welsh (2001) / XScreenSaver",
+			Year:        "2001",
+			AccentColor: "#6366f1",
+			Tags:        []string{"Space", "Warp", "3D", "Shaders"},
+			Description: "Hurtling through a relativistic cosmic wormhole with volumetric nebula clouds, Doppler-shifted star streaks, and relativistic aberration.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "warpSpeed", Label: "Warp Velocity", Type: models.ParamRange, Default: 1.2, Min: 0.2, Max: 4.0, Step: 0.1},
+				{ID: "starCount", Label: "Star Density", Type: models.ParamRange, Default: 800.0, Min: 200.0, Max: 2000.0, Step: 100.0},
+				{ID: "nebula", Label: "Cosmic Nebula Tunnel", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "maze3d",
+			Name:        "3D Maze",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "SGI / Windows 95 / XScreenSaver",
+			Year:        "1995",
+			AccentColor: "#d97706",
+			Tags:        []string{"3D", "Raycaster", "Retro", "1995"},
+			Description: "First-person raycasted/3D navigation through a procedurally generated brick labyrinth with floating polyhedra, ceiling lights, and 180-degree turns.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "Walk Speed", Type: models.ParamRange, Default: 1.0, Min: 0.4, Max: 2.5, Step: 0.1},
+				{ID: "wallTheme", Label: "Wall Texture Theme", Type: models.ParamSelect, Default: "brick", Options: []models.SelectOption{
+					{Label: "Classic 1995 Red Brick", Value: "brick"},
+					{Label: "Dungeon Stone", Value: "stone"},
+					{Label: "Sci-Fi Cyber Grid", Value: "cyber"},
+				}},
+				{ID: "minimap", Label: "Show Corner Automap", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "sonar",
+			Name:        "Sonar Radar",
+			Category:    "Matrix & Cyber",
+			Source:      models.SourceNative,
+			Author:      "Stephen Martin & Jamie Zawinski (1998)",
+			Year:        "1998",
+			AccentColor: "#22c55e",
+			Tags:        []string{"Radar", "Network", "System", "Retro"},
+			Description: "P7 long-persistence phosphor radar scope sweeping 360 degrees to plot real live Linux processes, CPU usage, and local network neighbors.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "sweepSpeed", Label: "Sweep RPM", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 3.0, Step: 0.1},
+				{ID: "targetMode", Label: "Radar Targets", Type: models.ParamSelect, Default: "both", Options: []models.SelectOption{
+					{Label: "Processes + Local Subnet Hosts", Value: "both"},
+					{Label: "Active Linux Processes Only", Value: "processes"},
+					{Label: "Local Network ARP/Ping Only", Value: "network"},
+				}},
+				{ID: "showLabels", Label: "Target Callsign Labels", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "xanalogtv",
+			Name:        "XAnalogTV",
+			Category:    "Matrix & Cyber",
+			Source:      models.SourceNative,
+			Author:      "Trevor Blackwell & Jamie Zawinski (2003)",
+			Year:        "2003",
+			AccentColor: "#38bdf8",
+			Tags:        []string{"CRT", "Analog", "Retro", "Glitch"},
+			Description: "Detailed simulation of an aging analog NTSC cathode-ray tube television surfing between SMPTE color bars, Indian-head test patterns, and RF static.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "noise", Label: "RF Snow / Static", Type: models.ParamRange, Default: 0.25, Min: 0.0, Max: 1.0, Step: 0.05},
+				{ID: "channelFlip", Label: "Auto Channel Surfing", Type: models.ParamBoolean, Default: true},
+				{ID: "curvature", Label: "CRT Barrel Distortion", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "bsod",
+			Name:        "BSOD (Crash Screens)",
+			Category:    "Retro & Whimsical",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski (1998)",
+			Year:        "1998",
+			AccentColor: "#2563eb",
+			Tags:        []string{"Retro", "Humor", "OS", "Classic"},
+			Description: "Cycles through authentic historical operating system crash screens: Amiga Guru Meditation, Windows NT BSOD, Classic Mac Sad Mac, Linux Kernel Panic, and Solaris.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "osChoice", Label: "Crash System", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
+					{Label: "Cycle All Classic OSes", Value: "cycle"},
+					{Label: "Amiga Guru Meditation", Value: "amiga"},
+					{Label: "Windows NT 4.0 / 98 BSOD", Value: "windows"},
+					{Label: "Linux Kernel Panic (Oops)", Value: "linux"},
+					{Label: "Macintosh Sad Mac (0F0064)", Value: "mac"},
+				}},
+				{ID: "interval", Label: "Hold Duration (sec)", Type: models.ParamRange, Default: 12.0, Min: 5.0, Max: 60.0, Step: 1.0},
+			},
+		},
+		{
+			ID:          "epicycle",
+			Name:        "Epicycle",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "James Youngman (1998)",
+			Year:        "1998",
+			AccentColor: "#f43f5e",
+			Tags:        []string{"Math", "Geometric", "Fourier", "2D"},
+			Description: "Ptolemaic system of nested rotating circles (Fourier epicycles) tracing intricate, glowing Lissajous and Spirograph-like harmonic curves.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "harmonics", Label: "Epicycle Circles", Type: models.ParamRange, Default: 6.0, Min: 2.0, Max: 14.0, Step: 1.0},
+				{ID: "speed", Label: "Angular Velocity", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 3.0, Step: 0.1},
+				{ID: "showArms", Label: "Show Epicycle Radii & Gears", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "mandelbrot",
+			Name:        "Mandelbrot Deep Zoom",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "Benoit Mandelbrot / XScreenSaver (2000)",
+			Year:        "2000",
+			AccentColor: "#c084fc",
+			Tags:        []string{"Fractal", "Math", "Shaders", "Infinite"},
+			Description: "Continuous smooth-shaded fractal explorer zooming infinitely into Seahorse Valley, Elephant Valley, and spiraling Julia sets.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "Zoom Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 3.0, Step: 0.1},
+				{ID: "palette", Label: "Color Map", Type: models.ParamSelect, Default: "electric", Options: []models.SelectOption{
+					{Label: "Electric Ultra", Value: "electric"},
+					{Label: "Magma Gold", Value: "gold"},
+					{Label: "Psychedelic Cycle", Value: "rainbow"},
+				}},
+				{ID: "juliaMorph", Label: "Julia Set Morphing Mode", Type: models.ParamBoolean, Default: false},
+			},
+		},
+		{
+			ID:          "galaxy",
+			Name:        "Galaxy Collision",
+			Category:    "Space & Physics",
+			Source:      models.SourceNative,
+			Author:      "Uli Siegmund & Harald Backert (1994)",
+			Year:        "1994",
+			AccentColor: "#818cf8",
+			Tags:        []string{"Astrophysics", "N-Body", "3D", "Space"},
+			Description: "N-body gravitational simulation of spinning spiral galaxies colliding, ripping tidal tails of stars across intergalactic space.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "galaxies", Label: "Number of Galaxies", Type: models.ParamRange, Default: 3.0, Min: 2.0, Max: 5.0, Step: 1.0},
+				{ID: "starsPerGalaxy", Label: "Stars per Galaxy", Type: models.ParamRange, Default: 600.0, Min: 200.0, Max: 1500.0, Step: 100.0},
+				{ID: "speed", Label: "Simulation Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1},
+			},
+		},
+		{
+			ID:          "gameoflife",
+			Name:        "Conway's Game of Life",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "John Horton Conway (1970) / XScreenSaver",
+			Year:        "1970",
+			AccentColor: "#14b8a6",
+			Tags:        []string{"Cellular Automata", "Math", "Grid", "Classic"},
+			Description: "High-speed cellular automaton seeded with Gosper glider guns, spaceships, pulsars, and r-pentominoes with thermal age coloring.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "cellSize", Label: "Cell Size (px)", Type: models.ParamRange, Default: 8.0, Min: 4.0, Max: 20.0, Step: 2.0},
+				{ID: "speed", Label: "Generations / Sec", Type: models.ParamRange, Default: 20.0, Min: 5.0, Max: 60.0, Step: 5.0},
+				{ID: "autoSeed", Label: "Inject Glider Guns Periodically", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "pyro",
+			Name:        "Pyro Fireworks",
+			Category:    "Space & Physics",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski (1992)",
+			Year:        "1992",
+			AccentColor: "#fb923c",
+			Tags:        []string{"Particles", "Physics", "Classic", "1992"},
+			Description: "One of the earliest XScreenSaver modules (1992): ballistic aerial shells bursting into chrysantheum, willow, and double-ring star cascades.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "frequency", Label: "Launch Rate", Type: models.ParamRange, Default: 1.2, Min: 0.3, Max: 3.0, Step: 0.1},
+				{ID: "particles", Label: "Sparks per Shell", Type: models.ParamRange, Default: 120.0, Min: 40.0, Max: 250.0, Step: 20.0},
+				{ID: "gravity", Label: "Gravity Strength", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.0, Step: 0.1},
+			},
+		},
+		{
+			ID:          "rorschach",
+			Name:        "Rorschach Inkblots",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski (1992)",
+			Year:        "1992",
+			AccentColor: "#94a3b8",
+			Tags:        []string{"Fractal", "Symmetry", "Organic", "1992"},
+			Description: "Simulates psychological inkblot test cards via bilateral fractal Brownian motion walks that slowly morph and dissolve.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "complexity", Label: "Iteration Depth", Type: models.ParamRange, Default: 7.0, Min: 3.0, Max: 12.0, Step: 1.0},
+				{ID: "quadSymmetry", Label: "4-Way Kaleidoscope Symmetry", Type: models.ParamBoolean, Default: false},
+				{ID: "colored", Label: "Chromatic Ink Palette", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "mystify",
+			Name:        "Mystify / Qix",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "Randyell / Keith Packard / Jamie Zawinski",
+			Year:        "1991",
+			AccentColor: "#34d399",
+			Tags:        []string{"Lines", "Retro", "Vector", "Neon"},
+			Description: "Bouncing geometric neon polygon ribbons ricocheting across the display with phosphor persistence trails.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "polygons", Label: "Polygon Count", Type: models.ParamRange, Default: 3.0, Min: 1.0, Max: 6.0, Step: 1.0},
+				{ID: "vertices", Label: "Vertices per Polygon", Type: models.ParamRange, Default: 4.0, Min: 2.0, Max: 8.0, Step: 1.0},
+				{ID: "trailCount", Label: "Echo Trail Lines", Type: models.ParamRange, Default: 18.0, Min: 4.0, Max: 45.0, Step: 2.0},
+				{ID: "speed", Label: "Bounce Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 3.0, Step: 0.1},
+			},
+		},
+		{
+			ID:          "molecule",
+			Name:        "Molecule 3D",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski (2001)",
+			Year:        "2001",
+			AccentColor: "#2dd4bf",
+			Tags:        []string{"Chemistry", "3D", "Science", "OpenGL"},
+			Description: "3D CPK ball-and-stick molecular structure renderer rotating organic compounds: Buckminsterfullerene (C60), Caffeine, DNA Double Helix, and Benzene.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "compound", Label: "Molecule Structure", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
+					{Label: "Cycle All Molecules", Value: "cycle"},
+					{Label: "Buckyball (C60 Fullerene)", Value: "buckyball"},
+					{Label: "DNA Double Helix", Value: "dna"},
+					{Label: "Caffeine (C8H10N4O2)", Value: "caffeine"},
+					{Label: "Diamond Crystal Lattice", Value: "diamond"},
+				}},
+				{ID: "spinSpeed", Label: "Rotation Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 3.0, Step: 0.1},
+				{ID: "showLabels", Label: "Atom Element Symbols", Type: models.ParamBoolean, Default: true},
+			},
+		},
+		{
+			ID:          "phosphor",
+			Name:        "Phosphor Terminal",
+			Category:    "Matrix & Cyber",
+			Source:      models.SourceNative,
+			Author:      "Jamie Zawinski (1999)",
+			Year:        "1999",
+			AccentColor: "#4ade80",
+			Tags:        []string{"Terminal", "CRT", "Retro", "Unix"},
+			Description: "Vintage glass-teletype terminal emulator with decaying P1 green or P3 amber phosphor typing live system telemetry and classic Unix documentation at 300–9600 baud.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "baud", Label: "Baud Rate Speed", Type: models.ParamRange, Default: 2400.0, Min: 300.0, Max: 9600.0, Step: 300.0},
+				{ID: "phosphorColor", Label: "CRT Tube Type", Type: models.ParamSelect, Default: "green", Options: []models.SelectOption{
+					{Label: "DEC VT100 Green (P1)", Value: "green"},
+					{Label: "IBM 3278 Amber (P3)", Value: "amber"},
+					{Label: "Paper White (P4)", Value: "white"},
+				}},
+				{ID: "fontScale", Label: "Character Scale", Type: models.ParamRange, Default: 1.0, Min: 0.7, Max: 1.8, Step: 0.1},
+			},
+		},
+	}
+}
+
+// BuiltinScreensavers returns all 22 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
+func BuiltinScreensavers() []models.Screensaver {
+	list := BuiltinSavers()
+	for i := range list {
+		if list[i].Engine == "" {
+			list[i].Engine = string(list[i].Source)
+			if list[i].Engine == "" {
+				list[i].Engine = "native"
+			}
+		}
+		if list[i].PreviewGrad == "" {
+			accent := list[i].AccentColor
+			if accent == "" {
+				accent = "#0ea5e9"
+			}
+			list[i].PreviewGrad = "linear-gradient(135deg, #090d16 0%, " + accent + " 100%)"
+		}
+		for pIdx := range list[i].Params {
+			for oIdx := range list[i].Params[pIdx].Options {
+				opt := &list[i].Params[pIdx].Options[oIdx]
+				if opt.ID == "" {
+					opt.ID = opt.Value
+				}
+				if opt.Value == "" {
+					opt.Value = opt.ID
+				}
+			}
+		}
+	}
+	return list
+}
+
