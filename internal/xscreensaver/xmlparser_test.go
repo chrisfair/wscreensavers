@@ -1,8 +1,12 @@
 package xscreensaver
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+	"wscreensavers/internal/models"
 )
 
 const sampleGLMatrixXML = `<?xml version="1.0" encoding="ISO-8859-1"?>
@@ -26,6 +30,7 @@ const sampleGLMatrixXML = `<?xml version="1.0" encoding="ISO-8859-1"?>
     <boolean id="fog" _label="Fog" arg-unset="-no-fog"/>
     <boolean id="waves" _label="Waves" arg-unset="-no-waves"/>
     <boolean id="rotate" _label="Rotate" arg-unset="-no-rotate"/>
+    <string id="title" _label="Title" arg="-title %"/>
     <select id="mode">
       <option id="matrix" _label="Matrix" />
       <option id="dna"    _label="DNA"       arg-set="-mode dna"/>
@@ -54,8 +59,8 @@ func TestParseXMLReaderAndBuildArgs(t *testing.T) {
 	if saver.Category != "XScreenSaver OpenGL" {
 		t.Errorf("expected Category XScreenSaver OpenGL, got %s", saver.Category)
 	}
-	if len(saver.Params) != 7 {
-		t.Fatalf("expected 7 parameters, got %d", len(saver.Params))
+	if len(saver.Params) != 8 {
+		t.Fatalf("expected 8 parameters, got %d", len(saver.Params))
 	}
 
 	args := BuildCommandArgs(*saver, map[string]any{
@@ -64,6 +69,7 @@ func TestParseXMLReaderAndBuildArgs(t *testing.T) {
 		"density": float64(45),
 		"fog":     false,
 		"waves":   true,
+		"title":   "Wayland",
 		"mode":    "dna",
 	})
 
@@ -74,11 +80,55 @@ func TestParseXMLReaderAndBuildArgs(t *testing.T) {
 		"-speed 2.5",
 		"-density 45",
 		"-no-fog",
+		"-title Wayland",
 		"-mode dna",
 	}
 	for _, sub := range expectedSubstrings {
 		if !strings.Contains(joined, sub) {
 			t.Errorf("expected CLI args %q to contain %q", joined, sub)
 		}
+	}
+}
+
+func TestDiscoverAndRunner(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgDir := filepath.Join(tmpDir, "config")
+	binDir := filepath.Join(tmpDir, "bin")
+	_ = os.MkdirAll(cfgDir, 0755)
+	_ = os.MkdirAll(binDir, 0755)
+
+	xmlFile := filepath.Join(cfgDir, "glmatrix.xml")
+	_ = os.WriteFile(xmlFile, []byte(sampleGLMatrixXML), 0644)
+
+	binFile := filepath.Join(binDir, "glmatrix")
+	_ = os.WriteFile(binFile, []byte("#!/bin/sh\nsleep 5\n"), 0755)
+
+	origCfg := DefaultConfigDirs
+	origBin := DefaultBinaryDirs
+	DefaultConfigDirs = []string{cfgDir}
+	DefaultBinaryDirs = []string{binDir}
+	defer func() {
+		DefaultConfigDirs = origCfg
+		DefaultBinaryDirs = origBin
+	}()
+
+	discovered := DiscoverSystemXScreenSavers(map[string]bool{"glmatrix": true})
+	if len(discovered) != 1 {
+		t.Fatalf("expected 1 discovered xscreensaver, got %d", len(discovered))
+	}
+	if !strings.Contains(discovered[0].Name, "(X11 Binary)") {
+		t.Errorf("expected disambiguated name, got %s", discovered[0].Name)
+	}
+
+	runner := NewRunner()
+	pid, err := runner.Launch(discovered[0], map[string]any{"speed": 1.0}, "test")
+	if err != nil || pid <= 0 {
+		t.Fatalf("expected runner to launch mock binary, got pid=%d err=%v", pid, err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	runner.StopAll()
+
+	if _, err := runner.Launch(models.Screensaver{ID: "empty"}, nil, "fail"); err == nil {
+		t.Errorf("expected error when launching saver with empty BinaryPath")
 	}
 }

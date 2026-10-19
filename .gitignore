@@ -3,4 +3,6 @@
 /frontend/dist/
 /pkg/
 /src/
-*.pkg.tar.zst
+/coverage.out
+/coverage.html
+*.pkg.tar*
