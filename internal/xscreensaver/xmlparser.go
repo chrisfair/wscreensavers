@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -112,7 +113,14 @@ func ParseXMLReader(r io.Reader, binaryPath string) (*models.Screensaver, error)
 
 	category := "XScreenSaver Classic"
 	tags := []string{"xscreensaver", "external"}
-	if raw.GL == "yes" || raw.GL == "true" {
+	isRSS := false
+	for _, n := range raw.RawChildren {
+		if n.XMLName.Local == "command" && n.attr("arg") == "-r" {
+			isRSS = true
+			break
+		}
+	}
+	if raw.GL == "yes" || raw.GL == "true" || isRSS {
 		category = "XScreenSaver OpenGL"
 		tags = append(tags, "opengl", "3d")
 	}
@@ -135,7 +143,8 @@ func ParseXMLReader(r io.Reader, binaryPath string) (*models.Screensaver, error)
 		Year:        "1992-2026",
 		Engine:      "xscreensaver",
 		BinaryPath:  binaryPath,
-		PreviewGrad: computeGradientForName(raw.Name, raw.GL == "yes"),
+		BaseArgs:    baseArgs,
+		PreviewGrad: computeGradientForName(raw.Name, raw.GL == "yes" || isRSS),
 		Tags:        tags,
 		Params:      params,
 	}, nil
@@ -167,10 +176,9 @@ func extractParams(nodes []xmlNode, params *[]models.SaverParam, baseArgs *[]str
 			high, _ := strconv.ParseFloat(n.attr("high"), 64)
 			def, _ := strconv.ParseFloat(n.attr("default"), 64)
 			step := 1.0
-			if n.attr("type") == "slider" && (high-low) <= 10.0 && (high-low) > 0 {
-				if strings.Contains(n.attr("low"), ".") || strings.Contains(n.attr("high"), ".") || strings.Contains(n.attr("default"), ".") {
-					step = 0.05
-				}
+			isFloat := strings.Contains(n.attr("low"), ".") || strings.Contains(n.attr("high"), ".") || strings.Contains(n.attr("default"), ".")
+			if isFloat && (high-low) <= 20.0 && (high-low) > 0 {
+				step = 0.05
 			}
 			*params = append(*params, models.SaverParam{
 				ID:      id,
@@ -232,6 +240,7 @@ func extractParams(nodes []xmlNode, params *[]models.SaverParam, baseArgs *[]str
 				}
 				options = append(options, models.SelectOption{
 					ID:     optID,
+					Value:  optID,
 					Label:  optLabel,
 					ArgSet: argSet,
 				})
@@ -343,7 +352,7 @@ func DiscoverSystemXScreenSavers(existingNativeNames map[string]bool) []models.S
 				continue
 			}
 			if existingNativeNames != nil && existingNativeNames[strings.ToLower(baseName)] {
-				saver.Name = saver.Name + " (X11 Binary)"
+				saver.Name = saver.Name + " (XScreenSaver)"
 			}
 			discovered = append(discovered, *saver)
 		}
@@ -352,11 +361,14 @@ func DiscoverSystemXScreenSavers(existingNativeNames map[string]bool) []models.S
 }
 
 func findBinary(name string) string {
+	candidates := []string{name, name + "_rss"}
 	for _, dir := range DefaultBinaryDirs {
-		candidate := filepath.Join(dir, name)
-		info, err := os.Stat(candidate)
-		if err == nil && !info.IsDir() && (info.Mode()&0111 != 0) {
-			return candidate
+		for _, candName := range candidates {
+			candidate := filepath.Join(dir, candName)
+			info, err := os.Stat(candidate)
+			if err == nil && !info.IsDir() && (info.Mode()&0111 != 0) {
+				return candidate
+			}
 		}
 	}
 	return ""
@@ -365,12 +377,20 @@ func findBinary(name string) string {
 // BuildCommandArgs converts a Screensaver's parameter schema and user parameter map into CLI arguments.
 func BuildCommandArgs(saver models.Screensaver, values map[string]any) []string {
 	var args []string
-	args = append(args, "-root")
+	if len(saver.BaseArgs) > 0 {
+		args = append(args, saver.BaseArgs...)
+	} else {
+		args = append(args, "-root")
+	}
+
+	if len(values) == 0 {
+		return args
+	}
 
 	for _, p := range saver.Params {
 		val, exists := values[p.ID]
 		if !exists {
-			val = p.Default
+			continue
 		}
 
 		switch p.Type {
@@ -390,7 +410,12 @@ func BuildCommandArgs(saver models.Screensaver, values map[string]any) []string 
 			if p.Convert == "invert" {
 				num = p.Max + p.Min - num
 			}
-			formatted := strconv.FormatFloat(num, 'f', -1, 64)
+			var formatted string
+			if p.Step >= 1.0 && math.Mod(p.Min, 1.0) == 0 && math.Mod(p.Max, 1.0) == 0 {
+				formatted = strconv.Itoa(int(math.Round(num)))
+			} else {
+				formatted = strconv.FormatFloat(num, 'f', -1, 64)
+			}
 			parts := strings.Fields(strings.ReplaceAll(p.ArgFlag, "%", formatted))
 			args = append(args, parts...)
 

@@ -97,7 +97,7 @@ func (s *Server) PickRandomSaver() string {
 	return "glmatrix"
 }
 
-func (s *Server) StartHTTP(preferredAddr string) (string, error) {
+func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/savers", s.handleSavers)
 	mux.HandleFunc("/api/savers/", s.handleSaverAction)
@@ -118,6 +118,12 @@ func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 		mux.Handle("/", fileServer)
 	}
 
+	return corsMiddleware(mux)
+}
+
+func (s *Server) StartHTTP(preferredAddr string) (string, error) {
+	handler := s.Handler()
+
 	ln, err := net.Listen("tcp", preferredAddr)
 	if err != nil {
 		ln, err = net.Listen("tcp", "127.0.0.1:0")
@@ -130,7 +136,7 @@ func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 	s.baseURL = "http://" + s.listenAddr
 
 	go func() {
-		_ = http.Serve(ln, corsMiddleware(mux))
+		_ = http.Serve(ln, handler)
 	}()
 
 	// If wallpaper was enabled in saved config, launch it automatically

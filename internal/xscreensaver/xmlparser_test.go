@@ -116,7 +116,7 @@ func TestDiscoverAndRunner(t *testing.T) {
 	if len(discovered) != 1 {
 		t.Fatalf("expected 1 discovered xscreensaver, got %d", len(discovered))
 	}
-	if !strings.Contains(discovered[0].Name, "(X11 Binary)") {
+	if !strings.Contains(discovered[0].Name, "(XScreenSaver)") {
 		t.Errorf("expected disambiguated name, got %s", discovered[0].Name)
 	}
 

@@ -116,7 +116,8 @@ func main() {
 		MinWidth:  1024,
 		MinHeight: 680,
 		AssetServer: &assetserver.Options{
-			Assets: distFS,
+			Assets:  distFS,
+			Handler: srv.Handler(),
 		},
 		BackgroundColour: &options.RGBA{R: 9, G: 11, B: 17, A: 255},
 		OnStartup:        app.startup,
