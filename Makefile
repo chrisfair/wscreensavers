@@ -29,9 +29,10 @@ coverage: test
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "==> HTML coverage report written to coverage.html"
 
-pacman:
-	@echo "==> Building Arch Linux pacman package (runs build + check/tests + coverage)..."
-	makepkg -sf --noconfirm
+pacman: test
+	@echo "==> Building Arch Linux pacman package..."
+	rm -f $(APP_NAME)-*.pkg.tar*
+	makepkg -f -d --noconfirm
 	@echo ""
 	@echo "==> Built Pacman Package:"
 	@ls -lh $(APP_NAME)-*.pkg.tar*

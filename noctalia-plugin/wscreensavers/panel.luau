@@ -52,6 +52,8 @@ local CATEGORIES = {
   "Fractals & Shaders",
   "Math & Automata",
   "System & Telemetry",
+  "XScreenSaver OpenGL",
+  "XScreenSaver Classic",
 }
 
 local function tr(key)

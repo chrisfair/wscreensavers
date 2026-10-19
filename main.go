@@ -23,6 +23,7 @@ import (
 	"wscreensavers/internal/ctl"
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/layershell"
+	"wscreensavers/internal/xscreensaver"
 )
 
 //go:embed all:frontend/dist
@@ -69,8 +70,26 @@ func main() {
 
 	srv := api.NewServer(cfgMgr, distFS)
 
-	// Mode 1: Child or standalone Wayland Layer-Shell Overlay / Wallpaper
+	// Mode 1: Child or standalone Wayland Layer-Shell Overlay / Wallpaper / External XScreenSaver
 	if *saverMode || *lockMode || *wallpaperMode {
+		if *saverMode && !*lockMode && !*wallpaperMode {
+			cfg := cfgMgr.Get()
+			targetID := *saverIDFlag
+			if targetID == "" {
+				targetID = cfg.SelectedSaver
+			}
+			saver, found := srv.FindSaver(targetID)
+			if !found {
+				saver, found = srv.FindSaver("xss_" + targetID)
+			}
+			if found && saver.Engine == "xscreensaver" && saver.BinaryPath != "" {
+				params := cfg.SaverParams[saver.ID]
+				if err := xscreensaver.RunBlocking(saver, params); err == nil {
+					return
+				}
+			}
+		}
+
 		baseURL := *serverURLFlag
 		if baseURL == "" {
 			startedURL, err := srv.StartHTTP("127.0.0.1:0")

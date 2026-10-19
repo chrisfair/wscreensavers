@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"wscreensavers/internal/models"
 )
 
@@ -31,12 +34,17 @@ func (r *Runner) Launch(saver models.Screensaver, values map[string]any, key str
 
 	args := BuildCommandArgs(saver, values)
 	// Strip -root when launching standalone window on XWayland so the compositor can fullscreen it
-	filtered := make([]string, 0, len(args))
+	filtered := make([]string, 0, len(args)+2)
 	for _, a := range args {
 		if a != "-root" {
 			filtered = append(filtered, a)
 		}
 	}
+
+	// Apply dynamic Hyprland windowrule so the XScreenSaver window opens fullscreen
+	binBase := filepath.Base(saver.BinaryPath)
+	_ = exec.Command("hyprctl", "keyword", "windowrulev2", fmt.Sprintf("fullscreen,class:^(?i)(%s).*", binBase)).Run()
+	_ = exec.Command("hyprctl", "keyword", "windowrulev2", fmt.Sprintf("fullscreen,title:^(?i)(%s).*", binBase)).Run()
 
 	cmd := exec.Command(saver.BinaryPath, filtered...)
 	cmd.Env = os.Environ()
@@ -61,6 +69,51 @@ func (r *Runner) Launch(saver models.Screensaver, values map[string]any, key str
 	}()
 
 	return pid, nil
+}
+
+// RunBlocking launches an external XScreenSaver binary in fullscreen and waits until it exits
+// or the user moves the Wayland cursor.
+func RunBlocking(saver models.Screensaver, values map[string]any) error {
+	r := NewRunner()
+	_, err := r.Launch(saver, values, "blocking")
+	if err != nil {
+		return err
+	}
+	defer r.StopAll()
+
+	// Wait a brief grace period before arming cursor-motion dismiss
+	time.Sleep(900 * time.Millisecond)
+	initialPos := readCursorPos()
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		r.mu.Lock()
+		_, stillRunning := r.procs["blocking"]
+		r.mu.Unlock()
+		if !stillRunning {
+			return nil
+		}
+
+		curPos := readCursorPos()
+		if initialPos != "" && curPos != "" && curPos != initialPos {
+			r.StopAll()
+			return nil
+		}
+		if initialPos == "" && curPos != "" {
+			initialPos = curPos
+		}
+	}
+	return nil
+}
+
+func readCursorPos() string {
+	out, err := exec.Command("hyprctl", "cursorpos").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // Stop terminates a running external XScreenSaver binary by key.
