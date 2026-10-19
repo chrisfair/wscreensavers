@@ -6,7 +6,7 @@ pkgdesc="Native Wayland version of XScreenSaver with 22 built-in WebGL/Canvas po
 arch=('x86_64' 'aarch64')
 url="https://github.com/chrisfair/wscreensavers"
 license=('GPL-3.0-or-later')
-depends=('gtk3' 'webkit2gtk-4.1' 'gtk-layer-shell' 'pam' 'xscreensaver')
+depends=('gtk3' 'webkit2gtk-4.1' 'gtk-layer-shell' 'pam' 'xscreensaver' 'xorg-server-xvfb' 'ffmpeg')
 optdepends=(
   'wlr-randr: Multi-monitor output detection on wlroots compositors'
   'hyprlock: Optional external Wayland lock provider'

@@ -1,12 +1,27 @@
 <template>
   <div ref="containerRef" class="saver-canvas-wrap">
-    <canvas ref="canvasRef" class="saver-canvas"></canvas>
-    <div v-if="showFps" class="fps-badge">{{ currentFps }} FPS</div>
+    <!-- External /usr/lib/xscreensaver/* Live MJPEG Bridge -->
+    <template v-if="isExternalXSS">
+      <img
+        v-if="streamUrl"
+        :key="streamUrl"
+        :src="streamUrl"
+        class="saver-stream"
+        alt="XScreenSaver Live Stream"
+      />
+      <div class="xss-badge">XScreenSaver Binary &bull; Live Xvfb Bridge</div>
+    </template>
+
+    <!-- Native Built-In WebGL2 / Canvas2D Port -->
+    <template v-else>
+      <canvas ref="canvasRef" class="saver-canvas"></canvas>
+      <div v-if="showFps" class="fps-badge">{{ currentFps }} FPS</div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { createSaverInstance } from '../savers/index.js';
 
 const props = defineProps({
@@ -14,12 +29,22 @@ const props = defineProps({
   params: { type: Object, default: () => ({}) },
   telemetry: { type: Object, default: () => ({ blips: [], feed: [] }) },
   fpsCap: { type: Number, default: 60 },
-  showFps: { type: Boolean, default: false }
+  showFps: { type: Boolean, default: false },
+  apiBase: { type: String, default: '' }
 });
 
 const containerRef = ref(null);
 const canvasRef = ref(null);
 const currentFps = ref(60);
+const streamVersion = ref(0);
+
+const isExternalXSS = computed(() => (props.saverId || '').startsWith('xss_'));
+
+const streamUrl = computed(() => {
+  if (!isExternalXSS.value) return '';
+  const base = props.apiBase || '';
+  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&v=${streamVersion.value}`;
+});
 
 let animId = null;
 let instance = null;
@@ -27,6 +52,7 @@ let resizeObserver = null;
 let lastFrameTime = 0;
 let fpsFrames = 0;
 let fpsLastCheck = 0;
+let paramDebounceTimer = null;
 
 function syncSize() {
   const wrap = containerRef.value;
@@ -42,6 +68,11 @@ function syncSize() {
 }
 
 function initVisualizer() {
+  if (isExternalXSS.value) {
+    instance = null;
+    streamVersion.value++;
+    return;
+  }
   const cvs = canvasRef.value;
   if (!cvs) return;
   syncSize();
@@ -59,6 +90,7 @@ function initVisualizer() {
 
 function loop(timestamp) {
   animId = requestAnimationFrame(loop);
+  if (isExternalXSS.value) return;
 
   const cap = props.fpsCap > 0 ? props.fpsCap : 60;
   const minInterval = 1000 / cap;
@@ -81,8 +113,16 @@ function loop(timestamp) {
 }
 
 watch(() => props.saverId, () => {
-  initVisualizer();
+  setTimeout(initVisualizer, 10);
 });
+
+watch(() => props.params, () => {
+  if (!isExternalXSS.value) return;
+  if (paramDebounceTimer) clearTimeout(paramDebounceTimer);
+  paramDebounceTimer = setTimeout(() => {
+    streamVersion.value++;
+  }, 350);
+}, { deep: true });
 
 onMounted(() => {
   initVisualizer();
@@ -98,6 +138,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (animId) cancelAnimationFrame(animId);
   if (resizeObserver) resizeObserver.disconnect();
+  if (paramDebounceTimer) clearTimeout(paramDebounceTimer);
 });
 </script>
 
@@ -109,12 +150,15 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: #03050a;
 }
-.saver-canvas {
+.saver-canvas,
+.saver-stream {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: cover;
 }
-.fps-badge {
+.fps-badge,
+.xss-badge {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -127,5 +171,9 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;
+}
+.xss-badge {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
 }
 </style>

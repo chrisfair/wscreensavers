@@ -25,6 +25,7 @@ type Server struct {
 	cfgMgr      *config.Manager
 	idleMon     *idle.Monitor
 	xssRunner   *xscreensaver.Runner
+	xssStreamer *xscreensaver.Streamer
 	layerCtrl   *layershell.ProcessController
 	savers      []models.Screensaver
 	frontendFS  fs.FS
@@ -35,10 +36,11 @@ type Server struct {
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	idleMon := idle.NewMonitor()
 	srv := &Server{
-		cfgMgr:     cfgMgr,
-		idleMon:    idleMon,
-		xssRunner:  xscreensaver.NewRunner(),
-		frontendFS: frontendFS,
+		cfgMgr:      cfgMgr,
+		idleMon:     idleMon,
+		xssRunner:   xscreensaver.NewRunner(),
+		xssStreamer: xscreensaver.NewStreamer(),
+		frontendFS:  frontendFS,
 	}
 	srv.layerCtrl = layershell.NewProcessController(func() {
 		idleMon.SetScreensaverActive(false, false)
@@ -99,6 +101,7 @@ func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/savers", s.handleSavers)
 	mux.HandleFunc("/api/savers/", s.handleSaverAction)
+	mux.HandleFunc("/api/xss-stream", s.handleXSSStream)
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/monitors", s.handleMonitors)
 	mux.HandleFunc("/api/status", s.handleStatus)
@@ -155,16 +158,6 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 
 	if locked && cfg.LockProvider != "native" && cfg.LockProvider != "" {
 		return auth.TriggerExternalLocker(cfg.LockProvider)
-	}
-
-	saver, found := s.FindSaver(saverID)
-	if found && saver.Engine == "xscreensaver" && !locked {
-		params := cfg.SaverParams[saver.ID]
-		_, err := s.xssRunner.Launch(saver, params, "fullscreen")
-		if err == nil {
-			s.idleMon.SetScreensaverActive(true, false)
-			return nil
-		}
 	}
 
 	s.idleMon.SetScreensaverActive(true, locked)
@@ -235,6 +228,7 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 
 func (s *Server) Shutdown() {
 	s.xssRunner.StopAll()
+	s.xssStreamer.StopAll()
 	s.layerCtrl.StopAll()
 }
 
@@ -265,6 +259,25 @@ func (s *Server) handleSavers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.GetSavers())
+}
+
+func (s *Server) handleXSSStream(w http.ResponseWriter, r *http.Request) {
+	saverID := r.URL.Query().Get("saver")
+	if saverID == "" {
+		http.Error(w, "missing saver query parameter", http.StatusBadRequest)
+		return
+	}
+	saver, found := s.FindSaver(saverID)
+	if !found {
+		saver, found = s.FindSaver("xss_" + saverID)
+	}
+	if !found || saver.BinaryPath == "" {
+		http.Error(w, "xscreensaver binary not found", http.StatusNotFound)
+		return
+	}
+	cfg := s.cfgMgr.Get()
+	params := cfg.SaverParams[saver.ID]
+	s.xssStreamer.ServeMJPEG(w, r, saver, params, 30)
 }
 
 func (s *Server) handleSaverAction(w http.ResponseWriter, r *http.Request) {

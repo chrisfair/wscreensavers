@@ -7,6 +7,7 @@
       :telemetry="telemetry"
       :fps-cap="isWallpaperSurface ? (config.wallpaperFpsCap || 30) : 60"
       :show-fps="false"
+      :api-base="apiBase"
     />
     <LockScreenOverlay
       v-if="!isWallpaperSurface"
@@ -81,7 +82,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search {{ savers.length }} screensavers..."
+            :placeholder="`Search ${savers.length} screensavers...`"
           />
         </div>
 
@@ -131,6 +132,7 @@
               :telemetry="telemetry"
               :fps-cap="60"
               :show-fps="true"
+              :api-base="apiBase"
             />
             <div class="preview-overlay-bar">
               <div>
