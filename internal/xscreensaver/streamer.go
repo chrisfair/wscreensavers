@@ -1,6 +1,25 @@
 package xscreensaver
 
+/*
+#cgo pkg-config: x11
+#include <stdlib.h>
+#include <X11/Xlib.h>
+
+static void clear_x11_root(const char *display_name) {
+    Display *dpy = XOpenDisplay(display_name);
+    if (!dpy) return;
+    int scr = DefaultScreen(dpy);
+    Window root = RootWindow(dpy, scr);
+    XSetWindowBackground(dpy, root, BlackPixel(dpy, scr));
+    XClearWindow(dpy, root);
+    XFlush(dpy);
+    XCloseDisplay(dpy);
+}
+*/
+import "C"
+
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +28,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unsafe"
 	"wscreensavers/internal/models"
 )
 
@@ -16,26 +36,35 @@ import (
 // binary on its root window, streaming real-time MJPEG frames over HTTP to WebKit2GTK
 // surfaces (Control Center preview, Wayland Layer-Shell Overlay, Lock Screen, and Wallpaper).
 type Streamer struct {
-	mu          sync.Mutex
-	displayNum  int
-	width       int
-	height      int
-	xvfbCmd     *exec.Cmd
-	hackCmd     *exec.Cmd
-	activeSaver string
-	activeArgs  string
+	mu            sync.Mutex
+	streamMu      sync.Mutex
+	activeStreams map[string]context.CancelFunc
+	displayNum    int
+	width         int
+	height        int
+	xvfbCmd       *exec.Cmd
+	hackCmd       *exec.Cmd
+	activeSaver   string
+	activeArgs    string
 }
 
 func NewStreamer() *Streamer {
 	return &Streamer{
-		displayNum: 97,
-		width:      960,
-		height:     540,
+		activeStreams: make(map[string]context.CancelFunc),
+		displayNum:    97,
+		width:         960,
+		height:        540,
 	}
 }
 
 func (s *Streamer) displayString() string {
 	return fmt.Sprintf(":%d", s.displayNum)
+}
+
+func (s *Streamer) clearRootWindow() {
+	cDisp := C.CString(s.displayString())
+	defer C.free(unsafe.Pointer(cDisp))
+	C.clear_x11_root(cDisp)
 }
 
 func (s *Streamer) ensureXvfbLocked() error {
@@ -64,6 +93,7 @@ func (s *Streamer) ensureXvfbLocked() error {
 func (s *Streamer) stopHackLocked() {
 	if s.hackCmd != nil && s.hackCmd.Process != nil {
 		_ = syscall.Kill(-s.hackCmd.Process.Pid, syscall.SIGTERM)
+		_ = syscall.Kill(-s.hackCmd.Process.Pid, syscall.SIGKILL)
 		_ = s.hackCmd.Process.Kill()
 		_, _ = s.hackCmd.Process.Wait()
 	}
@@ -93,8 +123,8 @@ func (s *Streamer) EnsureRunning(saver models.Screensaver, values map[string]any
 	}
 
 	s.stopHackLocked()
+	s.clearRootWindow()
 
-	// Clear root window before starting new hack
 	cmd := exec.Command(saver.BinaryPath, args...)
 	env := os.Environ()
 	env = append(env, "DISPLAY="+s.displayString())
@@ -108,12 +138,64 @@ func (s *Streamer) EnsureRunning(saver models.Screensaver, values map[string]any
 	s.hackCmd = cmd
 	s.activeSaver = saver.ID
 	s.activeArgs = argsKey
-	time.Sleep(120 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	return nil
+}
+
+func (s *Streamer) registerClientStream(clientID string, parent context.Context) (context.Context, context.CancelFunc) {
+	if clientID == "" {
+		clientID = "default"
+	}
+	s.streamMu.Lock()
+	defer s.streamMu.Unlock()
+
+	if prevCancel, exists := s.activeStreams[clientID]; exists && prevCancel != nil {
+		prevCancel()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	s.activeStreams[clientID] = cancel
+	return ctx, cancel
+}
+
+func (s *Streamer) cancelAllStreams() {
+	s.streamMu.Lock()
+	defer s.streamMu.Unlock()
+	for k, cancel := range s.activeStreams {
+		if cancel != nil {
+			cancel()
+		}
+		delete(s.activeStreams, k)
+	}
+}
+
+// StopClient cancels any active stream for the given client ID and stops the running hack if no streams remain.
+func (s *Streamer) StopClient(clientID string) {
+	if clientID == "" {
+		clientID = "default"
+	}
+	s.streamMu.Lock()
+	if cancel, ok := s.activeStreams[clientID]; ok && cancel != nil {
+		cancel()
+		delete(s.activeStreams, clientID)
+	}
+	remaining := len(s.activeStreams)
+	s.streamMu.Unlock()
+
+	if remaining == 0 {
+		s.mu.Lock()
+		s.stopHackLocked()
+		s.activeSaver = ""
+		s.activeArgs = ""
+		s.mu.Unlock()
+	}
 }
 
 // ServeMJPEG streams live frames from the Xvfb display as multipart/x-mixed-replace MJPEG.
 func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver models.Screensaver, values map[string]any, fps int) {
+	clientID := r.URL.Query().Get("client")
+	streamCtx, cancelStream := s.registerClientStream(clientID, r.Context())
+	defer cancelStream()
+
 	if err := s.EnsureRunning(saver, values); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -131,7 +213,7 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 	size := fmt.Sprintf("%dx%d", s.width, s.height)
 	rate := fmt.Sprintf("%d", fps)
 
-	ffCmd := exec.CommandContext(r.Context(),
+	ffCmd := exec.CommandContext(streamCtx,
 		"ffmpeg",
 		"-loglevel", "error",
 		"-f", "x11grab",
@@ -153,9 +235,22 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 		return
 	}
 
+	doneCh := make(chan struct{})
+	go func() {
+		select {
+		case <-streamCtx.Done():
+			if ffCmd.Process != nil {
+				_ = syscall.Kill(-ffCmd.Process.Pid, syscall.SIGKILL)
+				_ = ffCmd.Process.Kill()
+			}
+		case <-doneCh:
+		}
+	}()
+
 	defer func() {
+		close(doneCh)
 		if ffCmd.Process != nil {
-			_ = syscall.Kill(-ffCmd.Process.Pid, syscall.SIGTERM)
+			_ = syscall.Kill(-ffCmd.Process.Pid, syscall.SIGKILL)
 			_ = ffCmd.Process.Kill()
 		}
 		_ = ffCmd.Wait()
@@ -166,12 +261,15 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 
 // StopAll terminates both the running XScreenSaver hack and the Xvfb server.
 func (s *Streamer) StopAll() {
+	s.cancelAllStreams()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.stopHackLocked()
 	if s.xvfbCmd != nil && s.xvfbCmd.Process != nil {
 		_ = syscall.Kill(-s.xvfbCmd.Process.Pid, syscall.SIGTERM)
+		_ = syscall.Kill(-s.xvfbCmd.Process.Pid, syscall.SIGKILL)
 		_ = s.xvfbCmd.Process.Kill()
 		_, _ = s.xvfbCmd.Process.Wait()
 	}

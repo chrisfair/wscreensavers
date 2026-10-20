@@ -4,7 +4,7 @@
     <template v-if="isExternalXSS">
       <img
         v-if="streamUrl"
-        :key="streamUrl"
+        ref="imgRef"
         :src="streamUrl"
         class="saver-stream"
         alt="XScreenSaver Live Stream"
@@ -12,16 +12,14 @@
       <div class="xss-badge">XScreenSaver Binary &bull; Live Xvfb Bridge</div>
     </template>
 
-    <!-- Native Built-In WebGL2 / Canvas2D Port -->
-    <template v-else>
-      <canvas ref="canvasRef" class="saver-canvas"></canvas>
-      <div v-if="showFps" class="fps-badge">{{ currentFps }} FPS</div>
-    </template>
+    <!-- Native Built-In WebGL2 / Canvas2D Port (kept mounted with v-show so canvasRef is always ready) -->
+    <canvas v-show="!isExternalXSS" ref="canvasRef" class="saver-canvas"></canvas>
+    <div v-if="!isExternalXSS && showFps" class="fps-badge">{{ currentFps }} FPS</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { createSaverInstance } from '../savers/index.js';
 
 const props = defineProps({
@@ -35,15 +33,17 @@ const props = defineProps({
 
 const containerRef = ref(null);
 const canvasRef = ref(null);
+const imgRef = ref(null);
 const currentFps = ref(60);
 const streamVersion = ref(0);
+const clientId = 'c_' + Math.random().toString(36).slice(2, 10);
 
 const isExternalXSS = computed(() => (props.saverId || '').startsWith('xss_'));
 
 const streamUrl = computed(() => {
   if (!isExternalXSS.value) return '';
   const base = props.apiBase || '';
-  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&v=${streamVersion.value}`;
+  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&client=${clientId}&v=${streamVersion.value}`;
 });
 
 let animId = null;
@@ -53,6 +53,8 @@ let lastFrameTime = 0;
 let fpsFrames = 0;
 let fpsLastCheck = 0;
 let paramDebounceTimer = null;
+let lastSaverIdForParams = props.saverId;
+let lastParamsJson = JSON.stringify(props.params || {});
 
 function syncSize() {
   const wrap = containerRef.value;
@@ -70,7 +72,6 @@ function syncSize() {
 function initVisualizer() {
   if (isExternalXSS.value) {
     instance = null;
-    streamVersion.value++;
     return;
   }
   const cvs = canvasRef.value;
@@ -112,11 +113,36 @@ function loop(timestamp) {
   }
 }
 
-watch(() => props.saverId, () => {
-  setTimeout(initVisualizer, 10);
+function stopRemoteStream() {
+  const base = props.apiBase || '';
+  fetch(`${base}/api/xss-stream?stop=1&client=${clientId}`).catch(() => {});
+}
+
+watch(() => props.saverId, async (newId, oldId) => {
+  lastSaverIdForParams = newId;
+  lastParamsJson = JSON.stringify(props.params || {});
+  if (paramDebounceTimer) {
+    clearTimeout(paramDebounceTimer);
+    paramDebounceTimer = null;
+  }
+  if ((oldId || '').startsWith('xss_') && !(newId || '').startsWith('xss_')) {
+    if (imgRef.value) imgRef.value.src = '';
+    stopRemoteStream();
+  }
+  await nextTick();
+  initVisualizer();
 });
 
-watch(() => props.params, () => {
+watch(() => props.params, (newParams) => {
+  const nextJson = JSON.stringify(newParams || {});
+  if (props.saverId !== lastSaverIdForParams) {
+    lastSaverIdForParams = props.saverId;
+    lastParamsJson = nextJson;
+    return;
+  }
+  if (nextJson === lastParamsJson) return;
+  lastParamsJson = nextJson;
+
   if (!isExternalXSS.value) return;
   if (paramDebounceTimer) clearTimeout(paramDebounceTimer);
   paramDebounceTimer = setTimeout(() => {
@@ -136,6 +162,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (imgRef.value) {
+    imgRef.value.src = '';
+  }
   if (animId) cancelAnimationFrame(animId);
   if (resizeObserver) resizeObserver.disconnect();
   if (paramDebounceTimer) clearTimeout(paramDebounceTimer);

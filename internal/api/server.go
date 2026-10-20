@@ -268,6 +268,11 @@ func (s *Server) handleSavers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleXSSStream(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("stop") == "1" {
+		s.xssStreamer.StopClient(r.URL.Query().Get("client"))
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	saverID := r.URL.Query().Get("saver")
 	if saverID == "" {
 		http.Error(w, "missing saver query parameter", http.StatusBadRequest)

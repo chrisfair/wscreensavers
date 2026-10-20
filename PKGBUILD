@@ -1,7 +1,7 @@
 # Maintainer: Christopher Fair <chrisfair@users.noreply.github.com>
 pkgname=wscreensavers
 pkgver=1.0.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Native Wayland version of XScreenSaver with 22 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
 arch=('x86_64' 'aarch64')
 url="https://github.com/chrisfair/wscreensavers"
