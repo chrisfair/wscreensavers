@@ -183,6 +183,7 @@ func (s *Server) StopScreensaver() {
 	s.xssRunner.StopAll()
 	s.layerCtrl.StopSaverOverlay()
 	s.idleMon.SetScreensaverActive(false, false)
+	s.idleMon.RecordActivity()
 }
 
 func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {

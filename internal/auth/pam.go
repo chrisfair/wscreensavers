@@ -54,12 +54,6 @@ static int verify_user_pam(const char *username, const char *password) {
         return retval;
     }
     retval = pam_authenticate(pamh, PAM_SILENT);
-    if (retval == PAM_SUCCESS) {
-        int acct = pam_acct_mgmt(pamh, PAM_SILENT);
-        if (acct != PAM_SUCCESS && acct != PAM_NEW_AUTHTOK_REQD) {
-            // Even if acct_mgmt requires elevated helper in some distros, pam_authenticate succeeded
-        }
-    }
     pam_end(pamh, retval);
     return retval;
 }

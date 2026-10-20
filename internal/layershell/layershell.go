@@ -8,28 +8,76 @@ package layershell
 #include <gtk-layer-shell/gtk-layer-shell.h>
 #include <stdlib.h>
 
+static int gtk_loop_active = 0;
+static GtkWidget *lock_windows[16];
+static int lock_window_count = 0;
+
+static gboolean quit_idle_cb(gpointer data) {
+    if (gtk_loop_active) {
+        gtk_loop_active = 0;
+        gtk_main_quit();
+    }
+    return FALSE;
+}
+
+static void request_gtk_quit(void) {
+    if (gtk_loop_active) {
+        g_idle_add(quit_idle_cb, NULL);
+    }
+}
+
+static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
+    if (!gtk_layer_is_supported()) return;
+    for (int i = 0; i < lock_window_count; i++) {
+        if (lock_windows[i] != NULL) {
+            gtk_layer_set_keyboard_mode(
+                GTK_WINDOW(lock_windows[i]),
+                (lock_windows[i] == target_win)
+                    ? GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
+                    : GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+            );
+        }
+    }
+    if (webview != NULL) {
+        gtk_widget_grab_focus(webview);
+    }
+}
+
+static gboolean on_lock_enter(GtkWidget *widget, GdkEventCrossing *event, gpointer user_data) {
+    GtkWidget *win = gtk_widget_get_toplevel(widget);
+    focus_lock_window(win, GTK_WIDGET(user_data));
+    return FALSE;
+}
+
+static gboolean on_lock_click(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
+    GtkWidget *win = gtk_widget_get_toplevel(widget);
+    focus_lock_window(win, GTK_WIDGET(user_data));
+    return FALSE;
+}
+
 static gboolean on_motion_dismiss(GtkWidget *widget, GdkEventMotion *event, gpointer user_data) {
     int *first_move = (int *)user_data;
     if (*first_move < 3) {
         (*first_move)++;
         return FALSE;
     }
-    gtk_main_quit();
+    request_gtk_quit();
     return TRUE;
 }
 
 static gboolean on_key_dismiss(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
-    gtk_main_quit();
+    request_gtk_quit();
     return TRUE;
 }
 
 static gboolean on_button_dismiss(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
-    gtk_main_quit();
+    request_gtk_quit();
     return TRUE;
 }
 
 static void launch_layer_windows(const char **urls, int url_count, int is_wallpaper, int is_locked) {
     gtk_init(NULL, NULL);
+    lock_window_count = 0;
 
     GdkDisplay *display = gdk_display_get_default();
     int n_monitors = 1;
@@ -40,9 +88,15 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
         }
     }
 
+    int primary_idx = n_monitors / 2;
+
     for (int i = 0; i < n_monitors; i++) {
         GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
+
+        if (is_locked && lock_window_count < 16) {
+            lock_windows[lock_window_count++] = window;
+        }
 
         if (gtk_layer_is_supported()) {
             gtk_layer_init_for_window(GTK_WINDOW(window));
@@ -64,7 +118,9 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
                 gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
                 gtk_layer_set_keyboard_mode(
                     GTK_WINDOW(window),
-                    is_locked ? GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE : GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+                    (is_locked && i == primary_idx)
+                        ? GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
+                        : GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
                 );
                 gtk_layer_set_namespace(GTK_WINDOW(window), is_locked ? "wscreensavers-lock" : "wscreensavers-saver");
             }
@@ -103,13 +159,25 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_dismiss), NULL);
             g_signal_connect(webview, "key-press-event", G_CALLBACK(on_key_dismiss), NULL);
             g_signal_connect(webview, "button-press-event", G_CALLBACK(on_button_dismiss), NULL);
+        } else if (is_locked) {
+            gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK);
+            gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK);
+            g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
+            g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
+            g_signal_connect(window, "button-press-event", G_CALLBACK(on_lock_click), webview);
+            g_signal_connect(webview, "button-press-event", G_CALLBACK(on_lock_click), webview);
         }
 
         g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
         gtk_widget_show_all(window);
+        if (is_locked && i == primary_idx) {
+            gtk_widget_grab_focus(webview);
+        }
     }
 
+    gtk_loop_active = 1;
     gtk_main();
+    gtk_loop_active = 0;
 }
 */
 import "C"
@@ -202,6 +270,7 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 }
 
 func (p *ProcessController) StopSaverOverlay() {
+	C.request_gtk_quit()
 	p.mu.Lock()
 	cmd := p.saverProc
 	p.saverProc = nil
