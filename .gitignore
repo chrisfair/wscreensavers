@@ -6,3 +6,5 @@
 /coverage.out
 /coverage.html
 *.pkg.tar*
+*.tar.gz
+
