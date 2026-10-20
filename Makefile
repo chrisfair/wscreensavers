@@ -70,6 +70,7 @@ install:
 	install -Dm644 wscreensavers.desktop "$(DESTDIR)$(DESKTOPDIR)/wscreensavers.desktop"
 	install -Dm644 wscreensavers.svg "$(DESTDIR)$(ICONDIR)/wscreensavers.svg"
 	install -Dm644 wscreensavers.service "$(DESTDIR)$(SYSTEMDUSERDIR)/wscreensavers.service"
+	install -Dm644 nag "$(DESTDIR)$(PREFIX)/share/wscreensavers/nag"
 
 clean:
 	rm -f $(APP_NAME) coverage.out coverage.html

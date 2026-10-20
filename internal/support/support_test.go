@@ -7,8 +7,17 @@ import (
 )
 
 func TestSupportManager_DefaultAndDismiss(t *testing.T) {
+	oldDetect := DetectAuthorFunc
+	DetectAuthorFunc = func() bool { return false }
+	defer func() { DetectAuthorFunc = oldDetect }()
+
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "support.json")
+	nagFile := filepath.Join(tmpDir, "nag")
+	_ = os.WriteFile(nagFile, []byte("nag"), 0o644)
+	oldNag := DefaultNagFilePath
+	DefaultNagFilePath = nagFile
+	defer func() { DefaultNagFilePath = oldNag }()
 
 	mgr, err := NewManager(cfgPath)
 	if err != nil {
@@ -22,6 +31,14 @@ func TestSupportManager_DefaultAndDismiss(t *testing.T) {
 	if st.MinAmountUSD != DefaultMinSupportUSD {
 		t.Fatalf("expected min amount %d, got %d", DefaultMinSupportUSD, st.MinAmountUSD)
 	}
+
+	// When nag file is deleted: nag is disabled!
+	_ = os.Remove(nagFile)
+	stDeleted := mgr.GetStatus([]string{"RandomUser"}, []string{"AnotherUser"})
+	if stDeleted.ShouldShowNag {
+		t.Fatalf("expected nag to be disabled when nag file is deleted")
+	}
+	_ = os.WriteFile(nagFile, []byte("nag"), 0o644)
 
 	stDismiss, err := mgr.DismissNag()
 	if err != nil {
@@ -92,7 +109,7 @@ func TestSupportManager_PricingTiers(t *testing.T) {
 	}
 
 	dur5, label5, life5 := CooldownForAmount(5)
-	if life5 || dur5 < 29*24*3600*1e9 || label5 != "$5 Knight (1 Month)" {
+	if life5 || dur5 < 360*24*3600*1e9 || label5 != "$5 Knight (1 Year)" {
 		t.Fatalf("$5 tier mismatch: dur=%v, label=%s, life=%v", dur5, label5, life5)
 	}
 

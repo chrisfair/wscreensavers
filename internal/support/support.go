@@ -6,16 +6,18 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+	"wscreensavers/internal/auth"
 )
 
 // Live Stripe Payment Link URLs (shared with NewScid and bughouse-online) for the 5 classic tiers.
 const (
 	StripeLink1USD   = "https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00" // $1 Pawn (1 Month)
-	StripeLink5USD   = "https://buy.stripe.com/cNidR2e262cEeiOdpCefC01" // $5 Knight (1 Month)
+	StripeLink5USD   = "https://buy.stripe.com/cNidR2e262cEeiOdpCefC01" // $5 Knight (1 Year)
 	StripeLink10USD  = "https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02" // $10 Rook (Good for Life)
 	StripeLink35USD  = "https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03" // $35 Queen (Super Thanks)
 	StripeLink350USD = "https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05" // $350 King (Super Thanks)
@@ -30,6 +32,25 @@ const DefaultMinSupportUSD = 1
 // NagCooldownDuration is the 24-hour period that a dismissed support prompt stays hidden before showing again once per day.
 const NagCooldownDuration = 24 * time.Hour
 
+// DefaultNagFilePath points to the package-installed nag file.
+var DefaultNagFilePath = "/usr/share/wscreensavers/nag"
+
+// HasNagFile returns true if the nag file exists. If the user deletes this file,
+// the startup reminder is completely disabled until restored on a package upgrade.
+func HasNagFile() bool {
+	if _, err := os.Stat(DefaultNagFilePath); err == nil {
+		return true
+	}
+	cfgDir, err := os.UserConfigDir()
+	if err == nil {
+		userNag := filepath.Join(cfgDir, "wscreensavers", "nag")
+		if _, err := os.Stat(userNag); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Canonical author handles used to form the author computer exemption ID.
 const (
 	AuthorChessComPrimary = "christopherfair"
@@ -42,12 +63,6 @@ const (
 func StripeURLForAmount(amountUSD int, customOverride string) string {
 	if clean := strings.TrimSpace(customOverride); clean != "" && clean != DefaultStripeSupportURL {
 		return clean
-	}
-	if envURL := strings.TrimSpace(os.Getenv("WSCREENSAVERS_STRIPE_URL")); envURL != "" {
-		return envURL
-	}
-	if envURL := strings.TrimSpace(os.Getenv("NEWSCID_STRIPE_URL")); envURL != "" {
-		return envURL
 	}
 	switch {
 	case amountUSD >= 350:
@@ -76,7 +91,7 @@ func CooldownForAmount(amountUSD int) (time.Duration, string, bool) {
 	case amountUSD >= 10:
 		return 0, "$10 Rook (Good for Life)", true
 	case amountUSD >= 5:
-		return 30 * 24 * time.Hour, "$5 Knight (1 Month)", false
+		return 365 * 24 * time.Hour, "$5 Knight (1 Year)", false
 	default:
 		return 30 * 24 * time.Hour, "$1 Pawn (1 Month)", false
 	}
@@ -162,12 +177,6 @@ func NewManager(configPath string) (*Manager, error) {
 }
 
 func resolveDefaultStripeURL() string {
-	if envURL := strings.TrimSpace(os.Getenv("WSCREENSAVERS_STRIPE_URL")); envURL != "" {
-		return envURL
-	}
-	if envURL := strings.TrimSpace(os.Getenv("NEWSCID_STRIPE_URL")); envURL != "" {
-		return envURL
-	}
 	return DefaultStripeSupportURL
 }
 
@@ -233,15 +242,44 @@ func BuildAuthorCompositeID(chessComIDs []string, lichessIDs []string) (bool, st
 	return true, composite, sig
 }
 
+// DetectAuthor checks if the current system user or git author matches Christopher Fair without requiring any env vars.
+func DetectAuthor() bool {
+	user := strings.ToLower(auth.CurrentUsername())
+	if user == "christopher" || user == "chrisfair" || user == "quenyen" {
+		return true
+	}
+	if out, err := exec.Command("git", "config", "user.email").Output(); err == nil {
+		email := strings.ToLower(strings.TrimSpace(string(out)))
+		if strings.Contains(email, "christopherpatrickfair") || strings.Contains(email, "chris.fair") {
+			return true
+		}
+	}
+	if out, err := exec.Command("git", "config", "user.name").Output(); err == nil {
+		name := strings.ToLower(strings.TrimSpace(string(out)))
+		if strings.Contains(name, "christopher fair") || strings.Contains(name, "christopher patrick fair") {
+			return true
+		}
+	}
+	return false
+}
+
+var DetectAuthorFunc = DetectAuthor
+
 // GetStatus evaluates current support status.
 func (m *Manager) GetStatus(chessComIDs []string, lichessIDs []string) SupportStatus {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	isAuthor, compositeID, sig := BuildAuthorCompositeID(chessComIDs, lichessIDs)
+	if !isAuthor && DetectAuthorFunc != nil && DetectAuthorFunc() {
+		isAuthor = true
+		compositeID = "author:christopher"
+		sig = "author_exempt"
+	}
 	if isAuthor && (!m.config.IsAuthor || m.config.AuthorID != compositeID) {
 		m.config.IsAuthor = true
 		m.config.Supported = true
+		m.config.IsLifetime = true
 		m.config.AuthorID = compositeID
 		if m.config.SupporterTier == "" {
 			m.config.SupporterTier = "Author"
@@ -264,7 +302,7 @@ func parseTierAmount(tier string) int {
 		return 35
 	case strings.Contains(clean, "10") || strings.Contains(clean, "rook") || strings.Contains(clean, "god") || strings.Contains(clean, "life"):
 		return 10
-	case strings.Contains(clean, "5") || strings.Contains(clean, "knight"):
+	case strings.Contains(clean, "5") || strings.Contains(clean, "knight") || strings.Contains(clean, "year"):
 		return 5
 	default:
 		return 1
@@ -365,9 +403,14 @@ func (m *Manager) buildStatusLocked(sig string) SupportStatus {
 		}
 	}
 
+	nagPresent := HasNagFile()
+	if !nagPresent {
+		activeSupport = true
+	}
+
 	return SupportStatus{
 		Supported:       activeSupport,
-		IsLifetime:      m.config.IsLifetime || m.config.IsAuthor,
+		IsLifetime:      m.config.IsLifetime || m.config.IsAuthor || !nagPresent,
 		IsAuthor:        m.config.IsAuthor,
 		AuthorID:        m.config.AuthorID,
 		DeviceSignature: sig,
@@ -385,6 +428,6 @@ func (m *Manager) buildStatusLocked(sig string) SupportStatus {
 			350: StripeLink350USD,
 		},
 		MinAmountUSD:  DefaultMinSupportUSD,
-		ShouldShowNag: !activeSupport && !inDailyCooldown,
+		ShouldShowNag: nagPresent && !activeSupport && !inDailyCooldown,
 	}
 }

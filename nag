@@ -1,0 +1,3 @@
+WScreenSavers Voluntary Author Support Reminder.
+Delete this file (/usr/share/wscreensavers/nag) to disable the startup support reminder.
+This file is restored on package upgrades.
