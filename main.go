@@ -29,6 +29,8 @@ import (
 var assets embed.FS
 
 func init() {
+	// Ensure hardware GPU acceleration is not overridden by stale shell env vars
+	_ = os.Unsetenv("LIBGL_ALWAYS_SOFTWARE")
 	// Prevent WebKit2GTK DMA-BUF Wayland protocol crashes on NVIDIA / Hyprland setups
 	if os.Getenv("WEBKIT_DISABLE_DMABUF_RENDERER") == "" {
 		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
