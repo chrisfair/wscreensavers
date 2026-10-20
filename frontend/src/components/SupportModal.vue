@@ -211,11 +211,11 @@ const referenceInput = ref('');
 const confirmMessage = ref('');
 
 const presetAmounts = [
-  { amount: 1, label: '$1', desc: 'Pawn • 1 Year' },
+  { amount: 1, label: '$1', desc: 'Pawn • 1 Month' },
   { amount: 5, label: '$5', desc: 'Knight • 1 Month' },
-  { amount: 10, label: '$10', desc: 'Rook • God for Life' },
-  { amount: 35, label: '$35', desc: 'Queen • Lifetime' },
-  { amount: 350, label: '$350', desc: 'King • Lifetime' }
+  { amount: 10, label: '$10', desc: 'Rook • Good for Life' },
+  { amount: 35, label: '$35', desc: 'Queen • Super Thanks' },
+  { amount: 350, label: '$350', desc: 'King • Super Thanks' }
 ];
 
 const effectiveAmount = computed(() => {

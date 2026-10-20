@@ -14,11 +14,11 @@ import (
 
 // Live Stripe Payment Link URLs (shared with NewScid and bughouse-online) for the 5 classic tiers.
 const (
-	StripeLink1USD   = "https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00" // $1 Pawn (1 Year)
+	StripeLink1USD   = "https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00" // $1 Pawn (1 Month)
 	StripeLink5USD   = "https://buy.stripe.com/cNidR2e262cEeiOdpCefC01" // $5 Knight (1 Month)
-	StripeLink10USD  = "https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02" // $10 Rook (God for Life)
-	StripeLink35USD  = "https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03" // $35 Queen (Lifetime)
-	StripeLink350USD = "https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05" // $350 King (Lifetime)
+	StripeLink10USD  = "https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02" // $10 Rook (Good for Life)
+	StripeLink35USD  = "https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03" // $35 Queen (Super Thanks)
+	StripeLink350USD = "https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05" // $350 King (Super Thanks)
 
 	// DefaultStripeSupportURL is the default $5 Knight Stripe payment link.
 	DefaultStripeSupportURL = StripeLink5USD
@@ -67,18 +67,18 @@ func StripeURLForAmount(amountUSD int, customOverride string) string {
 // plus a human-readable tier label. A duration of 0 with lifetime=true means permanent.
 func CooldownForAmount(amountUSD int) (time.Duration, string, bool) {
 	switch {
-	case amountUSD >= 10:
-		tierLabel := "$10 Rook (God for Life)"
+	case amountUSD >= 35:
+		tierLabel := "$35 Queen (Super Thanks • Lifetime)"
 		if amountUSD >= 350 {
-			tierLabel = "$350 King (Lifetime)"
-		} else if amountUSD >= 35 {
-			tierLabel = "$35 Queen (Lifetime)"
+			tierLabel = "$350 King (Super Thanks • Lifetime)"
 		}
 		return 0, tierLabel, true
+	case amountUSD >= 10:
+		return 0, "$10 Rook (Good for Life)", true
 	case amountUSD >= 5:
 		return 30 * 24 * time.Hour, "$5 Knight (1 Month)", false
 	default:
-		return 365 * 24 * time.Hour, "$1 Pawn (1 Year)", false
+		return 30 * 24 * time.Hour, "$1 Pawn (1 Month)", false
 	}
 }
 
@@ -260,11 +260,11 @@ func parseTierAmount(tier string) int {
 	switch {
 	case strings.Contains(clean, "350") || strings.Contains(clean, "king"):
 		return 350
-	case strings.Contains(clean, "35") || strings.Contains(clean, "queen"):
+	case strings.Contains(clean, "35") || strings.Contains(clean, "queen") || strings.Contains(clean, "super"):
 		return 35
 	case strings.Contains(clean, "10") || strings.Contains(clean, "rook") || strings.Contains(clean, "god") || strings.Contains(clean, "life"):
 		return 10
-	case strings.Contains(clean, "5") || strings.Contains(clean, "knight") || strings.Contains(clean, "month"):
+	case strings.Contains(clean, "5") || strings.Contains(clean, "knight"):
 		return 5
 	default:
 		return 1
