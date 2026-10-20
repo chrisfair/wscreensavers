@@ -211,10 +211,10 @@ const referenceInput = ref('');
 const confirmMessage = ref('');
 
 const presetAmounts = [
-  { amount: 1, label: '$1', desc: 'Pawn • 3 Days' },
+  { amount: 1, label: '$1', desc: 'Pawn • 1 Year' },
   { amount: 5, label: '$5', desc: 'Knight • 1 Month' },
-  { amount: 10, label: '$10', desc: 'Rook • 3 Months' },
-  { amount: 35, label: '$35', desc: 'Queen • 1 Year' },
+  { amount: 10, label: '$10', desc: 'Rook • God for Life' },
+  { amount: 35, label: '$35', desc: 'Queen • Lifetime' },
   { amount: 350, label: '$350', desc: 'King • Lifetime' }
 ];
 

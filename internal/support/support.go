@@ -14,10 +14,10 @@ import (
 
 // Live Stripe Payment Link URLs (shared with NewScid and bughouse-online) for the 5 classic tiers.
 const (
-	StripeLink1USD   = "https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00" // $1 Pawn (3 Days)
+	StripeLink1USD   = "https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00" // $1 Pawn (1 Year)
 	StripeLink5USD   = "https://buy.stripe.com/cNidR2e262cEeiOdpCefC01" // $5 Knight (1 Month)
-	StripeLink10USD  = "https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02" // $10 Rook (3 Months)
-	StripeLink35USD  = "https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03" // $35 Queen (1 Year)
+	StripeLink10USD  = "https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02" // $10 Rook (God for Life)
+	StripeLink35USD  = "https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03" // $35 Queen (Lifetime)
 	StripeLink350USD = "https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05" // $350 King (Lifetime)
 
 	// DefaultStripeSupportURL is the default $5 Knight Stripe payment link.
@@ -67,16 +67,18 @@ func StripeURLForAmount(amountUSD int, customOverride string) string {
 // plus a human-readable tier label. A duration of 0 with lifetime=true means permanent.
 func CooldownForAmount(amountUSD int) (time.Duration, string, bool) {
 	switch {
-	case amountUSD >= 350:
-		return 0, "$350 King (Lifetime)", true
-	case amountUSD >= 35:
-		return 365 * 24 * time.Hour, "$35 Queen (1 Year)", false
 	case amountUSD >= 10:
-		return 90 * 24 * time.Hour, "$10 Rook (3 Months)", false
+		tierLabel := "$10 Rook (God for Life)"
+		if amountUSD >= 350 {
+			tierLabel = "$350 King (Lifetime)"
+		} else if amountUSD >= 35 {
+			tierLabel = "$35 Queen (Lifetime)"
+		}
+		return 0, tierLabel, true
 	case amountUSD >= 5:
 		return 30 * 24 * time.Hour, "$5 Knight (1 Month)", false
 	default:
-		return 3 * 24 * time.Hour, "$1 Pawn (3 Days)", false
+		return 365 * 24 * time.Hour, "$1 Pawn (1 Year)", false
 	}
 }
 
@@ -254,17 +256,18 @@ func (m *Manager) GetStatus(chessComIDs []string, lichessIDs []string) SupportSt
 }
 
 func parseTierAmount(tier string) int {
+	clean := strings.ToLower(tier)
 	switch {
-	case strings.Contains(tier, "350") || strings.Contains(strings.ToLower(tier), "lifetime") || strings.Contains(strings.ToLower(tier), "king"):
+	case strings.Contains(clean, "350") || strings.Contains(clean, "king"):
 		return 350
-	case strings.Contains(tier, "35") || strings.Contains(strings.ToLower(tier), "queen"):
+	case strings.Contains(clean, "35") || strings.Contains(clean, "queen"):
 		return 35
-	case strings.Contains(tier, "10") || strings.Contains(strings.ToLower(tier), "rook"):
+	case strings.Contains(clean, "10") || strings.Contains(clean, "rook") || strings.Contains(clean, "god") || strings.Contains(clean, "life"):
 		return 10
-	case strings.Contains(tier, "1") && !strings.Contains(tier, "10") && !strings.Contains(tier, "15") || strings.Contains(strings.ToLower(tier), "pawn"):
-		return 1
-	default:
+	case strings.Contains(clean, "5") || strings.Contains(clean, "knight") || strings.Contains(clean, "month"):
 		return 5
+	default:
+		return 1
 	}
 }
 

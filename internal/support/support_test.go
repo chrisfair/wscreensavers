@@ -84,3 +84,30 @@ func TestSupportManager_RecordSupportAndAuthorExemption(t *testing.T) {
 		t.Fatalf("expected corrupt json to be handled gracefully: %v", err)
 	}
 }
+
+func TestSupportManager_PricingTiers(t *testing.T) {
+	dur1, label1, life1 := CooldownForAmount(1)
+	if life1 || dur1 < 360*24*3600*1e9 || label1 != "$1 Pawn (1 Year)" {
+		t.Fatalf("$1 tier mismatch: dur=%v, label=%s, life=%v", dur1, label1, life1)
+	}
+
+	dur5, label5, life5 := CooldownForAmount(5)
+	if life5 || dur5 < 29*24*3600*1e9 || label5 != "$5 Knight (1 Month)" {
+		t.Fatalf("$5 tier mismatch: dur=%v, label=%s, life=%v", dur5, label5, life5)
+	}
+
+	dur10, label10, life10 := CooldownForAmount(10)
+	if !life10 || dur10 != 0 || label10 != "$10 Rook (God for Life)" {
+		t.Fatalf("$10 tier mismatch: dur=%v, label=%s, life=%v", dur10, label10, life10)
+	}
+
+	dur35, _, life35 := CooldownForAmount(35)
+	if !life35 || dur35 != 0 {
+		t.Fatalf("$35 tier mismatch: dur=%v, life=%v", dur35, life35)
+	}
+
+	dur350, _, life350 := CooldownForAmount(350)
+	if !life350 || dur350 != 0 {
+		t.Fatalf("$350 tier mismatch: dur=%v, life=%v", dur350, life350)
+	}
+}
