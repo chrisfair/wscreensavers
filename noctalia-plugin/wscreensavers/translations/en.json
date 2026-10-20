@@ -13,6 +13,7 @@
   "mode_cycle": "Cycle Pool",
   "mode_disabled": "Disabled",
   "idle_timeout": "Idle Blank Timeout",
+  "dpms_timeout": "Screen Sleep (Go Dark)",
   "multi_monitor": "Multi-Monitor Topology",
   "mon_independent": "Independent Random",
   "mon_clone": "Synchronized Clone",

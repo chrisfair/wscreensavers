@@ -117,6 +117,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/action/unlock", s.handleUnlock)
 	mux.HandleFunc("/api/action/stop-saver", s.handleStopSaver)
 	mux.HandleFunc("/api/action/toggle-wallpaper", s.handleToggleWallpaper)
+	mux.HandleFunc("/api/action/dpms-off", s.handleDPMSOff)
+	mux.HandleFunc("/api/action/dpms-on", s.handleDPMSOn)
 	mux.HandleFunc("/api/support", s.handleSupportStatus)
 	mux.HandleFunc("/api/support/dismiss", s.handleSupportDismiss)
 	mux.HandleFunc("/api/support/record", s.handleSupportRecord)
@@ -180,6 +182,7 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 }
 
 func (s *Server) StopScreensaver() {
+	_ = s.SetDPMS(true)
 	s.xssRunner.StopAll()
 	s.layerCtrl.StopSaverOverlay()
 	s.idleMon.SetScreensaverActive(false, false)
@@ -236,6 +239,14 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled {
 				if int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
 					_ = s.LaunchScreensaver("", true)
+				}
+			}
+
+			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed
+			if cfg.DPMSOffMinutes > 0 && st.ScreensaverActive {
+				dpmsSec := (cfg.IdleTimeoutMinutes + cfg.DPMSOffMinutes) * 60
+				if st.IdleSeconds >= dpmsSec {
+					_ = s.SetDPMS(false)
 				}
 			}
 		}
@@ -452,6 +463,39 @@ func (s *Server) handleToggleWallpaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.cfgMgr.Get())
+}
+
+// SetDPMS manages Wayland/display power management (Hyprland, Sway, wlr-randr).
+func (s *Server) SetDPMS(on bool) error {
+	arg := "on"
+	if !on {
+		arg = "off"
+	}
+	if _, err := exec.LookPath("hyprctl"); err == nil {
+		_ = exec.Command("hyprctl", "dispatch", "dpms", arg).Run()
+	}
+	if _, err := exec.LookPath("swaymsg"); err == nil {
+		_ = exec.Command("swaymsg", "output", "*", "dpms", arg).Run()
+	}
+	if _, err := exec.LookPath("wlr-randr"); err == nil {
+		wlrArg := "--on"
+		if !on {
+			wlrArg = "--off"
+		}
+		_ = exec.Command("wlr-randr", wlrArg).Run()
+	}
+	return nil
+}
+
+func (s *Server) handleDPMSOff(w http.ResponseWriter, r *http.Request) {
+	_ = s.SetDPMS(false)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "dpms": "off"})
+}
+
+func (s *Server) handleDPMSOn(w http.ResponseWriter, r *http.Request) {
+	_ = s.SetDPMS(true)
+	s.idleMon.RecordActivity()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "dpms": "on"})
 }
 
 func (s *Server) ensureSupportMgr() *support.Manager {

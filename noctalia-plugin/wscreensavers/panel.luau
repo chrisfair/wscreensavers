@@ -31,6 +31,14 @@ local TIMEOUTS = {
   { 60, "60 min" },
 }
 
+local DPMS_TIMEOUTS = {
+  { 0, "Off" },
+  { 5, "5 min" },
+  { 15, "15 min" },
+  { 30, "30 min" },
+  { 60, "60 min" },
+}
+
 local MONITOR_MODES = {
   { "independent", "mon_independent" },
   { "clone", "mon_clone" },
@@ -295,6 +303,10 @@ render = function()
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("idle_timeout") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(TIMEOUTS, cfg.idleTimeoutMinutes or 10, function(val) setConfig("idleTimeoutMinutes", val) end, "timeout"),
+      }),
+      ui.row({ gap = 8, align = "center" }, {
+        ui.label({ text = tr("dpms_timeout") .. ":", fontSize = 12, color = "on_surface_variant" }),
+        chipRow(DPMS_TIMEOUTS, cfg.dpmsOffMinutes or 30, function(val) setConfig("dpmsOffMinutes", val) end, "dpms"),
       }),
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("multi_monitor") .. ":", fontSize = 12, color = "on_surface_variant" }),

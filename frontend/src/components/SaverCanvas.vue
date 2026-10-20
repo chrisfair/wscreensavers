@@ -28,6 +28,7 @@ const props = defineProps({
   telemetry: { type: Object, default: () => ({ blips: [], feed: [] }) },
   fpsCap: { type: Number, default: 60 },
   showFps: { type: Boolean, default: false },
+  paused: { type: Boolean, default: false },
   apiBase: { type: String, default: '' }
 });
 
@@ -90,6 +91,10 @@ function initVisualizer() {
 }
 
 function loop(timestamp) {
+  if (props.paused) {
+    animId = null;
+    return;
+  }
   animId = requestAnimationFrame(loop);
   if (isExternalXSS.value) return;
 
@@ -117,6 +122,13 @@ function stopRemoteStream() {
   const base = props.apiBase || '';
   fetch(`${base}/api/xss-stream?stop=1&client=${clientId}`).catch(() => {});
 }
+
+watch(() => props.paused, (isPaused) => {
+  if (!isPaused && !animId && !isExternalXSS.value) {
+    lastFrameTime = performance.now();
+    animId = requestAnimationFrame(loop);
+  }
+});
 
 watch(() => props.saverId, async (newId, oldId) => {
   lastSaverIdForParams = newId;

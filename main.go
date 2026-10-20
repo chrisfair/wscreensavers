@@ -198,6 +198,7 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 		if cfg.ShowClockOnSaver {
 			q.Set("clock", "1")
 		}
+		q.Set("dpms", fmt.Sprintf("%d", cfg.DPMSOffMinutes))
 
 		target := fmt.Sprintf("%s/?%s", baseURL, q.Encode())
 		urls = append(urls, target)

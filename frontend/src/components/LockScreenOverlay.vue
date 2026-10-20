@@ -1,59 +1,67 @@
 <template>
   <div class="lock-overlay" @click="focusInput">
-    <!-- Floating HUD Clock when unlocked or locked -->
-    <div v-if="showClock" class="hud-clock" :class="{ 'hud-clock-top': locked }">
-      <div class="clock-time">{{ timeStr }}</div>
-      <div class="clock-date">{{ dateStr }}</div>
-    </div>
+    <!-- Pitch black screen blanking curtain when inactive for dpmsMinutes -->
+    <div v-if="isDark" class="dark-curtain"></div>
 
-    <!-- PAM Authentication Card when locked -->
-    <div v-if="locked" class="pam-card" :class="{ shake: authError }">
-      <div class="pam-avatar">
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
+    <!-- Extras wrap: Fades out quickly so only the screensaver stays on screen -->
+    <div class="extras-wrap" :class="{ dimmed: isDimmed }">
+      <!-- Floating HUD Clock when unlocked or locked -->
+      <div v-if="showClock" class="hud-clock" :class="{ 'hud-clock-top': locked }">
+        <div class="clock-time">{{ timeStr }}</div>
+        <div class="clock-date">{{ dateStr }}</div>
       </div>
-      <div class="pam-user">{{ username }}</div>
-      <div class="pam-subtitle">Wayland Session Locked via PAM</div>
 
-      <form class="pam-form" @submit.prevent="submitUnlock">
-        <input
-          ref="passInput"
-          v-model="password"
-          type="password"
-          class="pam-input"
-          placeholder="Enter system password..."
-          :disabled="verifying"
-          autofocus
-        />
-        <button type="submit" class="pam-btn" :disabled="verifying || !password">
-          {{ verifying ? 'Verifying...' : 'Unlock' }}
-        </button>
-      </form>
+      <!-- PAM Authentication Card when locked -->
+      <div v-if="locked" class="pam-card" :class="{ shake: authError }">
+        <div class="pam-avatar">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <div class="pam-user">{{ username }}</div>
+        <div class="pam-subtitle">Wayland Session Locked via PAM</div>
 
-      <div v-if="errorMsg" class="pam-error">{{ errorMsg }}</div>
-    </div>
+        <form class="pam-form" @submit.prevent="submitUnlock">
+          <input
+            ref="passInput"
+            v-model="password"
+            type="password"
+            class="pam-input"
+            placeholder="Enter system password..."
+            :disabled="verifying"
+            autofocus
+            @keydown.stop="onInputKeyDown"
+          />
+          <button type="submit" class="pam-btn" :disabled="verifying || !password">
+            {{ verifying ? 'Verifying...' : 'Unlock' }}
+          </button>
+        </form>
 
-    <!-- Subtle hint in unlocked preview/fullscreen mode -->
-    <div v-else-if="!isWallpaper" class="dismiss-pill">
-      Move mouse or press any key to resume Wayland session
+        <div v-if="errorMsg" class="pam-error">{{ errorMsg }}</div>
+      </div>
+
+      <!-- Subtle hint in unlocked preview/fullscreen mode -->
+      <div v-else-if="!isWallpaper" class="dismiss-pill">
+        Move mouse or press any key to resume Wayland session
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
 const props = defineProps({
   locked: { type: Boolean, default: false },
   showClock: { type: Boolean, default: true },
   isWallpaper: { type: Boolean, default: false },
   username: { type: String, default: 'user' },
-  apiBase: { type: String, default: '' }
+  apiBase: { type: String, default: '' },
+  dpmsMinutes: { type: Number, default: 30 }
 });
 
-const emit = defineEmits(['unlocked']);
+const emit = defineEmits(['unlocked', 'dark-change']);
 
 const timeStr = ref('');
 const dateStr = ref('');
@@ -62,7 +70,15 @@ const verifying = ref(false);
 const authError = ref(false);
 const errorMsg = ref('');
 const passInput = ref(null);
+
+const isDimmed = ref(false);
+const isDark = ref(false);
+
 let clockTimer = null;
+let dimTimer = null;
+let darkTimer = null;
+let lastMouseX = -1;
+let lastMouseY = -1;
 
 function updateClock() {
   const now = new Date();
@@ -75,6 +91,118 @@ function focusInput() {
     passInput.value.focus();
   }
 }
+
+function resetDimTimer(delayMs = 2500) {
+  if (dimTimer) clearTimeout(dimTimer);
+  dimTimer = setTimeout(() => {
+    if (!verifying.value && !authError.value) {
+      if (password.value !== '') {
+        // If password has partial text, allow up to 8s before clearing & dimming
+        dimTimer = setTimeout(() => {
+          if (!verifying.value && !authError.value) {
+            password.value = '';
+            isDimmed.value = true;
+          }
+        }, 8000);
+      } else {
+        isDimmed.value = true;
+      }
+    }
+  }, delayMs);
+}
+
+function resetDarkTimer() {
+  if (darkTimer) clearTimeout(darkTimer);
+  const minutes = props.dpmsMinutes;
+  if (!minutes || minutes <= 0) return;
+
+  const ms = minutes * 60 * 1000;
+  darkTimer = setTimeout(() => {
+    turnScreenDark();
+  }, ms);
+}
+
+function turnScreenDark() {
+  if (isDark.value) return;
+  isDark.value = true;
+  emit('dark-change', true);
+  if (props.apiBase) {
+    fetch(`${props.apiBase}/api/action/dpms-off`, { method: 'POST' }).catch(() => {});
+  }
+}
+
+function wakeFromDark() {
+  if (!isDark.value) return;
+  isDark.value = false;
+  emit('dark-change', false);
+  if (props.apiBase) {
+    fetch(`${props.apiBase}/api/action/dpms-on`, { method: 'POST' }).catch(() => {});
+  }
+}
+
+function handleUserActivity(isKey = false, keyEvent = null) {
+  const wasDark = isDark.value;
+  if (wasDark) {
+    wakeFromDark();
+  }
+
+  // Wake up extras / login card
+  isDimmed.value = false;
+  resetDimTimer(props.locked && password.value ? 10000 : 3500);
+  resetDarkTimer();
+
+  if (props.locked) {
+    focusInput();
+    // If a key was pressed and focus wasn't already in the input, capture the character
+    if (isKey && keyEvent) {
+      if (document.activeElement !== passInput.value) {
+        if (keyEvent.key.length === 1 && !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.metaKey) {
+          password.value += keyEvent.key;
+        } else if (keyEvent.key === 'Backspace') {
+          password.value = password.value.slice(0, -1);
+        } else if (keyEvent.key === 'Enter') {
+          submitUnlock();
+        }
+      }
+    }
+  }
+}
+
+function onInputKeyDown(e) {
+  handleUserActivity(false);
+}
+
+function onWindowKeyDown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    focusInput();
+    return;
+  }
+  handleUserActivity(true, e);
+}
+
+function onWindowMouseMove(e) {
+  if (lastMouseX === -1) {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    return;
+  }
+  const dx = Math.abs(e.clientX - lastMouseX);
+  const dy = Math.abs(e.clientY - lastMouseY);
+  if (dx > 4 || dy > 4) {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    handleUserActivity(false);
+  }
+}
+
+function onWindowMouseDown(e) {
+  handleUserActivity(false);
+}
+
+watch(() => props.dpmsMinutes, () => {
+  resetDarkTimer();
+});
 
 async function submitUnlock() {
   if (!password.value || verifying.value) return;
@@ -96,11 +224,15 @@ async function submitUnlock() {
       errorMsg.value = data.error || 'Invalid password';
       authError.value = true;
       password.value = '';
+      isDimmed.value = false;
+      resetDimTimer(5000);
       setTimeout(() => { authError.value = false; }, 500);
     }
   } catch (e) {
     errorMsg.value = 'Failed to reach PAM authentication service';
     authError.value = true;
+    isDimmed.value = false;
+    resetDimTimer(5000);
   } finally {
     verifying.value = false;
     focusInput();
@@ -111,10 +243,28 @@ onMounted(() => {
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
   setTimeout(focusInput, 150);
+
+  // Quickly dim extras so only the screensaver stays visible
+  resetDimTimer(2500);
+  resetDarkTimer();
+
+  window.addEventListener('keydown', onWindowKeyDown, true);
+  window.addEventListener('mousemove', onWindowMouseMove, { passive: true });
+  window.addEventListener('mousedown', onWindowMouseDown, true);
 });
 
 onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer);
+  if (dimTimer) clearTimeout(dimTimer);
+  if (darkTimer) clearTimeout(darkTimer);
+
+  window.removeEventListener('keydown', onWindowKeyDown, true);
+  window.removeEventListener('mousemove', onWindowMouseMove);
+  window.removeEventListener('mousedown', onWindowMouseDown, true);
+
+  if (isDark.value) {
+    wakeFromDark();
+  }
 });
 </script>
 
@@ -128,6 +278,32 @@ onBeforeUnmount(() => {
   justify-content: center;
   z-index: 20;
 }
+
+.dark-curtain {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  z-index: 99999;
+  pointer-events: all;
+}
+
+.extras-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.extras-wrap.dimmed {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .hud-clock {
   position: absolute;
   bottom: 48px;
@@ -140,11 +316,13 @@ onBeforeUnmount(() => {
   color: #f8fafc;
   pointer-events: none;
 }
+
 .hud-clock-top {
   position: static;
   margin-bottom: 28px;
   text-align: center;
 }
+
 .clock-time {
   font-size: 46px;
   font-weight: 800;
@@ -152,12 +330,14 @@ onBeforeUnmount(() => {
   letter-spacing: -0.03em;
   line-height: 1.05;
 }
+
 .clock-date {
   margin-top: 6px;
   font-size: 15px;
   color: #94a3b8;
   font-weight: 500;
 }
+
 .pam-card {
   width: 380px;
   padding: 32px 28px;
@@ -171,6 +351,7 @@ onBeforeUnmount(() => {
   align-items: center;
   color: #f8fafc;
 }
+
 .pam-avatar {
   width: 64px;
   height: 64px;
@@ -182,21 +363,25 @@ onBeforeUnmount(() => {
   margin-bottom: 14px;
   box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4);
 }
+
 .pam-user {
   font-size: 20px;
   font-weight: 700;
 }
+
 .pam-subtitle {
   font-size: 12px;
   color: #94a3b8;
   margin-top: 2px;
   margin-bottom: 22px;
 }
+
 .pam-form {
   width: 100%;
   display: flex;
   gap: 8px;
 }
+
 .pam-input {
   flex: 1;
   padding: 11px 14px;
@@ -207,9 +392,11 @@ onBeforeUnmount(() => {
   font-size: 14px;
   outline: none;
 }
+
 .pam-input:focus {
   border-color: #38bdf8;
 }
+
 .pam-btn {
   padding: 11px 18px;
   border-radius: 12px;
@@ -219,16 +406,19 @@ onBeforeUnmount(() => {
   font-weight: 700;
   cursor: pointer;
 }
+
 .pam-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
 .pam-error {
   margin-top: 12px;
   color: #f87171;
   font-size: 13px;
   font-weight: 600;
 }
+
 .dismiss-pill {
   position: absolute;
   bottom: 22px;
@@ -241,11 +431,13 @@ onBeforeUnmount(() => {
   font-size: 12px;
   pointer-events: none;
 }
+
 @keyframes shakeAnim {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-10px); }
   40%, 80% { transform: translateX(10px); }
 }
+
 .shake {
   animation: shakeAnim 0.4s ease;
 }

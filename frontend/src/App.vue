@@ -7,6 +7,7 @@
       :telemetry="telemetry"
       :fps-cap="isWallpaperSurface ? (config.wallpaperFpsCap || 30) : 60"
       :show-fps="false"
+      :paused="isScreenDark"
       :api-base="apiBase"
     />
     <LockScreenOverlay
@@ -16,6 +17,8 @@
       :is-wallpaper="isWallpaperSurface"
       :username="username"
       :api-base="apiBase"
+      :dpms-minutes="config.dpmsOffMinutes ?? dpmsMinutesParam"
+      @dark-change="isScreenDark = $event"
       @unlocked="handleUnlocked"
     />
     <button
@@ -216,6 +219,18 @@
             </div>
 
             <div class="setting-box">
+              <label>Turn Off Screens / Go Dark ({{ config.dpmsOffMinutes > 0 ? config.dpmsOffMinutes + ' min' : 'Disabled' }})</label>
+              <input
+                type="range"
+                min="0"
+                max="120"
+                step="5"
+                v-model.number="config.dpmsOffMinutes"
+                @change="persistConfig"
+              />
+            </div>
+
+            <div class="setting-box">
               <label>Screen Lock Provider</label>
               <select v-model="config.lockProvider" @change="persistConfig">
                 <option value="native">Native PAM Overlay (Glassmorphic Unlock)</option>
@@ -327,6 +342,8 @@ const isWallpaperSurface = ref(urlParams.get('wallpaper') === '1');
 const isLockedSurface = ref(urlParams.get('locked') === '1');
 const surfaceSaverParam = ref(urlParams.get('saver') || '');
 const apiBase = ref(urlParams.get('api') || '');
+const dpmsMinutesParam = ref(parseInt(urlParams.get('dpms') || '30', 10));
+const isScreenDark = ref(false);
 
 const inWindowFullscreen = ref(false);
 const savers = ref([]);
@@ -356,7 +373,8 @@ const config = ref({
   wallpaperPerMonitor: {},
   wallpaperFpsCap: 30,
   enabledSavers: [],
-  saverParams: {}
+  saverParams: {},
+  dpmsOffMinutes: 30
 });
 
 const daemonStatus = ref({

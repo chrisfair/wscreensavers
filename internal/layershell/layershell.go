@@ -160,8 +160,8 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             g_signal_connect(webview, "key-press-event", G_CALLBACK(on_key_dismiss), NULL);
             g_signal_connect(webview, "button-press-event", G_CALLBACK(on_button_dismiss), NULL);
         } else if (is_locked) {
-            gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK);
-            gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK);
+            gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
+            gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
             g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_lock_click), webview);
