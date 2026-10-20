@@ -8,16 +8,19 @@ import (
 	"testing"
 	"wscreensavers/internal/config"
 	"wscreensavers/internal/models"
+	"wscreensavers/internal/support"
 )
 
 func TestAPIServerEndpoints(t *testing.T) {
-	tmp := filepath.Join(t.TempDir(), "config.json")
+	tmpDir := t.TempDir()
+	tmp := filepath.Join(tmpDir, "config.json")
 	cfgMgr, err := config.NewManager(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	srv := NewServer(cfgMgr, nil)
+	srv.supportMgr, _ = support.NewManager(filepath.Join(tmpDir, "support.json"))
 	baseURL, err := srv.StartHTTP("127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start API server: %v", err)
@@ -124,5 +127,33 @@ func TestAPIServerEndpoints(t *testing.T) {
 	unlockRes.Body.Close()
 	if unlockRes.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401 on empty password unlock, got %d", unlockRes.StatusCode)
+	}
+
+	// 6. Support endpoints: GET /api/support, POST /api/support/dismiss, POST /api/support/record
+	suppRes, err := http.Get(baseURL + "/api/support")
+	if err != nil {
+		t.Fatal(err)
+	}
+	suppRes.Body.Close()
+	if suppRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK on /api/support, got %d", suppRes.StatusCode)
+	}
+
+	disRes, err := http.Post(baseURL+"/api/support/dismiss", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	disRes.Body.Close()
+	if disRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK on /api/support/dismiss, got %d", disRes.StatusCode)
+	}
+
+	recRes, err := http.Post(baseURL+"/api/support/record", "application/json", strings.NewReader(`{"tier":"$5 Support","reference":"test_rcpt"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	recRes.Body.Close()
+	if recRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK on /api/support/record, got %d", recRes.StatusCode)
 	}
 }

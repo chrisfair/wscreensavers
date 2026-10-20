@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"wscreensavers/internal/api"
 	"wscreensavers/internal/auth"
 	"wscreensavers/internal/config"
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/idle"
 	"wscreensavers/internal/models"
+	"wscreensavers/internal/support"
 )
 
 // App struct bound to Wails frontend and backed by the unified API Server.
@@ -80,3 +82,24 @@ func (a *App) VerifyPassword(password string) (bool, error) {
 func (a *App) ToggleWallpaper(enabled bool, saverID string) error {
 	return a.srv.SetWallpaperActive(enabled, saverID)
 }
+
+func (a *App) GetSupportStatus() support.SupportStatus {
+	return a.srv.GetSupportStatus()
+}
+
+func (a *App) RecordUserSupport(tier string, reference string) (support.SupportStatus, error) {
+	return a.srv.RecordUserSupport(tier, reference)
+}
+
+func (a *App) DismissSupportNag() (support.SupportStatus, error) {
+	return a.srv.DismissSupportNag()
+}
+
+func (a *App) OpenSupportLink(amountUSD int) string {
+	targetURL, _ := a.srv.OpenSupportLink(amountUSD, a.ctx == nil)
+	if a.ctx != nil {
+		runtime.BrowserOpenURL(a.ctx, targetURL)
+	}
+	return targetURL
+}
+

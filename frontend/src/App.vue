@@ -71,6 +71,17 @@
         <button class="btn btn-lock" @click="launchWaylandOverlay(true)">
           Lock Screen
         </button>
+        <button
+          class="btn btn-support"
+          :class="{ supported: isSupporter }"
+          @click="showSupportModal = true"
+          title="Voluntary Author Support"
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px;">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          {{ isSupporter ? 'Supporter' : 'Support' }}
+        </button>
       </div>
     </header>
 
@@ -292,6 +303,13 @@
         />
       </aside>
     </div>
+
+    <SupportModal
+      v-if="showSupportModal"
+      :api-base="apiBase"
+      @close="showSupportModal = false"
+      @updated="isSupporter = true"
+    />
   </div>
 </template>
 
@@ -301,6 +319,7 @@ import SaverCanvas from './components/SaverCanvas.vue';
 import LockScreenOverlay from './components/LockScreenOverlay.vue';
 import MonitorMap from './components/MonitorMap.vue';
 import ParameterPanel from './components/ParameterPanel.vue';
+import SupportModal from './components/SupportModal.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const isFullscreenSurface = ref(urlParams.get('mode') === 'fullscreen');
@@ -316,6 +335,8 @@ const searchQuery = ref('');
 const selectedCategory = ref('All');
 const activeTab = ref('daemon');
 const username = ref('user');
+const showSupportModal = ref(false);
+const isSupporter = ref(false);
 
 const config = ref({
   mode: 'random',
@@ -421,6 +442,24 @@ async function fetchInitialData() {
       const st = await stRes.json();
       daemonStatus.value = st.daemon || daemonStatus.value;
       username.value = st.username || username.value;
+    }
+    if (!isFullscreenSurface.value) {
+      let supp = null;
+      if (window.go && window.go.main && window.go.main.App && window.go.main.App.GetSupportStatus) {
+        try {
+          supp = await window.go.main.App.GetSupportStatus();
+        } catch (_) {}
+      }
+      if (!supp) {
+        const suppRes = await fetch(`${apiBase.value}/api/support`);
+        if (suppRes.ok) supp = await suppRes.json();
+      }
+      if (supp) {
+        isSupporter.value = Boolean(supp.supported || supp.isAuthor);
+        if (supp.shouldShowNag) {
+          showSupportModal.value = true;
+        }
+      }
     }
   } catch (e) {
     console.warn('API fetch warning:', e);
@@ -708,6 +747,21 @@ html, body, #app {
 .btn-lock {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: #ffffff;
+}
+.btn-support {
+  background: rgba(244, 63, 94, 0.14);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #fb7185;
+}
+.btn-support:hover {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: #fb7185;
+  color: #ffffff;
+}
+.btn-support.supported {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
 }
 .btn-wallpaper {
   background: rgba(15, 23, 42, 0.85);

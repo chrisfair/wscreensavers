@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -17,12 +18,14 @@ import (
 	"wscreensavers/internal/idle"
 	"wscreensavers/internal/layershell"
 	"wscreensavers/internal/models"
+	"wscreensavers/internal/support"
 	"wscreensavers/internal/xscreensaver"
 )
 
 type Server struct {
 	mu          sync.RWMutex
 	cfgMgr      *config.Manager
+	supportMgr  *support.Manager
 	idleMon     *idle.Monitor
 	xssRunner   *xscreensaver.Runner
 	xssStreamer *xscreensaver.Streamer
@@ -35,8 +38,10 @@ type Server struct {
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	idleMon := idle.NewMonitor()
+	suppMgr, _ := support.NewManager("")
 	srv := &Server{
 		cfgMgr:      cfgMgr,
+		supportMgr:  suppMgr,
 		idleMon:     idleMon,
 		xssRunner:   xscreensaver.NewRunner(),
 		xssStreamer: xscreensaver.NewStreamer(),
@@ -112,6 +117,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/action/unlock", s.handleUnlock)
 	mux.HandleFunc("/api/action/stop-saver", s.handleStopSaver)
 	mux.HandleFunc("/api/action/toggle-wallpaper", s.handleToggleWallpaper)
+	mux.HandleFunc("/api/support", s.handleSupportStatus)
+	mux.HandleFunc("/api/support/dismiss", s.handleSupportDismiss)
+	mux.HandleFunc("/api/support/record", s.handleSupportRecord)
+	mux.HandleFunc("/api/support/open", s.handleSupportOpen)
 
 	if s.frontendFS != nil {
 		fileServer := http.FileServer(http.FS(s.frontendFS))
@@ -443,3 +452,76 @@ func (s *Server) handleToggleWallpaper(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, s.cfgMgr.Get())
 }
+
+func (s *Server) ensureSupportMgr() *support.Manager {
+	if s.supportMgr == nil {
+		s.supportMgr, _ = support.NewManager("")
+	}
+	return s.supportMgr
+}
+
+func (s *Server) GetSupportStatus() support.SupportStatus {
+	return s.ensureSupportMgr().GetStatus(nil, nil)
+}
+
+func (s *Server) RecordUserSupport(tier string, reference string) (support.SupportStatus, error) {
+	return s.ensureSupportMgr().RecordSupport(tier, reference)
+}
+
+func (s *Server) DismissSupportNag() (support.SupportStatus, error) {
+	return s.ensureSupportMgr().DismissNag()
+}
+
+func (s *Server) OpenSupportLink(amountUSD int, openSystemBrowser bool) (string, support.SupportStatus) {
+	st := s.GetSupportStatus()
+	if amountUSD < support.DefaultMinSupportUSD {
+		amountUSD = support.DefaultMinSupportUSD
+	}
+	baseURL := support.StripeURLForAmount(amountUSD, st.StripeURL)
+	targetURL := support.BuildCheckoutURL(baseURL, fmt.Sprintf("wscreensavers_%dusd", amountUSD))
+	updated, _ := s.RecordUserSupport(fmt.Sprintf("$%d Support", amountUSD), "stripe_checkout")
+	if openSystemBrowser {
+		_ = exec.Command("xdg-open", targetURL).Start()
+	}
+	return targetURL, updated
+}
+
+func (s *Server) handleSupportStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.GetSupportStatus())
+}
+
+func (s *Server) handleSupportDismiss(w http.ResponseWriter, r *http.Request) {
+	st, err := s.DismissSupportNag()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, st)
+}
+
+func (s *Server) handleSupportRecord(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Tier      string `json:"tier"`
+		Reference string `json:"reference"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	st, err := s.RecordUserSupport(req.Tier, req.Reference)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, st)
+}
+
+func (s *Server) handleSupportOpen(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AmountUSD int `json:"amountUsd"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	targetURL, st := s.OpenSupportLink(req.AmountUSD, true)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"url":    targetURL,
+		"status": st,
+	})
+}
+
