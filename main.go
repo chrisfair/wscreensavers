@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -23,6 +24,7 @@ import (
 	"wscreensavers/internal/ctl"
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/layershell"
+	"wscreensavers/internal/singleton"
 )
 
 //go:embed all:frontend/dist
@@ -67,6 +69,26 @@ func main() {
 	distFS, err := fs.Sub(assets, "frontend/dist")
 	if err != nil {
 		distFS = assets
+	}
+
+	// Overlay modes allow only one instance each, so a repeated hotkey press
+	// does not stack windows. The wait lets a process being replaced by
+	// `ctl launch` finish exiting first.
+	if *saverMode || *lockMode || *wallpaperMode {
+		lockName := "saver"
+		switch {
+		case *lockMode:
+			lockName = "lock"
+		case *wallpaperMode:
+			lockName = "wallpaper"
+		}
+		if _, err := singleton.Acquire(lockName, 2*time.Second); err != nil {
+			if errors.Is(err, singleton.ErrAlreadyRunning) {
+				log.Printf("wscreensavers --%s is already running; exiting", lockName)
+				return
+			}
+			log.Fatalf("Failed to acquire instance lock: %v", err)
+		}
 	}
 
 	srv := api.NewServer(cfgMgr, distFS)
