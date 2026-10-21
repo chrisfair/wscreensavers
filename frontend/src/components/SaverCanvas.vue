@@ -42,10 +42,35 @@ const clientId = 'c_' + Math.random().toString(36).slice(2, 10);
 
 const isExternalXSS = computed(() => (props.saverId || '').startsWith('xss_'));
 
+// Fullscreen overlay pages carry ?monitor=<name>; each monitor gets its own stream
+// session at its native resolution. The Control Center preview has no monitor.
+const monitorName = new URLSearchParams(window.location.search).get('monitor') || '';
+
+// Set once the container is measurable, so the stream is requested at the surface's
+// real pixel size instead of the server default (which looks blurry when upscaled).
+const mounted = ref(false);
+
+function sizeQuery() {
+  const dpr = window.devicePixelRatio || 1;
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  if (!monitorName && containerRef.value) {
+    const rect = containerRef.value.getBoundingClientRect();
+    w = rect.width;
+    h = rect.height;
+  }
+  return `&w=${Math.round(w * dpr)}&h=${Math.round(h * dpr)}`;
+}
+
+function monitorQuery() {
+  const mon = monitorName ? `&monitor=${encodeURIComponent(monitorName)}` : '';
+  return mon + sizeQuery();
+}
+
 const streamUrl = computed(() => {
-  if (!isExternalXSS.value) return '';
+  if (!isExternalXSS.value || !mounted.value) return '';
   const base = props.apiBase || '';
-  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&client=${clientId}&v=${streamVersion.value}`;
+  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&client=${clientId}&v=${streamVersion.value}${monitorQuery()}&fps=${Math.min(props.fpsCap > 0 ? props.fpsCap : 30, 30)}`;
 });
 
 let animId = null;
@@ -125,7 +150,7 @@ function loop(timestamp) {
 
 function stopRemoteStream() {
   const base = props.apiBase || '';
-  fetch(`${base}/api/xss-stream?stop=1&client=${clientId}`).catch(() => {});
+  fetch(`${base}/api/xss-stream?stop=1&client=${clientId}${monitorName ? `&monitor=${encodeURIComponent(monitorName)}` : ''}`).catch(() => {});
 }
 
 function onStreamError() {
@@ -192,6 +217,7 @@ watch(() => props.params, (newParams) => {
 }, { deep: true });
 
 onMounted(() => {
+  mounted.value = true;
   initVisualizer();
   if (canvasRef.value) {
     canvasRef.value.addEventListener('webglcontextlost', onContextLost, false);

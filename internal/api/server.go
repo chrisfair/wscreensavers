@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -290,7 +291,7 @@ func (s *Server) handleSavers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleXSSStream(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("stop") == "1" {
-		s.xssStreamer.StopClient(r.URL.Query().Get("client"))
+		s.xssStreamer.StopClient(r.URL.Query().Get("monitor"), r.URL.Query().Get("client"))
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -309,7 +310,14 @@ func (s *Server) handleXSSStream(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg := s.cfgMgr.Get()
 	params := cfg.SaverParams[saver.ID]
-	s.xssStreamer.ServeMJPEG(w, r, saver, params, 30)
+	q := r.URL.Query()
+	width, _ := strconv.Atoi(q.Get("w"))
+	height, _ := strconv.Atoi(q.Get("h"))
+	fps, _ := strconv.Atoi(q.Get("fps"))
+	if fps <= 0 {
+		fps = 30
+	}
+	s.xssStreamer.ServeMJPEG(w, r, saver, params, fps, q.Get("monitor"), width, height)
 }
 
 func (s *Server) handleSaverAction(w http.ResponseWriter, r *http.Request) {
