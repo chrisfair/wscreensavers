@@ -8,14 +8,16 @@ local REFRESH_MS = 20000
 
 local stateData = nil
 
+-- Prefer a personal $HOME/bin copy when present, otherwise fall back to PATH
+-- (the package installs /usr/bin/wscreensavers).
+local CTL_SCRIPT = 'b="$HOME/bin/wscreensavers"; [ -x "$b" ] || b=wscreensavers; exec "$b" ctl "$@"'
+
 local function shellQuote(value)
   return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
 local function ctlCommand(args)
-  local home = noctalia.getenv("HOME") or "/home/christopher"
-  local bin = home .. "/bin/wscreensavers"
-  return shellQuote(bin) .. " ctl " .. args
+  return "sh -c " .. shellQuote(CTL_SCRIPT) .. " sh " .. args
 end
 
 local function render()
