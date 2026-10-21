@@ -73,7 +73,8 @@ local LOCK_PROVIDERS = {
   { "swaylock", "swaylock" },
 }
 
-local MAX_CATALOG_ROWS = 200
+local CATALOG_CHUNK_ROWS = 100
+local CATALOG_HEIGHT = 440
 
 local CATEGORIES = {
   "All",
@@ -333,7 +334,7 @@ render = function()
 
     local lockItems = {}
     for _, m in ipairs(LOCK_PROVIDERS) do
-      local label = m[2] == "native" and tr("lock_native") or m[2]
+      local label = m[1] == "native" and tr("lock_native") or m[2]
       table.insert(lockItems, { m[1], label })
     end
     local poolAllClick = callback("poolAll", function() runCmd("pool all", tr("saved")) end)
@@ -433,25 +434,25 @@ render = function()
       render()
     end)
 
-    -- Noctalia drops children past 256 in one column, so cap the list and say so.
-    local saverRows = {}
+    -- Noctalia drops children past 256 in one node, so rows go into chunked
+    -- columns inside a catalog-only scroll area.
+    local saverChunks = {}
+    local chunk = nil
     local matched = 0
     for _, s in ipairs(stateData.savers or {}) do
       if matchesFilter(s) then
         matched += 1
-        if #saverRows < MAX_CATALOG_ROWS then
-          table.insert(saverRows, renderSaverRow(s, cfg))
+        if chunk == nil or #chunk >= CATALOG_CHUNK_ROWS then
+          chunk = {}
+          table.insert(saverChunks, chunk)
         end
+        table.insert(chunk, renderSaverRow(s, cfg))
       end
     end
-    if matched > #saverRows then
-      table.insert(saverRows, ui.label({
-        text = string.format(tr("catalog_truncated"), #saverRows, matched),
-        fontSize = 11,
-        color = "on_surface_variant",
-      }))
+    local chunkColumns = {}
+    for index, rows in ipairs(saverChunks) do
+      table.insert(chunkColumns, ui.column({ key = "catalog-chunk-" .. index, gap = 6, align = "stretch" }, rows))
     end
-
     table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, {
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("catalog_section") .. " (" .. tostring(matched) .. ")", fontSize = 14, fontWeight = "bold", color = "primary" }),
@@ -469,7 +470,7 @@ render = function()
         selectedCategory = val
         render()
       end, "cat"),
-      ui.column({ gap = 6, align = "stretch" }, saverRows),
+      ui.scroll({ key = "catalog-scroll", height = CATALOG_HEIGHT, gap = 6 }, chunkColumns),
     }))
 
     if statusMsg ~= nil then

@@ -51,6 +51,5 @@
   "xss_dim": "OpenGL Max Resolution",
   "lock_provider": "Lock Provider",
   "lock_native": "Native PAM",
-  "cycle_timeout": "Cycle Next Saver Every",
-  "catalog_truncated": "Showing %d of %d. Use the search box or a category to narrow the list."
+  "cycle_timeout": "Cycle Next Saver Every"
 }
