@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -62,49 +64,49 @@ func TestStopClientWithoutSession(t *testing.T) {
 	s.StopAll()
 }
 
-func TestKillStaleXvfbEvictsOnlyAnXvfbHoldingTheDisplay(t *testing.T) {
-	const displayNum = 9876
-	lock := fmt.Sprintf("/tmp/.X%d-lock", displayNum)
-	defer os.Remove(lock)
-
+func TestClaimDisplayEvictsOrphanedXvfbAndSkipsLiveOnes(t *testing.T) {
+	const want = 9870
 	dir := t.TempDir()
-	fakeXvfb := filepath.Join(dir, "Xvfb")
-	if err := os.Symlink("/usr/bin/sleep", fakeXvfb); err != nil {
+	script := filepath.Join(dir, "Xvfb")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 60\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	start := func(bin string) *exec.Cmd {
-		cmd := exec.Command(bin, "60")
-		if err := cmd.Start(); err != nil {
-			t.Fatal(err)
-		}
-		return cmd
+	// Orphaned: started through a throwaway shell that exits, so its parent is no
+	// wscreensavers process.
+	orphanPidFile := filepath.Join(dir, "orphan.pid")
+	launch := fmt.Sprintf("%s :%d >/dev/null 2>&1 & echo $! > %s", script, want, orphanPidFile)
+	if err := exec.Command("sh", "-c", launch).Run(); err != nil {
+		t.Fatal(err)
 	}
-	writeLock := func(pid int) {
-		if err := os.WriteFile(lock, []byte(fmt.Sprintf("%10d\n", pid)), 0644); err != nil {
-			t.Fatal(err)
+	var orphan int
+	for i := 0; i < 50 && orphan == 0; i++ {
+		time.Sleep(20 * time.Millisecond)
+		if data, err := os.ReadFile(orphanPidFile); err == nil {
+			orphan, _ = strconv.Atoi(strings.TrimSpace(string(data)))
 		}
+	}
+	if orphan == 0 || findXvfb(want) != orphan {
+		t.Fatalf("test setup: expected orphan Xvfb on :%d, got %d (pid file %d)", want, findXvfb(want), orphan)
+	}
+	if got := claimDisplay(want); got != want {
+		t.Errorf("orphaned display should be reclaimed: got :%d, want :%d", got, want)
+	}
+	if findXvfb(want) != 0 {
+		t.Errorf("orphaned Xvfb on :%d was not evicted", want)
 	}
 
-	// A process that is not an Xvfb must be left alone even if the lock names it.
-	other := start("/usr/bin/sleep")
-	defer func() { _ = other.Process.Kill(); _, _ = other.Process.Wait() }()
-	writeLock(other.Process.Pid)
-	killStaleXvfb(displayNum)
-	if err := other.Process.Signal(syscall.Signal(0)); err != nil {
-		t.Fatalf("non-Xvfb process was killed: %v", err)
+	// Live: a child of this process counts as owned by a live wscreensavers process.
+	live := exec.Command(script, fmt.Sprintf(":%d", want+1))
+	if err := live.Start(); err != nil {
+		t.Fatal(err)
 	}
-
-	// An Xvfb holding the display is evicted.
-	stale := start(fakeXvfb)
-	writeLock(stale.Process.Pid)
-	killStaleXvfb(displayNum)
-	done := make(chan error, 1)
-	go func() { done <- stale.Wait() }()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		_ = stale.Process.Kill()
-		t.Fatal("stale Xvfb was not killed")
+	defer func() { _ = live.Process.Kill(); _, _ = live.Process.Wait() }()
+	time.Sleep(50 * time.Millisecond)
+	if got := claimDisplay(want + 1); got != want+2 {
+		t.Errorf("live display must be skipped: got :%d, want :%d", got, want+2)
+	}
+	if err := live.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Errorf("live Xvfb was killed: %v", err)
 	}
 }

@@ -68,8 +68,17 @@ type session struct {
 	hackCmd       *exec.Cmd
 	activeSaver   string
 	activeArgs    string
-	activeStreams map[string]context.CancelFunc
+	activeStreams map[string]*clientStream
 }
+
+// clientStream is one connected viewer of a session; entries are compared by identity.
+type clientStream struct {
+	cancel context.CancelFunc
+}
+
+// idleStopDelay is how long a session may sit with no viewers before its hack and
+// Xvfb are shut down. It is long enough for a viewer to reload and reconnect.
+const idleStopDelay = 5 * time.Second
 
 func NewStreamer() *Streamer {
 	return &Streamer{
@@ -120,7 +129,7 @@ func (s *Streamer) sessionFor(key string) *session {
 		displayNum:    num,
 		width:         defaultWidth,
 		height:        defaultHeight,
-		activeStreams: make(map[string]context.CancelFunc),
+		activeStreams: make(map[string]*clientStream),
 	}
 	s.sessions[key] = sess
 	return sess
@@ -168,10 +177,9 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 		sess.stopXvfbLocked()
 	}
 
-	// A previous run may have left its Xvfb (and the hacks drawing into it) alive.
-	// Starting a second server on the same display fails silently and the new hack
-	// would draw next to the old ones, so evict the old server first.
-	killStaleXvfb(sess.displayNum)
+	displayClaimMu.Lock()
+	defer displayClaimMu.Unlock()
+	sess.displayNum = claimDisplay(sess.displayNum)
 
 	// Clean up any stale lock files for this display
 	_ = os.Remove(fmt.Sprintf("/tmp/.X%d-lock", sess.displayNum))
@@ -191,28 +199,90 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 	return nil
 }
 
-// killStaleXvfb kills the Xvfb recorded in the display's lock file, if any.
-// Its X clients exit when the server goes away.
-func killStaleXvfb(displayNum int) {
-	data, err := os.ReadFile(fmt.Sprintf("/tmp/.X%d-lock", displayNum))
-	if err != nil {
-		return
+// displayClaimMu serialises display selection and Xvfb start-up within this process.
+var displayClaimMu sync.Mutex
+
+// claimDisplay returns the first display number at or above want that no live
+// wscreensavers process is using. An Xvfb whose parent is not a wscreensavers
+// process was orphaned by a dead one, so it is evicted (its clients exit with
+// the server) and the number is reused. Several wscreensavers processes (the
+// daemon, a --lock overlay, a --wallpaper process) each run their own streamer,
+// so numbers must not be assumed free.
+func claimDisplay(want int) int {
+	for n := want; n < want+200; n++ {
+		owner := findXvfb(n)
+		if owner == 0 {
+			return n
+		}
+		if isLiveWscreensaversParent(parentPID(owner)) {
+			continue
+		}
+		_ = syscall.Kill(owner, syscall.SIGKILL)
+		for i := 0; i < 40; i++ {
+			if syscall.Kill(owner, syscall.Signal(0)) != nil {
+				break
+			}
+			time.Sleep(25 * time.Millisecond)
+		}
+		return n
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || pid <= 1 {
-		return
+	return want
+}
+
+func isLiveWscreensaversParent(pid int) bool {
+	if pid <= 1 {
+		return false
+	}
+	if pid == os.Getpid() {
+		return true
 	}
 	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
-	if err != nil || strings.TrimSpace(string(comm)) != "Xvfb" {
-		return
+	return err == nil && strings.TrimSpace(string(comm)) == "wscreensavers"
+}
+
+func parentPID(pid int) int {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return 0
 	}
-	_ = syscall.Kill(pid, syscall.SIGKILL)
-	for i := 0; i < 20; i++ {
-		if err := syscall.Kill(pid, syscall.Signal(0)); err != nil {
-			return
+	// The comm field may contain spaces and parentheses; fields resume after the last ')'.
+	rest := string(data)
+	rest = rest[strings.LastIndexByte(rest, ')')+1:]
+	fields := strings.Fields(rest)
+	if len(fields) < 2 {
+		return 0
+	}
+	ppid, _ := strconv.Atoi(fields[1])
+	return ppid
+}
+
+// findXvfb returns the pid of the Xvfb serving display n, or 0 if there is none.
+func findXvfb(n int) int {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return 0
+	}
+	want := ":" + strconv.Itoa(n)
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
 		}
-		time.Sleep(25 * time.Millisecond)
+		comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+		if err != nil || strings.TrimSpace(string(comm)) != "Xvfb" {
+			continue
+		}
+		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		if err != nil {
+			continue
+		}
+		for _, arg := range strings.Split(string(cmdline), "\x00") {
+			if arg == want {
+				return pid
+			}
+		}
 	}
+	return 0
 }
 
 func (sess *session) stopHackLocked() {
@@ -281,6 +351,10 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	return nil
 }
 
+// registerClientStream records a viewer and returns its context plus a release
+// function. Releasing the last viewer schedules the session to shut down, so a
+// viewer that vanishes without saying goodbye (killed process, crashed webview)
+// cannot leave a hack running.
 func (sess *session) registerClientStream(clientID string, parent context.Context) (context.Context, context.CancelFunc) {
 	if clientID == "" {
 		clientID = "default"
@@ -288,12 +362,38 @@ func (sess *session) registerClientStream(clientID string, parent context.Contex
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 
-	if prevCancel, exists := sess.activeStreams[clientID]; exists && prevCancel != nil {
-		prevCancel()
+	if prev, exists := sess.activeStreams[clientID]; exists {
+		prev.cancel()
 	}
 	ctx, cancel := context.WithCancel(parent)
-	sess.activeStreams[clientID] = cancel
-	return ctx, cancel
+	entry := &clientStream{cancel: cancel}
+	sess.activeStreams[clientID] = entry
+
+	release := func() {
+		cancel()
+		sess.mu.Lock()
+		if sess.activeStreams[clientID] == entry {
+			delete(sess.activeStreams, clientID)
+		}
+		idle := len(sess.activeStreams) == 0
+		sess.mu.Unlock()
+		if idle {
+			sess.stopWhenIdle()
+		}
+	}
+	return ctx, release
+}
+
+// stopWhenIdle shuts the hack and Xvfb down if no viewer has returned after idleStopDelay.
+func (sess *session) stopWhenIdle() {
+	time.AfterFunc(idleStopDelay, func() {
+		sess.mu.Lock()
+		defer sess.mu.Unlock()
+		if len(sess.activeStreams) == 0 {
+			sess.stopHackLocked()
+			sess.stopXvfbLocked()
+		}
+	})
 }
 
 // StopClient cancels any active stream for the given client in the given session and stops
@@ -305,8 +405,8 @@ func (s *Streamer) StopClient(sessionKey, clientID string) {
 	sess := s.sessionFor(sessionKey)
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
-	if cancel, ok := sess.activeStreams[clientID]; ok && cancel != nil {
-		cancel()
+	if entry, ok := sess.activeStreams[clientID]; ok {
+		entry.cancel()
 		delete(sess.activeStreams, clientID)
 	}
 	if len(sess.activeStreams) == 0 {
@@ -394,10 +494,8 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 func (s *Streamer) StopAll() {
 	for _, sess := range s.allSessions() {
 		sess.mu.Lock()
-		for k, cancel := range sess.activeStreams {
-			if cancel != nil {
-				cancel()
-			}
+		for k, entry := range sess.activeStreams {
+			entry.cancel()
 			delete(sess.activeStreams, k)
 		}
 		sess.stopHackLocked()

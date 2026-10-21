@@ -97,13 +97,23 @@ func main() {
 	if *saverMode || *lockMode || *wallpaperMode {
 		baseURL := *serverURLFlag
 		if baseURL == "" {
-			startedURL, err := srv.StartHTTP("127.0.0.1:0")
+			startedURL, err := srv.StartEmbeddedHTTP("127.0.0.1:0")
 			if err != nil {
 				log.Fatalf("Failed to start embedded asset server: %v", err)
 			}
 			baseURL = startedURL
 		}
 		defer srv.Shutdown()
+
+		// Overlays are stopped with SIGTERM; clean up the hacks and Xvfb servers we
+		// started instead of dying with deferred work skipped.
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		go func() {
+			<-sigCh
+			srv.Shutdown()
+			os.Exit(0)
+		}()
 
 		urls := buildMonitorURLs(baseURL, cfgMgr, srv, *saverIDFlag, *wallpaperMode, *lockMode)
 		layershell.RunLayerShellWindows(urls, *wallpaperMode, *lockMode)

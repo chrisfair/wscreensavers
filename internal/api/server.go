@@ -139,7 +139,27 @@ func (s *Server) Handler() http.Handler {
 	return corsMiddleware(mux)
 }
 
+// StartHTTP serves the API and, when the saved config asks for it, brings the
+// live wallpaper up. Only the long-lived daemon / GUI process should use it.
 func (s *Server) StartHTTP(preferredAddr string) (string, error) {
+	baseURL, err := s.StartEmbeddedHTTP(preferredAddr)
+	if err != nil {
+		return "", err
+	}
+
+	// If wallpaper was enabled in saved config, launch it automatically
+	cfg := s.cfgMgr.Get()
+	if cfg.WallpaperEnabled {
+		_ = s.SetWallpaperActive(true, cfg.WallpaperSaver)
+	}
+
+	return baseURL, nil
+}
+
+// StartEmbeddedHTTP serves the API without touching the wallpaper. The --saver,
+// --lock and --wallpaper child processes use it: they must never spawn their own
+// wallpaper helper, which would duplicate hacks and virtual displays.
+func (s *Server) StartEmbeddedHTTP(preferredAddr string) (string, error) {
 	handler := s.Handler()
 
 	ln, err := net.Listen("tcp", preferredAddr)
@@ -156,12 +176,6 @@ func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 	go func() {
 		_ = http.Serve(ln, handler)
 	}()
-
-	// If wallpaper was enabled in saved config, launch it automatically
-	cfg := s.cfgMgr.Get()
-	if cfg.WallpaperEnabled {
-		_ = s.SetWallpaperActive(true, cfg.WallpaperSaver)
-	}
 
 	return s.baseURL, nil
 }
