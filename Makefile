@@ -76,4 +76,5 @@ install:
 
 clean:
 	rm -f $(APP_NAME) coverage.out coverage.html
-	rm -rf frontend/dist pkg src $(APP_NAME)-*.pkg.tar*
+	rm -f $(APP_NAME)-*.pkg.tar* $(APP_NAME)-*.tar.gz
+	rm -rf frontend/dist frontend/node_modules pkg src
