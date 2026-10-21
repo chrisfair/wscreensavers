@@ -73,6 +73,8 @@ local LOCK_PROVIDERS = {
   { "swaylock", "swaylock" },
 }
 
+local MAX_CATALOG_ROWS = 200
+
 local CATEGORIES = {
   "All",
   "Matrix & Cyber",
@@ -431,16 +433,28 @@ render = function()
       render()
     end)
 
+    -- Noctalia drops children past 256 in one column, so cap the list and say so.
     local saverRows = {}
+    local matched = 0
     for _, s in ipairs(stateData.savers or {}) do
       if matchesFilter(s) then
-        table.insert(saverRows, renderSaverRow(s, cfg))
+        matched += 1
+        if #saverRows < MAX_CATALOG_ROWS then
+          table.insert(saverRows, renderSaverRow(s, cfg))
+        end
       end
+    end
+    if matched > #saverRows then
+      table.insert(saverRows, ui.label({
+        text = string.format(tr("catalog_truncated"), #saverRows, matched),
+        fontSize = 11,
+        color = "on_surface_variant",
+      }))
     end
 
     table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, {
       ui.row({ gap = 8, align = "center" }, {
-        ui.label({ text = tr("catalog_section") .. " (" .. tostring(#saverRows) .. ")", fontSize = 14, fontWeight = "bold", color = "primary" }),
+        ui.label({ text = tr("catalog_section") .. " (" .. tostring(matched) .. ")", fontSize = 14, fontWeight = "bold", color = "primary" }),
         ui.spacer({ flexGrow = 1 }),
         ui.input({
           key = "catalog-search",
@@ -490,7 +504,7 @@ function onIpc(event, _payload)
     if panelOpen then
       panel.close()
     else
-      noctalia.togglePanel("christopher/wscreensavers:controls")
+      noctalia.togglePanel("christopherpfair/wscreensavers:controls")
     end
   end
 end

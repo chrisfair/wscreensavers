@@ -2,7 +2,7 @@
 -- Noctalia bar widget for WScreenSavers.
 -- Displays status in the bar and opens the floating WScreenSavers control panel.
 
-local PANEL_ID = "christopher/wscreensavers:controls"
+local PANEL_ID = "christopherpfair/wscreensavers:controls"
 local CHANGED_KEY = "wscreensavers.changed"
 local REFRESH_MS = 20000
 

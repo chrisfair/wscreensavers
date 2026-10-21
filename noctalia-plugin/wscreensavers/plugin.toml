@@ -1,8 +1,8 @@
-id = "christopher/wscreensavers"
+id = "christopherpfair/wscreensavers"
 name = "WScreenSavers"
-version = "1.0.0"
+version = "1.1.1"
 plugin_api = 9
-author = "christopher"
+author = "christopherpfair"
 license = "GPL-3.0"
 dependencies = ["wscreensavers"]
 tags = ["bar", "panel", "screensaver", "xscreensaver", "wallpaper", "lock", "wayland", "utility"]
