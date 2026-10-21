@@ -283,11 +283,13 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 	go func() {
 		_ = cmd.Wait()
 		p.mu.Lock()
-		if p.saverProc == cmd {
+		exitedOnItsOwn := p.saverProc == cmd
+		if exitedOnItsOwn {
 			p.saverProc = nil
 		}
 		p.mu.Unlock()
-		if p.onSaverExit != nil {
+		// A process we replaced or stopped must not mark the screensaver inactive.
+		if exitedOnItsOwn && p.onSaverExit != nil {
 			p.onSaverExit()
 		}
 	}()

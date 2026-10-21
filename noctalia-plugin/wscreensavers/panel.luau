@@ -31,6 +31,14 @@ local TIMEOUTS = {
   { 60, "60 min" },
 }
 
+local CYCLE_TIMEOUTS = {
+  { 1, "1 min" },
+  { 5, "5 min" },
+  { 10, "10 min" },
+  { 15, "15 min" },
+  { 30, "30 min" },
+}
+
 local DPMS_TIMEOUTS = {
   { 0, "Off" },
   { 5, "5 min" },
@@ -342,6 +350,10 @@ render = function()
         ui.label({ text = tr("mode") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(modeItems, cfg.mode or "random", function(val) setConfig("mode", val) end, "mode"),
       }),
+      cfg.mode == "cycle" and ui.row({ gap = 8, align = "center" }, {
+        ui.label({ text = tr("cycle_timeout") .. ":", fontSize = 12, color = "on_surface_variant" }),
+        chipRow(CYCLE_TIMEOUTS, cfg.cycleTimeoutMinutes or 5, function(val) setConfig("cycleTimeoutMinutes", val) end, "cycle"),
+      }) or ui.spacer({ height = 0 }),
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("idle_timeout") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(TIMEOUTS, cfg.idleTimeoutMinutes or 10, function(val) setConfig("idleTimeoutMinutes", val) end, "timeout"),

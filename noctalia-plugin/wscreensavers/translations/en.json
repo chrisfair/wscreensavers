@@ -50,5 +50,6 @@
   "pool_all": "Add All",
   "xss_dim": "OpenGL Max Resolution",
   "lock_provider": "Lock Provider",
-  "lock_native": "Native PAM"
+  "lock_native": "Native PAM",
+  "cycle_timeout": "Cycle Next Saver Every"
 }

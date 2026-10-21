@@ -157,3 +157,22 @@ func TestAPIServerEndpoints(t *testing.T) {
 		t.Errorf("expected 200 OK on /api/support/record, got %d", recRes.StatusCode)
 	}
 }
+
+func TestLockSaverIDKeepsCurrentSaverOnlyInCycleMode(t *testing.T) {
+	cfgMgr, err := config.NewManager(filepath.Join(t.TempDir(), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := NewServer(cfgMgr, nil)
+	srv.currentSaver = "flurry"
+
+	cfg := cfgMgr.Get()
+	cfg.Mode = "cycle"
+	if id := srv.lockSaverID(cfg); id != "flurry" {
+		t.Errorf("cycle mode: expected current saver flurry, got %q", id)
+	}
+	cfg.Mode = "random"
+	if id := srv.lockSaverID(cfg); id != "" {
+		t.Errorf("random mode: expected empty ID so the picker decides, got %q", id)
+	}
+}

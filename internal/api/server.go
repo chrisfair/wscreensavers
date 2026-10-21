@@ -35,6 +35,8 @@ type Server struct {
 	frontendFS  fs.FS
 	listenAddr  string
 	baseURL     string
+
+	currentSaver string // guarded by mu; saver most recently handed to the overlay
 }
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
@@ -182,6 +184,10 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 		return auth.TriggerExternalLocker(cfg.LockProvider)
 	}
 
+	s.mu.Lock()
+	s.currentSaver = saverID
+	s.mu.Unlock()
+
 	s.idleMon.SetScreensaverActive(true, locked)
 	return s.layerCtrl.StartSaverOverlay(s.baseURL, saverID, locked)
 }
@@ -218,7 +224,7 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	var saverStartedAt time.Time
+	var saverStartedAt, lastSwitchAt time.Time
 
 	for {
 		select {
@@ -240,11 +246,18 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 			timeoutSec := cfg.IdleTimeoutMinutes * 60
 			if !st.ScreensaverActive && st.IdleSeconds >= timeoutSec {
 				saverStartedAt = time.Now()
+				lastSwitchAt = saverStartedAt
 				_ = s.LaunchScreensaver("", false)
-			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled {
-				if int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
-					_ = s.LaunchScreensaver("", true)
-				}
+			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled &&
+				int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
+				// In cycle mode keep the saver that is on screen rather than jumping to the next one.
+				_ = s.LaunchScreensaver(s.lockSaverID(cfg), true)
+			} else if st.ScreensaverActive && !st.Locked && cfg.Mode == "cycle" &&
+				cfg.CycleTimeoutMinutes > 0 &&
+				time.Since(lastSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
+				// Cycling never restarts a locked overlay, so the lock surface is never torn down.
+				lastSwitchAt = time.Now()
+				_ = s.LaunchScreensaver("", false)
 			}
 
 			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed
@@ -256,6 +269,17 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 			}
 		}
 	}
+}
+
+// lockSaverID returns the saver the lock overlay should show: the current one in
+// cycle mode, otherwise "" so LaunchScreensaver picks per the usual mode rules.
+func (s *Server) lockSaverID(cfg models.AppConfig) string {
+	if cfg.Mode != "cycle" {
+		return ""
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.currentSaver
 }
 
 func (s *Server) Shutdown() {
