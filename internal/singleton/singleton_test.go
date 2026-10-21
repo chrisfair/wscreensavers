@@ -2,6 +2,7 @@ package singleton
 
 import (
 	"errors"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -60,4 +61,23 @@ func TestWaitsForPredecessorToExit(t *testing.T) {
 		t.Fatalf("expected to acquire after predecessor exits: %v", err)
 	}
 	r()
+}
+
+// main.go discards the release function, so the lock must survive garbage
+// collection of everything the caller no longer references.
+func TestLockSurvivesDiscardedRelease(t *testing.T) {
+	dir := t.TempDir()
+
+	if _, err := acquireIn(dir, "lock", 0); err != nil {
+		t.Fatalf("first acquire: %v", err)
+	}
+
+	for i := 0; i < 5; i++ {
+		runtime.GC()
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if _, err := acquireIn(dir, "lock", 0); !errors.Is(err, ErrAlreadyRunning) {
+		t.Fatalf("second acquire after GC = %v, want ErrAlreadyRunning", err)
+	}
 }

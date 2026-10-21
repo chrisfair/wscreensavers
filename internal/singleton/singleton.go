@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -16,6 +17,14 @@ import (
 var ErrAlreadyRunning = errors.New("another instance is already running")
 
 const retryInterval = 50 * time.Millisecond
+
+// held keeps acquired lock files referenced for the life of the process.
+// Callers may discard the release function, and an unreferenced *os.File is
+// closed by its finalizer on the next GC, which would silently drop the flock.
+var (
+	heldMu sync.Mutex
+	held   = map[*os.File]struct{}{}
+)
 
 func lockPath(dir, name string) string {
 	return filepath.Join(dir, fmt.Sprintf("wscreensavers-%s.lock", name))
@@ -45,7 +54,15 @@ func acquireIn(dir, name string, wait time.Duration) (func(), error) {
 	for {
 		err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 		if err == nil {
-			return func() { _ = f.Close() }, nil
+			heldMu.Lock()
+			held[f] = struct{}{}
+			heldMu.Unlock()
+			return func() {
+				heldMu.Lock()
+				delete(held, f)
+				heldMu.Unlock()
+				_ = f.Close()
+			}, nil
 		}
 		if !errors.Is(err, syscall.EWOULDBLOCK) {
 			_ = f.Close()
