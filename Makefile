@@ -5,6 +5,7 @@ DESKTOPDIR := $(PREFIX)/share/applications
 ICONDIR := $(PREFIX)/share/icons/hicolor/scalable/apps
 SYSTEMDUSERDIR := $(PREFIX)/lib/systemd/user
 NOCTALIADIR := $(HOME)/.config/noctalia/plugins/wscreensavers
+PLUGINSRCDIR := $(PREFIX)/share/wscreensavers/noctalia-plugins/wscreensavers
 
 .PHONY: all frontend build test coverage pkg pacman pacman-install install-noctalia run daemon saver lock wallpaper clean install
 
@@ -71,6 +72,7 @@ install:
 	install -Dm644 wscreensavers.svg "$(DESTDIR)$(ICONDIR)/wscreensavers.svg"
 	install -Dm644 wscreensavers.service "$(DESTDIR)$(SYSTEMDUSERDIR)/wscreensavers.service"
 	install -Dm644 nag "$(DESTDIR)$(PREFIX)/share/wscreensavers/nag"
+	cd noctalia-plugin/wscreensavers && find . -type f -exec install -Dm644 {} "$(DESTDIR)$(PLUGINSRCDIR)/{}" \;
 
 clean:
 	rm -f $(APP_NAME) coverage.out coverage.html

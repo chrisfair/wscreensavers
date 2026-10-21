@@ -20,11 +20,24 @@ For the screensaver to start on idle, run the daemon as well:
 
 ## Installing
 
+If you installed the AUR package, the plugin files are already on disk. Register
+them once as a source:
+
+```sh
+noctalia msg plugins source add wscreensavers path /usr/share/wscreensavers/noctalia-plugins
+noctalia msg plugins update wscreensavers
+noctalia msg plugins enable christopherpfair/wscreensavers
+```
+
+Otherwise add the git source:
+
 ```sh
 noctalia msg plugins source add chrisfair git https://gitlab.com/chrisfair/noctalia-plugins
 noctalia msg plugins update chrisfair
 noctalia msg plugins enable christopherpfair/wscreensavers
 ```
+
+Use one source or the other, not both, because they provide the same plugin id.
 
 ## Features
 
