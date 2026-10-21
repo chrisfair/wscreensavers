@@ -25,6 +25,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -166,6 +168,11 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 		sess.stopXvfbLocked()
 	}
 
+	// A previous run may have left its Xvfb (and the hacks drawing into it) alive.
+	// Starting a second server on the same display fails silently and the new hack
+	// would draw next to the old ones, so evict the old server first.
+	killStaleXvfb(sess.displayNum)
+
 	// Clean up any stale lock files for this display
 	_ = os.Remove(fmt.Sprintf("/tmp/.X%d-lock", sess.displayNum))
 	_ = os.Remove(fmt.Sprintf("/tmp/.X11-unix/X%d", sess.displayNum))
@@ -173,7 +180,7 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 	disp := sess.displayString()
 	geom := fmt.Sprintf("%dx%dx24", width, height)
 	cmd := exec.Command("Xvfb", disp, "-screen", "0", geom, "-nolisten", "tcp", "+extension", "GLX")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start Xvfb on %s: %w", disp, err)
 	}
@@ -182,6 +189,30 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 	sess.height = height
 	time.Sleep(250 * time.Millisecond)
 	return nil
+}
+
+// killStaleXvfb kills the Xvfb recorded in the display's lock file, if any.
+// Its X clients exit when the server goes away.
+func killStaleXvfb(displayNum int) {
+	data, err := os.ReadFile(fmt.Sprintf("/tmp/.X%d-lock", displayNum))
+	if err != nil {
+		return
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 1 {
+		return
+	}
+	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if err != nil || strings.TrimSpace(string(comm)) != "Xvfb" {
+		return
+	}
+	_ = syscall.Kill(pid, syscall.SIGKILL)
+	for i := 0; i < 20; i++ {
+		if err := syscall.Kill(pid, syscall.Signal(0)); err != nil {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
 }
 
 func (sess *session) stopHackLocked() {
@@ -225,7 +256,7 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	env := os.Environ()
 	env = append(env, "DISPLAY="+sess.displayString())
 	cmd.Env = env
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start xscreensaver binary %s: %w", saver.BinaryPath, err)

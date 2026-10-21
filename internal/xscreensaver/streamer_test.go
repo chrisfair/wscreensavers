@@ -1,6 +1,14 @@
 package xscreensaver
 
-import "testing"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"syscall"
+	"testing"
+	"time"
+)
 
 func TestSessionForPerMonitor(t *testing.T) {
 	s := NewStreamer()
@@ -52,4 +60,51 @@ func TestStopClientWithoutSession(t *testing.T) {
 	s := NewStreamer()
 	s.StopClient("DP-1", "c_missing") // must not panic or start anything
 	s.StopAll()
+}
+
+func TestKillStaleXvfbEvictsOnlyAnXvfbHoldingTheDisplay(t *testing.T) {
+	const displayNum = 9876
+	lock := fmt.Sprintf("/tmp/.X%d-lock", displayNum)
+	defer os.Remove(lock)
+
+	dir := t.TempDir()
+	fakeXvfb := filepath.Join(dir, "Xvfb")
+	if err := os.Symlink("/usr/bin/sleep", fakeXvfb); err != nil {
+		t.Fatal(err)
+	}
+
+	start := func(bin string) *exec.Cmd {
+		cmd := exec.Command(bin, "60")
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		return cmd
+	}
+	writeLock := func(pid int) {
+		if err := os.WriteFile(lock, []byte(fmt.Sprintf("%10d\n", pid)), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// A process that is not an Xvfb must be left alone even if the lock names it.
+	other := start("/usr/bin/sleep")
+	defer func() { _ = other.Process.Kill(); _, _ = other.Process.Wait() }()
+	writeLock(other.Process.Pid)
+	killStaleXvfb(displayNum)
+	if err := other.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatalf("non-Xvfb process was killed: %v", err)
+	}
+
+	// An Xvfb holding the display is evicted.
+	stale := start(fakeXvfb)
+	writeLock(stale.Process.Pid)
+	killStaleXvfb(displayNum)
+	done := make(chan error, 1)
+	go func() { done <- stale.Wait() }()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		_ = stale.Process.Kill()
+		t.Fatal("stale Xvfb was not killed")
+	}
 }
