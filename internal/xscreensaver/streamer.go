@@ -138,6 +138,18 @@ func (s *Streamer) EnsureRunning(saver models.Screensaver, values map[string]any
 	s.hackCmd = cmd
 	s.activeSaver = saver.ID
 	s.activeArgs = argsKey
+
+	go func(targetCmd *exec.Cmd) {
+		_ = targetCmd.Wait()
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.hackCmd == targetCmd {
+			s.hackCmd = nil
+			s.activeSaver = ""
+			s.activeArgs = ""
+		}
+	}(cmd)
+
 	time.Sleep(100 * time.Millisecond)
 	return nil
 }

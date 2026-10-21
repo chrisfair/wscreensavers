@@ -32,12 +32,17 @@ static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
         if (lock_windows[i] != NULL) {
             gtk_layer_set_keyboard_mode(
                 GTK_WINDOW(lock_windows[i]),
-                (lock_windows[i] == target_win)
-                    ? GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
-                    : GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+                GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
             );
         }
     }
+    if (webview != NULL) {
+        gtk_widget_grab_focus(webview);
+    }
+}
+
+static void on_window_map(GtkWidget *widget, gpointer user_data) {
+    GtkWidget *webview = GTK_WIDGET(user_data);
     if (webview != NULL) {
         gtk_widget_grab_focus(webview);
     }
@@ -49,9 +54,25 @@ static gboolean on_lock_enter(GtkWidget *widget, GdkEventCrossing *event, gpoint
     return FALSE;
 }
 
+static gboolean on_lock_motion(GtkWidget *widget, GdkEventMotion *event, gpointer user_data) {
+    GtkWidget *webview = GTK_WIDGET(user_data);
+    if (webview != NULL && !gtk_widget_has_focus(webview)) {
+        gtk_widget_grab_focus(webview);
+    }
+    return FALSE;
+}
+
 static gboolean on_lock_click(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, GTK_WIDGET(user_data));
+    return FALSE;
+}
+
+static gboolean on_lock_key(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
+    GtkWidget *webview = GTK_WIDGET(user_data);
+    if (webview != NULL && !gtk_widget_has_focus(webview)) {
+        gtk_widget_grab_focus(webview);
+    }
     return FALSE;
 }
 
@@ -113,16 +134,16 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
                 gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
                 gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_NONE);
                 gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-wallpaper");
+            } else if (is_locked) {
+                gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
+                gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
+                gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
+                gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-lock");
             } else {
                 gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
                 gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-                gtk_layer_set_keyboard_mode(
-                    GTK_WINDOW(window),
-                    (is_locked && i == primary_idx)
-                        ? GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
-                        : GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
-                );
-                gtk_layer_set_namespace(GTK_WINDOW(window), is_locked ? "wscreensavers-lock" : "wscreensavers-saver");
+                gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND);
+                gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-saver");
             }
 
             gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_TOP, TRUE);
@@ -162,15 +183,20 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
         } else if (is_locked) {
             gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
             gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
+            g_signal_connect(window, "map", G_CALLBACK(on_window_map), webview);
             g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
+            g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_lock_motion), webview);
+            g_signal_connect(webview, "motion-notify-event", G_CALLBACK(on_lock_motion), webview);
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_lock_click), webview);
             g_signal_connect(webview, "button-press-event", G_CALLBACK(on_lock_click), webview);
+            g_signal_connect(window, "key-press-event", G_CALLBACK(on_lock_key), webview);
+            g_signal_connect(webview, "key-press-event", G_CALLBACK(on_lock_key), webview);
         }
 
         g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
         gtk_widget_show_all(window);
-        if (is_locked && i == primary_idx) {
+        if (is_locked) {
             gtk_widget_grab_focus(webview);
         }
     }

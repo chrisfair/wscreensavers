@@ -8,6 +8,7 @@
         :src="streamUrl"
         class="saver-stream"
         alt="XScreenSaver Live Stream"
+        @error="onStreamError"
       />
       <div class="xss-badge">XScreenSaver Binary &bull; Live Xvfb Bridge</div>
     </template>
@@ -114,13 +115,41 @@ function loop(timestamp) {
   }
 
   if (instance && typeof instance.render === 'function') {
-    instance.render(dt);
+    try {
+      instance.render(dt);
+    } catch (e) {
+      console.warn('Screensaver render exception:', e);
+    }
   }
 }
 
 function stopRemoteStream() {
   const base = props.apiBase || '';
   fetch(`${base}/api/xss-stream?stop=1&client=${clientId}`).catch(() => {});
+}
+
+function onStreamError() {
+  if (isExternalXSS.value) {
+    setTimeout(() => {
+      streamVersion.value++;
+    }, 1000);
+  }
+}
+
+function onContextLost(e) {
+  e.preventDefault();
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
+}
+
+function onContextRestored() {
+  initVisualizer();
+  lastFrameTime = performance.now();
+  if (!props.paused && !animId) {
+    animId = requestAnimationFrame(loop);
+  }
 }
 
 watch(() => props.paused, (isPaused) => {
@@ -164,6 +193,10 @@ watch(() => props.params, (newParams) => {
 
 onMounted(() => {
   initVisualizer();
+  if (canvasRef.value) {
+    canvasRef.value.addEventListener('webglcontextlost', onContextLost, false);
+    canvasRef.value.addEventListener('webglcontextrestored', onContextRestored, false);
+  }
   resizeObserver = new ResizeObserver(() => syncSize());
   if (containerRef.value) {
     resizeObserver.observe(containerRef.value);
@@ -176,6 +209,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (imgRef.value) {
     imgRef.value.src = '';
+  }
+  if (canvasRef.value) {
+    canvasRef.value.removeEventListener('webglcontextlost', onContextLost);
+    canvasRef.value.removeEventListener('webglcontextrestored', onContextRestored);
   }
   if (animId) cancelAnimationFrame(animId);
   if (resizeObserver) resizeObserver.disconnect();

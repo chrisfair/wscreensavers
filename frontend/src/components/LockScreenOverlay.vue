@@ -1,5 +1,5 @@
 <template>
-  <div class="lock-overlay" @click="focusInput">
+  <div class="lock-overlay" @click="onOverlayClick">
     <!-- Pitch black screen blanking curtain when inactive for dpmsMinutes -->
     <div v-if="isDark" class="dark-curtain"></div>
 
@@ -92,18 +92,22 @@ function focusInput() {
   }
 }
 
-function resetDimTimer(delayMs = 2500) {
+function onOverlayClick() {
+  handleUserActivity(false);
+}
+
+function resetDimTimer(delayMs = 5000) {
   if (dimTimer) clearTimeout(dimTimer);
   dimTimer = setTimeout(() => {
     if (!verifying.value && !authError.value) {
       if (password.value !== '') {
-        // If password has partial text, allow up to 8s before clearing & dimming
+        // If password has partial text, allow up to 15s before clearing & dimming
         dimTimer = setTimeout(() => {
           if (!verifying.value && !authError.value) {
             password.value = '';
             isDimmed.value = true;
           }
-        }, 8000);
+        }, 15000);
       } else {
         isDimmed.value = true;
       }
@@ -146,23 +150,22 @@ function handleUserActivity(isKey = false, keyEvent = null) {
     wakeFromDark();
   }
 
-  // Wake up extras / login card
+  // Wake up extras / login card immediately
   isDimmed.value = false;
-  resetDimTimer(props.locked && password.value ? 10000 : 3500);
+  resetDimTimer(props.locked && password.value ? 15000 : 5000);
   resetDarkTimer();
 
   if (props.locked) {
+    const wasFocused = (passInput.value && document.activeElement === passInput.value);
     focusInput();
     // If a key was pressed and focus wasn't already in the input, capture the character
-    if (isKey && keyEvent) {
-      if (document.activeElement !== passInput.value) {
-        if (keyEvent.key.length === 1 && !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.metaKey) {
-          password.value += keyEvent.key;
-        } else if (keyEvent.key === 'Backspace') {
-          password.value = password.value.slice(0, -1);
-        } else if (keyEvent.key === 'Enter') {
-          submitUnlock();
-        }
+    if (isKey && keyEvent && !wasFocused) {
+      if (keyEvent.key.length === 1 && !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.metaKey) {
+        password.value += keyEvent.key;
+      } else if (keyEvent.key === 'Backspace') {
+        password.value = password.value.slice(0, -1);
+      } else if (keyEvent.key === 'Enter') {
+        submitUnlock();
       }
     }
   }
@@ -185,11 +188,14 @@ function onWindowMouseMove(e) {
   if (lastMouseX === -1) {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+    if (isDimmed.value || isDark.value) {
+      handleUserActivity(false);
+    }
     return;
   }
   const dx = Math.abs(e.clientX - lastMouseX);
   const dy = Math.abs(e.clientY - lastMouseY);
-  if (dx > 4 || dy > 4) {
+  if (dx > 2 || dy > 2) {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
     handleUserActivity(false);
@@ -244,8 +250,8 @@ onMounted(() => {
   clockTimer = setInterval(updateClock, 1000);
   setTimeout(focusInput, 150);
 
-  // Quickly dim extras so only the screensaver stays visible
-  resetDimTimer(2500);
+  // Smoothly dim extras after 5s so screensaver stays visible when idle
+  resetDimTimer(5000);
   resetDarkTimer();
 
   window.addEventListener('keydown', onWindowKeyDown, true);
@@ -296,12 +302,15 @@ onBeforeUnmount(() => {
   justify-content: center;
   opacity: 1;
   pointer-events: auto;
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: scale(1);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
 }
 
 .extras-wrap.dimmed {
   opacity: 0;
   pointer-events: none;
+  transform: scale(0.98);
+  transition: opacity 1.5s ease-in, transform 1.5s ease-in;
 }
 
 .hud-clock {
