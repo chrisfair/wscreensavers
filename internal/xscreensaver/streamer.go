@@ -50,7 +50,9 @@ const (
 	baseDisplayNum    = 97
 	defaultWidth      = 960
 	defaultHeight     = 540
-	maxStreamDim      = 1920
+	defaultMaxDim     = 1920
+	minMaxDim         = 320
+	maxMaxDim         = 3840
 )
 
 // session is one Xvfb server plus the hack running on its root window.
@@ -75,14 +77,18 @@ func NewStreamer() *Streamer {
 }
 
 // normalizeSize clamps a requested geometry to something Xvfb and the MJPEG encoder accept:
-// even dimensions, at most maxStreamDim on the long edge, aspect ratio preserved.
-func normalizeSize(w, h int) (int, int) {
+// even dimensions, at most maxDim on the long edge, aspect ratio preserved.
+// A maxDim outside the supported range falls back to the default.
+func normalizeSize(w, h, maxDim int) (int, int) {
 	if w <= 0 || h <= 0 {
 		return defaultWidth, defaultHeight
 	}
-	if long := max(w, h); long > maxStreamDim {
-		w = w * maxStreamDim / long
-		h = h * maxStreamDim / long
+	if maxDim < minMaxDim || maxDim > maxMaxDim {
+		maxDim = defaultMaxDim
+	}
+	if long := max(w, h); long > maxDim {
+		w = w * maxDim / long
+		h = h * maxDim / long
 	}
 	w &^= 1
 	h &^= 1
@@ -279,10 +285,10 @@ func (s *Streamer) StopClient(sessionKey, clientID string) {
 
 // ServeMJPEG streams live frames from the session's Xvfb display as multipart/x-mixed-replace MJPEG.
 // sessionKey is typically the monitor name; width and height are the desired stream geometry
-// (zero selects the default).
-func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver models.Screensaver, values map[string]any, fps int, sessionKey string, width, height int) {
+// (zero selects the default), limited to maxDim pixels on the long edge.
+func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver models.Screensaver, values map[string]any, fps int, sessionKey string, width, height, maxDim int) {
 	sess := s.sessionFor(sessionKey)
-	width, height = normalizeSize(width, height)
+	width, height = normalizeSize(width, height, maxDim)
 
 	clientID := r.URL.Query().Get("client")
 	streamCtx, cancelStream := sess.registerClientStream(clientID, r.Context())

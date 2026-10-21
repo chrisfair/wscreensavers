@@ -24,19 +24,26 @@ func TestSessionForPerMonitor(t *testing.T) {
 }
 
 func TestNormalizeSize(t *testing.T) {
-	cases := []struct{ w, h, ew, eh int }{
-		{0, 0, defaultWidth, defaultHeight},
-		{-5, 100, defaultWidth, defaultHeight},
-		{1920, 1080, 1920, 1080},
-		{1921, 1081, 1920, 1080},
-		{3840, 2160, 1920, 1080},
-		{2560, 1440, 1920, 1080},
-		{10, 10, defaultWidth, defaultHeight},
+	cases := []struct{ w, h, maxDim, ew, eh int }{
+		{0, 0, 1920, defaultWidth, defaultHeight},
+		{-5, 100, 1920, defaultWidth, defaultHeight},
+		{1920, 1080, 1920, 1920, 1080},
+		{1921, 1081, 1920, 1920, 1080},
+		{3840, 2160, 1920, 1920, 1080},
+		{2560, 1440, 1920, 1920, 1080},
+		{10, 10, 1920, defaultWidth, defaultHeight},
+		{2560, 1440, 1280, 1280, 720},
+		{2560, 1440, 3840, 2560, 1440},
+		{3840, 2160, 3840, 3840, 2160},
+		// unset or out-of-range limits fall back to the default
+		{2560, 1440, 0, 1920, 1080},
+		{2560, 1440, 100, 1920, 1080},
+		{5000, 2000, 9999, 1920, 768},
 	}
 	for _, c := range cases {
-		gw, gh := normalizeSize(c.w, c.h)
+		gw, gh := normalizeSize(c.w, c.h, c.maxDim)
 		if gw != c.ew || gh != c.eh {
-			t.Errorf("normalizeSize(%d,%d) = %dx%d, want %dx%d", c.w, c.h, gw, gh, c.ew, c.eh)
+			t.Errorf("normalizeSize(%d,%d,%d) = %dx%d, want %dx%d", c.w, c.h, c.maxDim, gw, gh, c.ew, c.eh)
 		}
 	}
 }

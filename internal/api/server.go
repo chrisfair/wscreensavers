@@ -317,7 +317,7 @@ func (s *Server) handleXSSStream(w http.ResponseWriter, r *http.Request) {
 	if fps <= 0 {
 		fps = 30
 	}
-	s.xssStreamer.ServeMJPEG(w, r, saver, params, fps, q.Get("monitor"), width, height)
+	s.xssStreamer.ServeMJPEG(w, r, saver, params, fps, q.Get("monitor"), width, height, cfg.XSSMaxStreamDim)
 }
 
 func (s *Server) handleSaverAction(w http.ResponseWriter, r *http.Request) {

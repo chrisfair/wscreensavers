@@ -231,6 +231,16 @@
             </div>
 
             <div class="setting-box">
+              <label>OpenGL Saver Max Resolution ({{ config.xssMaxStreamDim }} px)</label>
+              <select v-model.number="config.xssMaxStreamDim" @change="persistConfig">
+                <option :value="1280">1280 px &mdash; lightest on CPU</option>
+                <option :value="1920">1920 px &mdash; balanced (default)</option>
+                <option :value="2560">2560 px &mdash; sharper, heavier</option>
+                <option :value="3840">3840 px &mdash; full 4K, heaviest</option>
+              </select>
+            </div>
+
+            <div class="setting-box">
               <label>Screen Lock Provider</label>
               <select v-model="config.lockProvider" @change="persistConfig">
                 <option value="native">Native PAM Overlay (Glassmorphic Unlock)</option>
@@ -372,6 +382,7 @@ const config = ref({
   wallpaperSaver: 'flurry',
   wallpaperPerMonitor: {},
   wallpaperFpsCap: 30,
+  xssMaxStreamDim: 1920,
   enabledSavers: [],
   saverParams: {},
   dpmsOffMinutes: 30

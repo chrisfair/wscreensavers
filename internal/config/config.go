@@ -49,6 +49,7 @@ func DefaultConfig() models.AppConfig {
 		SaverParams:           presetParams,
 		DPMSOffMinutes:        30,
 		PreferNativeOverX11:   true,
+		XSSMaxStreamDim:       1920,
 	}
 }
 

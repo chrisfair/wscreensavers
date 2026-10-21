@@ -172,6 +172,10 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			if n, err := strconv.Atoi(val); err == nil && n >= 5 {
 				cfg.WallpaperFPSCap = n
 			}
+		case "xssMaxStreamDim":
+			if n, err := strconv.Atoi(val); err == nil && n >= 320 && n <= 3840 {
+				cfg.XSSMaxStreamDim = n
+			}
 		case "dpmsOffMinutes":
 			if n, err := strconv.Atoi(val); err == nil && n >= 0 {
 				cfg.DPMSOffMinutes = n

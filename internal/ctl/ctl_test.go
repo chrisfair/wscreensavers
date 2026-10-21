@@ -32,6 +32,7 @@ func TestCtlCommands(t *testing.T) {
 		{"set", "inhibitOnFullscreen", "false"},
 		{"set", "wallpaperSaver", "glmatrix"},
 		{"set", "wallpaperFpsCap", "45"},
+		{"set", "xssMaxStreamDim", "1280"},
 	}
 
 	for _, args := range cases {
@@ -41,7 +42,7 @@ func TestCtlCommands(t *testing.T) {
 	}
 
 	cfg := cfgMgr.Get()
-	if cfg.SelectedSaver != "boing" || cfg.IdleTimeoutMinutes != 20 || cfg.WallpaperFPSCap != 45 {
+	if cfg.SelectedSaver != "boing" || cfg.IdleTimeoutMinutes != 20 || cfg.WallpaperFPSCap != 45 || cfg.XSSMaxStreamDim != 1280 {
 		t.Errorf("unexpected updated config values: %+v", cfg)
 	}
 
