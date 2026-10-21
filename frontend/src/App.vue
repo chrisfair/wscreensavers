@@ -283,6 +283,18 @@
 
           <!-- Tab 3: Live Desktop Wallpaper -->
           <div v-else-if="activeTab === 'wallpaper'" class="settings-grid">
+            <div class="setting-box wallpaper-note" :class="{ warn: otherWallpapers.length }">
+              <label>Other wallpapers</label>
+              <p>
+                The live wallpaper is drawn on top of every other wallpaper, including
+                Noctalia's own, hyprpaper, swww and swaybg. They keep running underneath it,
+                so turn them off if you do not want them running behind this one.
+              </p>
+              <p v-if="otherWallpapers.length">
+                Detected running now: <strong>{{ otherWallpapers.join(', ') }}</strong>
+              </p>
+            </div>
+
             <div class="setting-box">
               <label>Background Layer Status (zwlr_layer_shell_v1)</label>
               <button
@@ -388,6 +400,7 @@ const config = ref({
   dpmsOffMinutes: 30
 });
 
+const otherWallpapers = ref([]);
 const daemonStatus = ref({
   running: true,
   idleSeconds: 0,
@@ -470,6 +483,7 @@ async function fetchInitialData() {
     if (stRes.ok) {
       const st = await stRes.json();
       daemonStatus.value = st.daemon || daemonStatus.value;
+      otherWallpapers.value = st.otherWallpapers || [];
       username.value = st.username || username.value;
     }
     if (!isFullscreenSurface.value) {
@@ -508,6 +522,7 @@ async function refreshTelemetry() {
     if (stRes.ok) {
       const st = await stRes.json();
       daemonStatus.value = st.daemon || daemonStatus.value;
+      otherWallpapers.value = st.otherWallpapers || [];
     }
     if (isFullscreenSurface.value) {
       const cfgRes = await fetch(`${apiBase.value}/api/config`);
@@ -997,6 +1012,18 @@ html, body, #app {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.12);
+}
+.wallpaper-note p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+.wallpaper-note.warn {
+  border-color: rgba(250, 204, 21, 0.45);
+}
+.wallpaper-note.warn strong {
+  color: #facc15;
 }
 .setting-box label {
   font-size: 11px;

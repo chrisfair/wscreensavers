@@ -435,9 +435,10 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfgMgr.Get()
 	st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"daemon":   st,
-		"username": auth.CurrentUsername(),
-		"baseUrl":  s.baseURL,
+		"daemon":          st,
+		"username":        auth.CurrentUsername(),
+		"baseUrl":         s.baseURL,
+		"otherWallpapers": display.OtherWallpaperPrograms(),
 	})
 }
 

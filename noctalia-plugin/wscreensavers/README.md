@@ -39,6 +39,13 @@ noctalia msg plugins enable christopherpfair/wscreensavers
 
 Use one source or the other, not both, because they provide the same plugin id.
 
+## Other wallpapers
+
+The live wallpaper is drawn on the background layer **on top of** any other wallpaper,
+including Noctalia's own, hyprpaper, swww and swaybg. Those keep running underneath it,
+so turn them off if you do not want them running behind this one. The panel names any
+such wallpaper program it finds running (Noctalia's own cannot be detected).
+
 ## Features
 
 - **Bar Widget (`christopherpfair/wscreensavers:saver`)**:

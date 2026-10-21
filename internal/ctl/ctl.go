@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"wscreensavers/internal/catalog"
 	"wscreensavers/internal/config"
+	"wscreensavers/internal/display"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/xscreensaver"
@@ -30,6 +31,8 @@ type StatusPayload struct {
 	WallpaperName    string           `json:"wallpaperName"`
 	WallpaperRunning bool             `json:"wallpaperRunning"`
 	Savers           []CompactSaver   `json:"savers"`
+	// OtherWallpapers names other wallpaper programs running under the live wallpaper.
+	OtherWallpapers []string `json:"otherWallpapers"`
 }
 
 func allSavers() []models.Screensaver {
@@ -108,6 +111,7 @@ func buildStatus(cfgMgr *config.Manager) StatusPayload {
 		WallpaperName:    wpName,
 		WallpaperRunning: isWallpaperProcessRunning(),
 		Savers:           compact,
+		OtherWallpapers:  display.OtherWallpaperPrograms(),
 	}
 }
 

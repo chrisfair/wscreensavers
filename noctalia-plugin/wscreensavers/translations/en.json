@@ -51,5 +51,7 @@
   "xss_dim": "OpenGL Max Resolution",
   "lock_provider": "Lock Provider",
   "lock_native": "Native PAM",
-  "cycle_timeout": "Cycle Next Saver Every"
+  "cycle_timeout": "Cycle Next Saver Every",
+  "wallpaper_covers_note": "Drawn on top of every other wallpaper, including Noctalia's own, hyprpaper, swww and swaybg. They keep running underneath, so turn them off if you do not want that.",
+  "wallpaper_others_detected": "Other wallpaper running now"
 }

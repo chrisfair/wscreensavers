@@ -14,6 +14,7 @@ It combines a **Dual-Engine Architecture**:
 - **Wayland Layer-Shell Surface Host (`zwlr_layer_shell_v1`)**:
   - **Overlay Mode (`--saver` / `--lock`)**: Spawns borderless fullscreen `GTK_LAYER_SHELL_LAYER_OVERLAY` surfaces across every connected Wayland monitor.
   - **Live Desktop Wallpaper Mode (`--wallpaper`)**: Renders any screensaver directly on `GTK_LAYER_SHELL_LAYER_BACKGROUND` behind your desktop windows with configurable FPS capping.
+    - The live wallpaper is drawn **on top of** any other wallpaper (Noctalia's own, hyprpaper, swww, swaybg), which keep running underneath. Turn those off if you do not want them behind it; the Studio GUI and the Noctalia panel name any other wallpaper program they detect.
 - **Native PAM Lock Screen (`libpam`)**: Glassmorphic HUD clock and password prompt that authenticates directly against Linux PAM, with optional delegation to `hyprlock` or `swaylock`.
 - **Multi-Monitor Topologies**: Choose between **Independent Random** (different screensaver per monitor), **Synchronized Clone**, or **Per-Monitor Assignment** (`DP-1`, `HDMI-A-1`, etc.).
 - **Wayland Idle Daemon (`--daemon`)**: Automatic idle activation with PipeWire/PulseAudio media playback and fullscreen window inhibition.

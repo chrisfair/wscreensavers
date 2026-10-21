@@ -201,16 +201,18 @@ local function matchesFilter(saver)
   return true
 end
 
-local function inPool(cfg, id)
-  local pool = cfg.enabledSavers or {}
-  for _, e in ipairs(pool) do
-    if e == id then return true end
+-- Set of saver ids in the rotation pool, built once per render (the CPU budget
+-- for one callback is small and the catalog has hundreds of rows).
+local function poolSetOf(cfg)
+  local set = {}
+  for _, id in ipairs(cfg.enabledSavers or {}) do
+    set[id] = true
   end
-  return false
+  return set
 end
 
-local function renderSaverRow(saver, cfg)
-  local pooled = inPool(cfg, saver.id)
+local function renderSaverRow(saver, cfg, poolSet)
+  local pooled = poolSet[saver.id] == true
   local poolClick = callback("pool_" .. saver.id, function()
     runCmd("pool toggle " .. shellQuote(saver.id), tr("saved"))
   end)
@@ -421,6 +423,13 @@ render = function()
         ui.label({ text = tr("wallpaper_fps") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(FPS_CAPS, cfg.wallpaperFpsCap or 30, function(val) setConfig("wallpaperFpsCap", val) end, "fps"),
       }),
+      ui.label({ text = tr("wallpaper_covers_note"), fontSize = 11, color = "on_surface_variant" }),
+      ((stateData.otherWallpapers or {})[1] ~= nil) and ui.label({
+        text = tr("wallpaper_others_detected") .. ": " .. table.concat(stateData.otherWallpapers, ", "),
+        fontSize = 11,
+        fontWeight = "bold",
+        color = "primary",
+      }) or ui.spacer({ height = 0 }),
     }))
 
     -- 3. Screensaver Catalog & Category Picker
@@ -436,6 +445,7 @@ render = function()
 
     -- Noctalia drops children past 256 in one node, so rows go into chunked
     -- columns inside a catalog-only scroll area.
+    local poolSet = poolSetOf(cfg)
     local saverChunks = {}
     local chunk = nil
     local matched = 0
@@ -446,7 +456,7 @@ render = function()
           chunk = {}
           table.insert(saverChunks, chunk)
         end
-        table.insert(chunk, renderSaverRow(s, cfg))
+        table.insert(chunk, renderSaverRow(s, cfg, poolSet))
       end
     end
     local chunkColumns = {}
