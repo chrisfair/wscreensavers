@@ -3,7 +3,6 @@ package ctl
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"wscreensavers/internal/catalog"
 	"wscreensavers/internal/config"
 	"wscreensavers/internal/models"
+	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/xscreensaver"
 )
 
@@ -211,18 +211,58 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		return printStatus(cfgMgr)
 
 	case "randomize":
-		savers := allSavers()
-		if len(savers) > 0 {
-			picked := savers[rand.Intn(len(savers))].ID
-			if len(cfg.EnabledSavers) > 0 {
-				picked = cfg.EnabledSavers[rand.Intn(len(cfg.EnabledSavers))]
+		pool := cfg.EnabledSavers
+		if len(pool) == 0 {
+			for _, s := range allSavers() {
+				pool = append(pool, s.ID)
 			}
+		}
+		if picked := shuffle.Next(cfgMgr.ShufflePath(), pool); picked != "" {
 			cfg.SelectedSaver = picked
 			_ = cfgMgr.Update(cfg)
 			if len(args) >= 2 && args[1] == "launch" {
 				stopSaverProcesses()
 				_ = spawnDetached("--saver", "--saver-id", picked)
 			}
+		}
+		return printStatus(cfgMgr)
+
+	case "pool":
+		// usage: pool toggle <id> | pool all | pool none
+		if len(args) < 2 {
+			return fmt.Errorf("usage: wscreensavers ctl pool <toggle <id>|all|none>")
+		}
+		switch args[1] {
+		case "toggle":
+			if len(args) < 3 || args[2] == "" {
+				return fmt.Errorf("usage: wscreensavers ctl pool toggle <id>")
+			}
+			id := args[2]
+			next := make([]string, 0, len(cfg.EnabledSavers)+1)
+			found := false
+			for _, e := range cfg.EnabledSavers {
+				if e == id {
+					found = true
+					continue
+				}
+				next = append(next, e)
+			}
+			if !found {
+				next = append(next, id)
+			}
+			cfg.EnabledSavers = next
+		case "all":
+			cfg.EnabledSavers = cfg.EnabledSavers[:0:0]
+			for _, s := range allSavers() {
+				cfg.EnabledSavers = append(cfg.EnabledSavers, s.ID)
+			}
+		case "none":
+			cfg.EnabledSavers = []string{}
+		default:
+			return fmt.Errorf("unknown pool action: %s", args[1])
+		}
+		if err := cfgMgr.Update(cfg); err != nil {
+			return err
 		}
 		return printStatus(cfgMgr)
 

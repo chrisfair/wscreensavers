@@ -44,5 +44,11 @@
   "settings.glyph.label": "Bar Icon",
   "settings.glyph.description": "Icon shown in the Noctalia bar.",
   "settings.show_name.label": "Show Active Saver Name",
-  "settings.show_name.description": "Display the active screensaver name next to the bar icon."
+  "settings.show_name.description": "Display the active screensaver name next to the bar icon.",
+  "in_pool": "In Pool",
+  "pool_size": "Rotation Pool",
+  "pool_all": "Add All",
+  "xss_dim": "OpenGL Max Resolution",
+  "lock_provider": "Lock Provider",
+  "lock_native": "Native PAM"
 }

@@ -52,6 +52,19 @@ local FPS_CAPS = {
   { 60, "60 FPS" },
 }
 
+local XSS_DIMS = {
+  { 1280, "1280 px" },
+  { 1920, "1920 px" },
+  { 2560, "2560 px" },
+  { 3840, "3840 px" },
+}
+
+local LOCK_PROVIDERS = {
+  { "native", "lock_native" },
+  { "hyprlock", "hyprlock" },
+  { "swaylock", "swaylock" },
+}
+
 local CATEGORIES = {
   "All",
   "Matrix & Cyber",
@@ -175,7 +188,19 @@ local function matchesFilter(saver)
   return true
 end
 
+local function inPool(cfg, id)
+  local pool = cfg.enabledSavers or {}
+  for _, e in ipairs(pool) do
+    if e == id then return true end
+  end
+  return false
+end
+
 local function renderSaverRow(saver, cfg)
+  local pooled = inPool(cfg, saver.id)
+  local poolClick = callback("pool_" .. saver.id, function()
+    runCmd("pool toggle " .. shellQuote(saver.id), tr("saved"))
+  end)
   local isSelected = (cfg.selectedSaver == saver.id)
   local isWallpaper = (cfg.wallpaperSaver == saver.id and stateData.wallpaperRunning)
 
@@ -211,6 +236,15 @@ local function renderSaverRow(saver, cfg)
         ui.label({ text = "• " .. (saver.category or ""), fontSize = 11, color = "primary" }),
       }),
       ui.label({ text = saver.description or "", fontSize = 11, color = "on_surface_variant" }),
+    }),
+    ui.button({
+      text = tr("in_pool"),
+      glyph = pooled and "check" or "x",
+      controlSize = "sm",
+      variant = pooled and "primary" or "ghost",
+      selected = pooled,
+      enabled = not busy,
+      onClick = poolClick,
     }),
     ui.button({
       text = isSelected and tr("selected") or tr("select"),
@@ -285,6 +319,14 @@ render = function()
       table.insert(monItems, { m[1], tr(m[2]) })
     end
 
+    local lockItems = {}
+    for _, m in ipairs(LOCK_PROVIDERS) do
+      local label = m[2] == "native" and tr("lock_native") or m[2]
+      table.insert(lockItems, { m[1], label })
+    end
+    local poolAllClick = callback("poolAll", function() runCmd("pool all", tr("saved")) end)
+    local poolCount = #(cfg.enabledSavers or {})
+
     local toggleLock = callback("tLock", function() setConfig("lockEnabled", not cfg.lockEnabled) end)
     local toggleAudio = callback("tAudio", function() setConfig("inhibitOnAudio", not cfg.inhibitOnAudio) end)
     local toggleFs = callback("tFs", function() setConfig("inhibitOnFullscreen", not cfg.inhibitOnFullscreen) end)
@@ -307,6 +349,18 @@ render = function()
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("dpms_timeout") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(DPMS_TIMEOUTS, cfg.dpmsOffMinutes or 30, function(val) setConfig("dpmsOffMinutes", val) end, "dpms"),
+      }),
+      ui.row({ gap = 8, align = "center" }, {
+        ui.label({ text = tr("xss_dim") .. ":", fontSize = 12, color = "on_surface_variant" }),
+        chipRow(XSS_DIMS, cfg.xssMaxStreamDim or 1920, function(val) setConfig("xssMaxStreamDim", val) end, "xssdim"),
+      }),
+      ui.row({ gap = 8, align = "center" }, {
+        ui.label({ text = tr("lock_provider") .. ":", fontSize = 12, color = "on_surface_variant" }),
+        chipRow(lockItems, cfg.lockProvider or "native", function(val) setConfig("lockProvider", val) end, "lockprov"),
+      }),
+      ui.row({ gap = 8, align = "center" }, {
+        ui.label({ text = tr("pool_size") .. ": " .. tostring(poolCount) .. " / " .. tostring(#(stateData.savers or {})), fontSize = 12, color = "on_surface_variant" }),
+        ui.button({ text = tr("pool_all"), controlSize = "sm", variant = "ghost", enabled = not busy, onClick = poolAllClick }),
       }),
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("multi_monitor") .. ":", fontSize = 12, color = "on_surface_variant" }),

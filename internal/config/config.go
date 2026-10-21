@@ -174,3 +174,8 @@ func (m *Manager) ResetSaverParams(saverID string, schema []models.SaverParam) m
 func (m *Manager) Path() string {
 	return m.configPath
 }
+
+// ShufflePath is where the persistent random-rotation state lives, beside the config.
+func (m *Manager) ShufflePath() string {
+	return filepath.Join(filepath.Dir(m.configPath), "shuffle.json")
+}

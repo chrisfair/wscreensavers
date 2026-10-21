@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"math/rand"
 	"net"
 	"net/http"
 	"os/exec"
@@ -19,6 +18,7 @@ import (
 	"wscreensavers/internal/idle"
 	"wscreensavers/internal/layershell"
 	"wscreensavers/internal/models"
+	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/support"
 	"wscreensavers/internal/xscreensaver"
 )
@@ -91,16 +91,20 @@ func (s *Server) FindSaver(id string) (models.Screensaver, bool) {
 	return models.Screensaver{}, false
 }
 
+// PickRandomSaver draws from the enabled pool without repeats until every
+// saver has been shown once; the round state persists across processes.
 func (s *Server) PickRandomSaver() string {
 	cfg := s.cfgMgr.Get()
-	if len(cfg.EnabledSavers) > 0 {
-		return cfg.EnabledSavers[rand.Intn(len(cfg.EnabledSavers))]
+	pool := cfg.EnabledSavers
+	if len(pool) == 0 {
+		for _, sv := range s.GetSavers() {
+			pool = append(pool, sv.ID)
+		}
 	}
-	savers := s.GetSavers()
-	if len(savers) > 0 {
-		return savers[rand.Intn(len(savers))].ID
+	if len(pool) == 0 {
+		return "glmatrix"
 	}
-	return "glmatrix"
+	return shuffle.Next(s.cfgMgr.ShufflePath(), pool)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -577,4 +581,3 @@ func (s *Server) handleSupportOpen(w http.ResponseWriter, r *http.Request) {
 		"status": st,
 	})
 }
-
