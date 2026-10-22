@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 	"wscreensavers/internal/catalog"
 	"wscreensavers/internal/models"
 )
@@ -12,6 +13,7 @@ import (
 type Manager struct {
 	mu         sync.RWMutex
 	configPath string
+	lastMod    time.Time
 	cfg        models.AppConfig
 }
 
@@ -73,6 +75,14 @@ func NewManager(customPath string) (*Manager, error) {
 func (m *Manager) Load() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.loadLocked()
+}
+
+func (m *Manager) loadLocked() error {
+	fi, statErr := os.Stat(m.configPath)
+	if statErr == nil {
+		m.lastMod = fi.ModTime()
+	}
 
 	data, err := os.ReadFile(m.configPath)
 	if err != nil {
@@ -121,10 +131,29 @@ func (m *Manager) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(m.configPath, data, 0644)
+	if err := os.WriteFile(m.configPath, data, 0644); err != nil {
+		return err
+	}
+	if fi, err := os.Stat(m.configPath); err == nil {
+		m.lastMod = fi.ModTime()
+	}
+	return nil
 }
 
 func (m *Manager) Get() models.AppConfig {
+	if fi, err := os.Stat(m.configPath); err == nil {
+		m.mu.RLock()
+		modChanged := fi.ModTime().After(m.lastMod)
+		m.mu.RUnlock()
+		if modChanged {
+			m.mu.Lock()
+			if fi.ModTime().After(m.lastMod) {
+				_ = m.loadLocked()
+			}
+			m.mu.Unlock()
+		}
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.cfg

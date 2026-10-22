@@ -52,6 +52,17 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	}
 	srv.layerCtrl = layershell.NewProcessController(func() {
 		idleMon.SetScreensaverActive(false, false)
+		idleMon.RecordActivity()
+		srv.xssRunner.StopAll()
+		// Resume wallpaper if enabled in config
+		cfg := srv.cfgMgr.Get()
+		if cfg.WallpaperEnabled {
+			wpSaver := cfg.WallpaperSaver
+			if wpSaver == "random" || wpSaver == "" {
+				wpSaver = srv.PickRandomSaver()
+			}
+			_ = srv.layerCtrl.StartWallpaper(srv.baseURL, wpSaver)
+		}
 	})
 	srv.RefreshCatalog()
 	return srv
@@ -140,17 +151,25 @@ func (s *Server) Handler() http.Handler {
 }
 
 // StartHTTP serves the API and, when the saved config asks for it, brings the
-// live wallpaper up. Only the long-lived daemon / GUI process should use it.
+// live wallpaper up. Only the long-lived daemon / primary process should use it.
 func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 	baseURL, err := s.StartEmbeddedHTTP(preferredAddr)
 	if err != nil {
 		return "", err
 	}
 
-	// If wallpaper was enabled in saved config, launch it automatically
-	cfg := s.cfgMgr.Get()
-	if cfg.WallpaperEnabled {
-		_ = s.SetWallpaperActive(true, cfg.WallpaperSaver)
+	// Only launch wallpaper automatically if this server is the primary daemon on preferredAddr.
+	// If preferredAddr was in use by another instance, StartEmbeddedHTTP bound to a fallback port
+	// (s.listenAddr != preferredAddr), meaning another wscreensavers instance is already running.
+	if s.listenAddr == preferredAddr {
+		cfg := s.cfgMgr.Get()
+		if cfg.WallpaperEnabled {
+			wpSaver := cfg.WallpaperSaver
+			if wpSaver == "random" || wpSaver == "" {
+				wpSaver = s.PickRandomSaver()
+			}
+			_ = s.SetWallpaperActive(true, wpSaver)
+		}
 	}
 
 	return baseURL, nil
@@ -186,8 +205,8 @@ func (s *Server) BaseURL() string {
 
 func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	cfg := s.cfgMgr.Get()
-	if saverID == "" {
-		if cfg.Mode == "random" || cfg.Mode == "cycle" {
+	if saverID == "" || saverID == "random" {
+		if cfg.Mode == "random" || cfg.Mode == "cycle" || saverID == "random" {
 			saverID = s.PickRandomSaver()
 		} else {
 			saverID = cfg.SelectedSaver
@@ -203,6 +222,10 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	s.mu.Unlock()
 
 	s.idleMon.SetScreensaverActive(true, locked)
+
+	// Stop live wallpaper so it doesn't render or stack under the fullscreen screensaver
+	s.layerCtrl.StopWallpaper()
+
 	return s.layerCtrl.StartSaverOverlay(s.baseURL, saverID, locked)
 }
 
@@ -212,6 +235,16 @@ func (s *Server) StopScreensaver() {
 	s.layerCtrl.StopSaverOverlay()
 	s.idleMon.SetScreensaverActive(false, false)
 	s.idleMon.RecordActivity()
+
+	// Resume wallpaper if enabled in config
+	cfg := s.cfgMgr.Get()
+	if cfg.WallpaperEnabled {
+		wpSaver := cfg.WallpaperSaver
+		if wpSaver == "random" || wpSaver == "" {
+			wpSaver = s.PickRandomSaver()
+		}
+		_ = s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
+	}
 }
 
 func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
@@ -227,7 +260,11 @@ func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
 
 	if enabled {
 		s.idleMon.SetWallpaperActive(true)
-		return s.layerCtrl.StartWallpaper(s.baseURL, cfg.WallpaperSaver)
+		actualSaver := cfg.WallpaperSaver
+		if actualSaver == "random" {
+			actualSaver = s.PickRandomSaver()
+		}
+		return s.layerCtrl.StartWallpaper(s.baseURL, actualSaver)
 	}
 	s.idleMon.SetWallpaperActive(false)
 	s.layerCtrl.StopWallpaper()
@@ -238,7 +275,7 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	var saverStartedAt, lastSwitchAt time.Time
+	var saverStartedAt, lastSwitchAt, lastWallpaperSwitchAt time.Time
 
 	for {
 		select {
@@ -272,6 +309,17 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 				// Cycling never restarts a locked overlay, so the lock surface is never torn down.
 				lastSwitchAt = time.Now()
 				_ = s.LaunchScreensaver("", false)
+			}
+
+			// Wallpaper rotation if set to random and cycle timeout configured
+			if cfg.WallpaperEnabled && cfg.WallpaperSaver == "random" && !st.ScreensaverActive &&
+				cfg.CycleTimeoutMinutes > 0 {
+				if lastWallpaperSwitchAt.IsZero() {
+					lastWallpaperSwitchAt = time.Now()
+				} else if time.Since(lastWallpaperSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
+					lastWallpaperSwitchAt = time.Now()
+					_ = s.layerCtrl.StartWallpaper(s.baseURL, s.PickRandomSaver())
+				}
 			}
 
 			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed

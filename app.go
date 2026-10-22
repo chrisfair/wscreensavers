@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"wscreensavers/internal/api"
 	"wscreensavers/internal/auth"
@@ -30,7 +35,11 @@ func NewApp(cfgMgr *config.Manager, srv *api.Server) *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	go a.srv.StartIdleDaemonLoop(a.stopCh)
+	// Only run idle daemon loop if this server is the primary daemon on port 8642.
+	// If a background daemon is already running, it handles idle detection and DPMS.
+	if a.srv.BaseURL() == "http://127.0.0.1:8642" {
+		go a.srv.StartIdleDaemonLoop(a.stopCh)
+	}
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -68,10 +77,26 @@ func (a *App) GetTelemetryFeed() []string {
 }
 
 func (a *App) LaunchScreensaver(saverID string, locked bool) error {
+	if a.srv.BaseURL() != "http://127.0.0.1:8642" {
+		client := &http.Client{Timeout: 800 * time.Millisecond}
+		payload, _ := json.Marshal(map[string]any{"saverId": saverID, "locked": locked})
+		if resp, err := client.Post("http://127.0.0.1:8642/api/action/launch-saver", "application/json", bytes.NewReader(payload)); err == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+	}
 	return a.srv.LaunchScreensaver(saverID, locked)
 }
 
 func (a *App) StopScreensaver() {
+	if a.srv.BaseURL() != "http://127.0.0.1:8642" {
+		client := &http.Client{Timeout: 800 * time.Millisecond}
+		if resp, err := client.Post("http://127.0.0.1:8642/api/action/stop-saver", "application/json", nil); err == nil {
+			resp.Body.Close()
+		}
+	}
 	a.srv.StopScreensaver()
 }
 
@@ -80,6 +105,22 @@ func (a *App) VerifyPassword(password string) (bool, error) {
 }
 
 func (a *App) ToggleWallpaper(enabled bool, saverID string) error {
+	if a.srv.BaseURL() != "http://127.0.0.1:8642" {
+		client := &http.Client{Timeout: 800 * time.Millisecond}
+		payload, _ := json.Marshal(map[string]any{"enabled": enabled, "saverId": saverID})
+		if resp, err := client.Post("http://127.0.0.1:8642/api/action/toggle-wallpaper", "application/json", bytes.NewReader(payload)); err == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				cfg := a.cfgMgr.Get()
+				cfg.WallpaperEnabled = enabled
+				if saverID != "" {
+					cfg.WallpaperSaver = saverID
+				}
+				_ = a.cfgMgr.Update(cfg)
+				return nil
+			}
+		}
+	}
 	return a.srv.SetWallpaperActive(enabled, saverID)
 }
 

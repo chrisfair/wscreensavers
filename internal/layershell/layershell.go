@@ -214,6 +214,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -242,7 +243,9 @@ func RunLayerShellWindows(urls []string, isWallpaper bool, isLocked bool) {
 type ProcessController struct {
 	mu            sync.Mutex
 	saverProc     *exec.Cmd
+	saverDone     chan struct{}
 	wallpaperProc *exec.Cmd
+	wallpaperDone chan struct{}
 	onSaverExit   func()
 }
 
@@ -276,16 +279,20 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 		return err
 	}
 
+	done := make(chan struct{})
 	p.mu.Lock()
 	p.saverProc = cmd
+	p.saverDone = done
 	p.mu.Unlock()
 
 	go func() {
 		_ = cmd.Wait()
+		close(done)
 		p.mu.Lock()
 		exitedOnItsOwn := p.saverProc == cmd
 		if exitedOnItsOwn {
 			p.saverProc = nil
+			p.saverDone = nil
 		}
 		p.mu.Unlock()
 		// A process we replaced or stopped must not mark the screensaver inactive.
@@ -301,12 +308,22 @@ func (p *ProcessController) StopSaverOverlay() {
 	C.request_gtk_quit()
 	p.mu.Lock()
 	cmd := p.saverProc
+	done := p.saverDone
 	p.saverProc = nil
+	p.saverDone = nil
 	p.mu.Unlock()
 
-	if cmd != nil && cmd.Process != nil {
+	if cmd != nil && cmd.Process != nil && done != nil {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-		_ = cmd.Process.Kill()
+		select {
+		case <-done:
+		case <-time.After(500 * time.Millisecond):
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			select {
+			case <-done:
+			case <-time.After(500 * time.Millisecond):
+			}
+		}
 	}
 }
 
@@ -330,15 +347,19 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 		return err
 	}
 
+	done := make(chan struct{})
 	p.mu.Lock()
 	p.wallpaperProc = cmd
+	p.wallpaperDone = done
 	p.mu.Unlock()
 
 	go func() {
 		_ = cmd.Wait()
+		close(done)
 		p.mu.Lock()
 		if p.wallpaperProc == cmd {
 			p.wallpaperProc = nil
+			p.wallpaperDone = nil
 		}
 		p.mu.Unlock()
 	}()
@@ -349,12 +370,22 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 func (p *ProcessController) StopWallpaper() {
 	p.mu.Lock()
 	cmd := p.wallpaperProc
+	done := p.wallpaperDone
 	p.wallpaperProc = nil
+	p.wallpaperDone = nil
 	p.mu.Unlock()
 
-	if cmd != nil && cmd.Process != nil {
+	if cmd != nil && cmd.Process != nil && done != nil {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-		_ = cmd.Process.Kill()
+		select {
+		case <-done:
+		case <-time.After(500 * time.Millisecond):
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			select {
+			case <-done:
+			case <-time.After(500 * time.Millisecond):
+			}
+		}
 	}
 }
 

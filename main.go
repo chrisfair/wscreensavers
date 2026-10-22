@@ -182,14 +182,17 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 			if perMon, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && perMon != "" && explicitSaverID == "" {
 				chosenSaver = perMon
 			}
-			if chosenSaver == "" {
+			if chosenSaver == "" || chosenSaver == "random" {
 				chosenSaver = cfg.WallpaperSaver
 			}
-			if chosenSaver == "" {
+			if chosenSaver == "" || chosenSaver == "random" {
+				chosenSaver = srv.PickRandomSaver()
+			}
+			if chosenSaver == "" || chosenSaver == "random" {
 				chosenSaver = "flurry"
 			}
 		} else {
-			if chosenSaver == "" {
+			if chosenSaver == "" || chosenSaver == "random" {
 				switch cfg.MultiMonitorMode {
 				case "per-monitor":
 					if assigned, ok := cfg.PerMonitorSaver[mon.Name]; ok && assigned != "" {
@@ -211,10 +214,10 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 					}
 				}
 			}
-			if chosenSaver == "" {
+			if chosenSaver == "" || chosenSaver == "random" {
 				chosenSaver = cfg.SelectedSaver
 			}
-			if chosenSaver == "" {
+			if chosenSaver == "" || chosenSaver == "random" {
 				chosenSaver = "glmatrix"
 			}
 		}

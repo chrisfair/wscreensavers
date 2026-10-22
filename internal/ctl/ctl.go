@@ -1,13 +1,16 @@
 package ctl
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"wscreensavers/internal/catalog"
 	"wscreensavers/internal/config"
 	"wscreensavers/internal/display"
@@ -47,16 +50,55 @@ func allSavers() []models.Screensaver {
 }
 
 func isWallpaperProcessRunning() bool {
-	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper").Output()
+	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper(\\s|$)").Output()
 	return err == nil && len(strings.TrimSpace(string(out))) > 0
 }
 
+func tryDaemonPost(endpoint string, reqBody any) bool {
+	client := &http.Client{Timeout: 800 * time.Millisecond}
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Post("http://127.0.0.1:8642"+endpoint, "application/json", bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+func stopMatchingProcesses(pattern string) {
+	_ = exec.Command("pkill", "-f", pattern).Run()
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		out, err := exec.Command("pgrep", "-f", pattern).Output()
+		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	_ = exec.Command("pkill", "-9", "-f", pattern).Run()
+	deadline = time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		out, err := exec.Command("pgrep", "-f", pattern).Output()
+		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+}
+
 func stopWallpaperProcesses() {
-	_ = exec.Command("pkill", "-f", "wscreensavers.*--wallpaper").Run()
+	stopMatchingProcesses("wscreensavers.*--wallpaper(\\s|$)")
 }
 
 func stopSaverProcesses() {
-	_ = exec.Command("pkill", "-f", "wscreensavers.*--saver").Run()
+	stopMatchingProcesses("wscreensavers.*--saver(\\s|$)")
+}
+
+func stopLockProcesses() {
+	stopMatchingProcesses("wscreensavers.*--lock(\\s|$)")
 }
 
 func spawnDetached(args ...string) error {
@@ -169,8 +211,20 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		case "wallpaperSaver":
 			cfg.WallpaperSaver = val
 			if isWallpaperProcessRunning() {
-				stopWallpaperProcesses()
-				_ = spawnDetached("--wallpaper", "--saver-id", val)
+				actualSaver := val
+				if actualSaver == "random" {
+					pool := cfg.EnabledSavers
+					if len(pool) == 0 {
+						for _, s := range allSavers() {
+							pool = append(pool, s.ID)
+						}
+					}
+					actualSaver = shuffle.Next(cfgMgr.ShufflePath(), pool)
+				}
+				if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": actualSaver}) {
+					stopWallpaperProcesses()
+					_ = spawnDetached("--wallpaper", "--saver-id", actualSaver)
+				}
 			}
 		case "wallpaperFpsCap":
 			if n, err := strconv.Atoi(val); err == nil && n >= 5 {
@@ -208,6 +262,9 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if saverID == "" {
 			saverID = cfg.SelectedSaver
 		}
+		if tryDaemonPost("/api/action/launch-saver", map[string]any{"saverId": saverID, "locked": false}) {
+			return printStatus(cfgMgr)
+		}
 		stopSaverProcesses()
 		if err := spawnDetached("--saver", "--saver-id", saverID); err != nil {
 			return err
@@ -230,10 +287,20 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if saverID == "" {
 			saverID = cfg.SelectedSaver
 		}
+		if tryDaemonPost("/api/action/lock", map[string]any{"saverId": saverID}) {
+			return printStatus(cfgMgr)
+		}
+		stopLockProcesses()
 		stopSaverProcesses()
 		if err := spawnDetached("--lock", "--saver-id", saverID); err != nil {
 			return err
 		}
+		return printStatus(cfgMgr)
+
+	case "stop", "unlock":
+		_ = tryDaemonPost("/api/action/stop-saver", map[string]any{})
+		stopSaverProcesses()
+		stopLockProcesses()
 		return printStatus(cfgMgr)
 
 	case "randomize":
@@ -247,8 +314,10 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			cfg.SelectedSaver = picked
 			_ = cfgMgr.Update(cfg)
 			if len(args) >= 2 && args[1] == "launch" {
-				stopSaverProcesses()
-				_ = spawnDetached("--saver", "--saver-id", picked)
+				if !tryDaemonPost("/api/action/launch-saver", map[string]any{"saverId": picked, "locked": false}) {
+					stopSaverProcesses()
+					_ = spawnDetached("--saver", "--saver-id", picked)
+				}
 			}
 		}
 		return printStatus(cfgMgr)
@@ -317,10 +386,24 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			shouldRun = !running
 		}
 
-		stopWallpaperProcesses()
 		cfg.WallpaperEnabled = shouldRun
 		_ = cfgMgr.Update(cfg)
 
+		if shouldRun && (saverID == "random" || saverID == "") {
+			pool := cfg.EnabledSavers
+			if len(pool) == 0 {
+				for _, s := range allSavers() {
+					pool = append(pool, s.ID)
+				}
+			}
+			saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
+		}
+
+		if tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": shouldRun, "saverId": saverID}) {
+			return printStatus(cfgMgr)
+		}
+
+		stopWallpaperProcesses()
 		if shouldRun {
 			if err := spawnDetached("--wallpaper", "--saver-id", saverID); err != nil {
 				return err

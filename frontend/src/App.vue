@@ -309,6 +309,7 @@
             <div class="setting-box">
               <label>Wallpaper Screensaver</label>
               <select v-model="config.wallpaperSaver" @change="updateWallpaperSaver">
+                <option value="random">🎲 Random (Shuffle All)</option>
                 <option v-for="s in savers" :key="s.id" :value="s.id">
                   {{ s.name }} ({{ s.category }})
                 </option>
