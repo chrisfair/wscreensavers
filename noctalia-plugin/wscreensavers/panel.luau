@@ -94,14 +94,13 @@ end
 
 -- Prefer a personal $HOME/bin copy when present, otherwise fall back to PATH
 -- (the package installs /usr/bin/wscreensavers).
-local CTL_SCRIPT = 'b="$HOME/bin/wscreensavers"; [ -x "$b" ] || b=wscreensavers; exec "$b" ctl "$@"'
-
 local function shellQuote(value)
   return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
 local function ctl(args)
-  return "sh -c " .. shellQuote(CTL_SCRIPT) .. " sh " .. args
+  local home = noctalia.getenv("HOME") or "/home/christopher"
+  return home .. "/bin/wscreensavers ctl " .. args
 end
 
 local function resetCallbacks()
@@ -185,6 +184,33 @@ local function chipRow(items, current, onPick, keyPrefix)
   return ui.row({ gap = 4, align = "center" }, chips)
 end
 
+local function chipGrid(items, current, onPick, keyPrefix, itemsPerRow)
+  local perRow = itemsPerRow or 4
+  local rows = {}
+  local curRow = {}
+  for index, item in ipairs(items) do
+    local value, label = item[1], item[2]
+    local pick = callback(keyPrefix .. index, function() onPick(value) end)
+    table.insert(curRow, ui.button({
+      key = keyPrefix .. tostring(value),
+      text = label,
+      controlSize = "sm",
+      variant = current == value and "primary" or "ghost",
+      selected = current == value,
+      enabled = not busy,
+      onClick = pick,
+    }))
+    if #curRow >= perRow then
+      table.insert(rows, ui.row({ gap = 4, align = "center" }, curRow))
+      curRow = {}
+    end
+  end
+  if #curRow > 0 then
+    table.insert(rows, ui.row({ gap = 4, align = "center" }, curRow))
+  end
+  return ui.column({ gap = 4, align = "stretch" }, rows)
+end
+
 local function matchesFilter(saver)
   if selectedCategory ~= "All" and saver.category ~= selectedCategory then
     return false
@@ -229,63 +255,62 @@ local function renderSaverRow(saver, cfg, poolSet)
     runCmd("wallpaper on " .. shellQuote(saver.id), "Live Wallpaper: " .. saver.name)
   end)
 
-  return ui.row({
+  return ui.column({
     key = "saver-" .. saver.id,
-    gap = 10,
-    align = "center",
+    gap = 6,
+    align = "stretch",
     padding = 10,
     radius = 8,
     fill = isSelected and "surface" or "surface_variant",
     border = isSelected and "primary" or "outline",
     borderWidth = isSelected and 1 or 0,
   }, {
-    ui.box({
-      width = 14,
-      height = 36,
-      radius = 4,
-      fill = saver.accentColor or "#38bdf8",
-    }),
-    ui.column({ gap = 2, flexGrow = 1, align = "stretch" }, {
-      ui.row({ gap = 6, align = "center" }, {
-        ui.label({ text = saver.name, fontSize = 13, fontWeight = "bold", color = "on_surface" }),
-        ui.label({ text = "• " .. (saver.category or ""), fontSize = 11, color = "primary" }),
+    ui.row({ gap = 8, align = "center" }, {
+      ui.box({
+        width = 8,
+        height = 22,
+        radius = 3,
+        fill = saver.accentColor or "#38bdf8",
       }),
-      ui.label({ text = saver.description or "", fontSize = 11, color = "on_surface_variant" }),
+      ui.label({ text = saver.name, fontSize = 13, fontWeight = "bold", color = "on_surface" }),
+      ui.label({ text = "• " .. (saver.category or ""), fontSize = 11, color = "primary" }),
+      ui.spacer({ flexGrow = 1 }),
+      ui.button({
+        text = pooled and tr("in_pool") or "+ Pool",
+        glyph = pooled and "check" or "plus",
+        controlSize = "sm",
+        variant = pooled and "primary" or "ghost",
+        selected = pooled,
+        enabled = not busy,
+        onClick = poolClick,
+      }),
+      ui.button({
+        text = isSelected and tr("selected") or tr("select"),
+        controlSize = "sm",
+        variant = isSelected and "primary" or "ghost",
+        selected = isSelected,
+        enabled = not busy,
+        onClick = pickClick,
+      }),
+      ui.button({
+        text = tr("launch"),
+        glyph = "player-play",
+        controlSize = "sm",
+        variant = "ghost",
+        enabled = not busy,
+        onClick = launchClick,
+      }),
+      ui.button({
+        text = tr("set_wallpaper"),
+        glyph = "photo",
+        controlSize = "sm",
+        variant = isWallpaper and "primary" or "ghost",
+        selected = isWallpaper,
+        enabled = not busy,
+        onClick = wpClick,
+      }),
     }),
-    ui.button({
-      text = tr("in_pool"),
-      glyph = pooled and "check" or "x",
-      controlSize = "sm",
-      variant = pooled and "primary" or "ghost",
-      selected = pooled,
-      enabled = not busy,
-      onClick = poolClick,
-    }),
-    ui.button({
-      text = isSelected and tr("selected") or tr("select"),
-      controlSize = "sm",
-      variant = isSelected and "primary" or "ghost",
-      selected = isSelected,
-      enabled = not busy,
-      onClick = pickClick,
-    }),
-    ui.button({
-      text = tr("launch"),
-      glyph = "player-play",
-      controlSize = "sm",
-      variant = "ghost",
-      enabled = not busy,
-      onClick = launchClick,
-    }),
-    ui.button({
-      text = tr("set_wallpaper"),
-      glyph = "photo",
-      controlSize = "sm",
-      variant = isWallpaper and "primary" or "ghost",
-      selected = isWallpaper,
-      enabled = not busy,
-      onClick = wpClick,
-    }),
+    ui.label({ text = saver.description or "", fontSize = 11, color = "on_surface_variant" }),
   })
 end
 
@@ -309,8 +334,9 @@ render = function()
   local children = {
     -- Top Header & Action Bar
     ui.row({ gap = 8, align = "center" }, {
-      ui.glyph({ name = "device-tv", size = 18, color = "primary" }),
-      ui.label({ text = tr("title"), fontSize = 15, fontWeight = "bold", color = "on_surface" }),
+      ui.glyph({ name = "device-tv", size = 20, color = "primary" }),
+      ui.label({ text = "WScreenSavers", fontSize = 15, fontWeight = "bold", color = "on_surface" }),
+      ui.label({ text = "• Wayland Suite", fontSize = 12, color = "on_surface_variant" }),
       ui.spacer({ flexGrow = 1 }),
       ui.button({ text = tr("activate_now"), glyph = "player-play", controlSize = "sm", variant = "primary", enabled = not busy, onClick = activateClick }),
       ui.button({ text = tr("lock_screen"), glyph = "lock", controlSize = "sm", enabled = not busy, onClick = lockClick }),
@@ -476,10 +502,10 @@ render = function()
           onChange = onSearchChange,
         }),
       }),
-      chipRow(catItems, selectedCategory, function(val)
+      chipGrid(catItems, selectedCategory, function(val)
         selectedCategory = val
         render()
-      end, "cat"),
+      end, "cat", 4),
       ui.scroll({ key = "catalog-scroll", height = CATALOG_HEIGHT, gap = 6 }, chunkColumns),
     }))
 
@@ -515,7 +541,7 @@ function onIpc(event, _payload)
     if panelOpen then
       panel.close()
     else
-      noctalia.togglePanel("christopherpfair/wscreensavers:controls")
+      noctalia.togglePanel("christopher/wscreensavers:controls")
     end
   end
 end
