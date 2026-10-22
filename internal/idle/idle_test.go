@@ -1,9 +1,14 @@
 package idle
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestIdleMonitorAndTelemetry(t *testing.T) {
 	mon := NewMonitor()
+	defer mon.Close()
+
 	mon.RecordActivity()
 	mon.SetScreensaverActive(true, true)
 
@@ -28,4 +33,43 @@ func TestIdleMonitorAndTelemetry(t *testing.T) {
 	if len(feed) < 2 {
 		t.Errorf("expected telemetry feed lines, got %d", len(feed))
 	}
+}
+
+func TestWaylandIdleCalculation(t *testing.T) {
+	mon := &Monitor{
+		waylandActive: true,
+		lastActivity:  time.Now(),
+	}
+
+	// Active status
+	st := mon.Status(false, false)
+	if st.IdleSeconds > 2 {
+		t.Errorf("expected small idle seconds while active, got %d", st.IdleSeconds)
+	}
+
+	// Simulated idled state
+	mon.mu.Lock()
+	mon.waylandIdle = true
+	mon.idleStartedAt = time.Now().Add(-120 * time.Second)
+	mon.mu.Unlock()
+
+	stIdle := mon.Status(false, false)
+	if stIdle.IdleSeconds < 119 || stIdle.IdleSeconds > 122 {
+		t.Errorf("expected ~120 idle seconds, got %d", stIdle.IdleSeconds)
+	}
+
+	// User activity resumes
+	mon.RecordActivity()
+	stResumed := mon.Status(false, false)
+	if stResumed.IdleSeconds > 2 {
+		t.Errorf("expected idle seconds reset to ~0 after RecordActivity, got %d", stResumed.IdleSeconds)
+	}
+}
+
+func TestAudioPlayingCheck(t *testing.T) {
+	mon := NewMonitor()
+	defer mon.Close()
+
+	// Should not crash and should return boolean
+	_ = mon.IsAudioPlaying()
 }

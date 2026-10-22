@@ -19,22 +19,62 @@ import (
 type Monitor struct {
 	mu                sync.RWMutex
 	lastActivity      time.Time
+	idleStartedAt     time.Time
+	waylandActive     bool
+	waylandIdle       bool
 	lastCursorPos     string
 	screensaverActive bool
 	wallpaperActive   bool
 	locked            bool
+	wlListener        *waylandIdleListener
 }
 
 func NewMonitor() *Monitor {
-	return &Monitor{
+	m := &Monitor{
 		lastActivity: time.Now(),
 	}
+
+	// Connect to standard Wayland ext-idle-notify-v1 to track both keyboard and pointer events
+	m.wlListener = startWaylandIdleListener(1000, func() {
+		m.mu.Lock()
+		m.waylandIdle = true
+		if m.idleStartedAt.IsZero() {
+			m.idleStartedAt = time.Now().Add(-1 * time.Second)
+		}
+		m.mu.Unlock()
+	}, func() {
+		m.mu.Lock()
+		m.waylandIdle = false
+		m.lastActivity = time.Now()
+		m.idleStartedAt = time.Time{}
+		m.mu.Unlock()
+	})
+
+	if m.wlListener != nil {
+		m.waylandActive = true
+	}
+
+	return m
 }
 
 func (m *Monitor) RecordActivity() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.lastActivity = time.Now()
+	m.waylandIdle = false
+	m.idleStartedAt = time.Time{}
+}
+
+func (m *Monitor) Close() {
+	m.mu.Lock()
+	l := m.wlListener
+	m.wlListener = nil
+	m.waylandActive = false
+	m.mu.Unlock()
+
+	if l != nil {
+		l.Stop()
+	}
 }
 
 func (m *Monitor) SetScreensaverActive(active bool, locked bool) {
@@ -44,6 +84,8 @@ func (m *Monitor) SetScreensaverActive(active bool, locked bool) {
 	m.locked = locked
 	if !active {
 		m.lastActivity = time.Now()
+		m.waylandIdle = false
+		m.idleStartedAt = time.Time{}
 	}
 }
 
@@ -54,6 +96,7 @@ func (m *Monitor) SetWallpaperActive(active bool) {
 }
 
 // PollCursorActivity checks Hyprland cursorpos to detect pointer motion on Wayland.
+// Used as a fallback when ext-idle-notify-v1 is unavailable.
 func (m *Monitor) PollCursorActivity() {
 	out, err := exec.Command("hyprctl", "cursorpos").Output()
 	if err != nil {
@@ -67,19 +110,23 @@ func (m *Monitor) PollCursorActivity() {
 	defer m.mu.Unlock()
 	if m.lastCursorPos != "" && m.lastCursorPos != pos {
 		m.lastActivity = time.Now()
+		m.waylandIdle = false
+		m.idleStartedAt = time.Time{}
 	}
 	m.lastCursorPos = pos
 }
 
 func (m *Monitor) IsAudioPlaying() bool {
-	// Check PipeWire / PulseAudio running sink inputs via pactl or /proc/asound
+	// Check PipeWire / PulseAudio running sink inputs via pactl.
+	// If pactl executes successfully, trust its report: if no un-corked sink inputs are
+	// playing, audio is idle. We must not fall through to ALSA, because PipeWire and
+	// WirePlumber can hold hardware PCM sinks in RUNNING state (e.g. session.suspend-timeout-seconds = 0)
+	// even when completely silent.
 	if out, err := exec.Command("pactl", "list", "sink-inputs").Output(); err == nil {
-		text := string(out)
-		if strings.Contains(text, "Corked: no") {
-			return true
-		}
+		return strings.Contains(string(out), "Corked: no")
 	}
-	// Fallback: check ALSA hardware PCM status in /proc/asound/card*/pcm*/sub*/status
+
+	// Fallback: check ALSA hardware PCM status only when pactl is unavailable or failed.
 	matches, _ := filepath.Glob("/proc/asound/card*/pcm*/sub*/status")
 	for _, statusFile := range matches {
 		data, err := os.ReadFile(statusFile)
@@ -109,10 +156,24 @@ func (m *Monitor) IsFullscreenAppActive() bool {
 }
 
 func (m *Monitor) Status(inhibitAudio, inhibitFullscreen bool) models.DaemonStatus {
-	m.PollCursorActivity()
+	if !m.waylandActive {
+		m.PollCursorActivity()
+	}
 
 	m.mu.RLock()
-	idleSec := int(time.Since(m.lastActivity).Seconds())
+	var idleSec int
+	if m.waylandActive {
+		if m.waylandIdle && !m.idleStartedAt.IsZero() {
+			idleSec = int(time.Since(m.idleStartedAt).Seconds())
+		} else {
+			idleSec = int(time.Since(m.lastActivity).Seconds())
+			if idleSec < 0 {
+				idleSec = 0
+			}
+		}
+	} else {
+		idleSec = int(time.Since(m.lastActivity).Seconds())
+	}
 	saverActive := m.screensaverActive
 	wpActive := m.wallpaperActive
 	locked := m.locked
