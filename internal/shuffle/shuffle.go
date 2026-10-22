@@ -37,7 +37,7 @@ func Next(path string, pool []string) string {
 		inPool[id] = true
 	}
 	played := make(map[string]bool, len(st.Played))
-	kept := st.Played[:0]
+	kept := make([]string, 0, len(st.Played))
 	for _, id := range st.Played {
 		if inPool[id] && !played[id] {
 			played[id] = true
@@ -52,7 +52,7 @@ func Next(path string, pool []string) string {
 		if n := len(st.Played); n > 0 {
 			last = st.Played[n-1]
 		}
-		st.Played = st.Played[:0]
+		st.Played = make([]string, 0, len(pool))
 		played = map[string]bool{}
 		if len(pool) > 1 && last != "" {
 			played[last] = true

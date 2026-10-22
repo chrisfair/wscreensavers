@@ -193,9 +193,20 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		return printStatus(cfgMgr)
 
 	case "launch":
-		saverID := cfg.SelectedSaver
+		saverID := ""
 		if len(args) >= 2 && args[1] != "" {
 			saverID = args[1]
+		} else if cfg.Mode == "random" || cfg.Mode == "cycle" {
+			pool := cfg.EnabledSavers
+			if len(pool) == 0 {
+				for _, s := range allSavers() {
+					pool = append(pool, s.ID)
+				}
+			}
+			saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
+		}
+		if saverID == "" {
+			saverID = cfg.SelectedSaver
 		}
 		stopSaverProcesses()
 		if err := spawnDetached("--saver", "--saver-id", saverID); err != nil {
@@ -204,9 +215,20 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		return printStatus(cfgMgr)
 
 	case "lock":
-		saverID := cfg.SelectedSaver
+		saverID := ""
 		if len(args) >= 2 && args[1] != "" {
 			saverID = args[1]
+		} else if cfg.Mode == "random" || cfg.Mode == "cycle" {
+			pool := cfg.EnabledSavers
+			if len(pool) == 0 {
+				for _, s := range allSavers() {
+					pool = append(pool, s.ID)
+				}
+			}
+			saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
+		}
+		if saverID == "" {
+			saverID = cfg.SelectedSaver
 		}
 		stopSaverProcesses()
 		if err := spawnDetached("--lock", "--saver-id", saverID); err != nil {

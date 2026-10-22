@@ -196,7 +196,11 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 						chosenSaver = assigned
 					}
 				case "independent":
-					chosenSaver = srv.PickRandomSaver()
+					if cfg.Mode == "random" || cfg.Mode == "cycle" {
+						chosenSaver = srv.PickRandomSaver()
+					} else {
+						chosenSaver = cfg.SelectedSaver
+					}
 				case "clone":
 					if idx == 0 {
 						if cfg.Mode == "random" || cfg.Mode == "cycle" {
