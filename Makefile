@@ -43,6 +43,9 @@ pkg: pacman
 pacman-install: pacman
 	sudo pacman -U --noconfirm $(APP_NAME)-*.pkg.tar*
 
+aur:
+	./scripts/push-aur.sh
+
 install-noctalia:
 	mkdir -p "$(NOCTALIADIR)/translations"
 	install -Dm644 noctalia-plugin/wscreensavers/plugin.toml "$(NOCTALIADIR)/plugin.toml"
