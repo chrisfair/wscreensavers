@@ -32,6 +32,8 @@ import {
   createMystify
 } from './mathAndAutomata.js';
 
+import { createChessOpenings } from './chessOpenings.js';
+
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
   starwars: createStarWars,
@@ -54,7 +56,8 @@ const SAVER_FACTORIES = {
   epicycle: createEpicycle,
   gameoflife: createGameOfLife,
   rorschach: createRorschach,
-  mystify: createMystify
+  mystify: createMystify,
+  chessopenings: createChessOpenings
 };
 
 export function createSaverInstance(saverId, canvas, getParams, getTelemetry) {

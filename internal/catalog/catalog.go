@@ -440,10 +440,52 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "fontScale", Label: "Character Scale", Type: models.ParamRange, Default: 1.0, Min: 0.7, Max: 1.8, Step: 0.1},
 			},
 		},
+		{
+			ID:          "chessopenings",
+			Name:        "Chess Openings",
+			Category:    "Retro & Whimsical",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#f59e0b",
+			Tags:        []string{"Chess", "Openings", "Grandmaster", "Strategy", "Classic"},
+			Description: "Animated visualizer of 16 legendary grandmaster chess openings (Najdorf, Berlin, Queen's Gambit, King's Indian, and more) with smooth piece elevation glide, ECO codes, and move notation.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "speed", Label: "Move Playback Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1},
+				{ID: "theme", Label: "Board Theme", Type: models.ParamSelect, Default: "walnut", Options: []models.SelectOption{
+					{Label: "Classic Walnut Wood", Value: "walnut"},
+					{Label: "Tournament Green & Buff", Value: "tournament"},
+					{Label: "Cyber Neon Dark", Value: "cyber"},
+					{Label: "Monochrome Marble", Value: "marble"},
+				}},
+				{ID: "perspective", Label: "Camera Perspective", Type: models.ParamSelect, Default: "3d", Options: []models.SelectOption{
+					{Label: "3D Isometric Angled", Value: "3d"},
+					{Label: "2D Tournament Broadcast", Value: "2d"},
+				}},
+				{ID: "opening", Label: "Opening Selection", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
+					{Label: "Cycle Through All Openings", Value: "cycle"},
+					{Label: "Random Opening Each Round", Value: "random"},
+					{Label: "Sicilian: Najdorf Variation (B90)", Value: "najdorf"},
+					{Label: "Ruy Lopez: Berlin Defense (C65)", Value: "berlin"},
+					{Label: "Queen's Gambit: Tartakower (D58)", Value: "queens_gambit"},
+					{Label: "Italian Game: Giuoco Piano (C54)", Value: "giuoco_piano"},
+					{Label: "King's Indian: Classical (E97)", Value: "kings_indian"},
+					{Label: "French Defense: Winawer (C18)", Value: "french_winawer"},
+					{Label: "Caro-Kann: Classical (B18)", Value: "caro_kann"},
+					{Label: "Grünfeld Defense: Exchange (D85)", Value: "grunfeld"},
+					{Label: "King's Gambit Accepted (C34)", Value: "kings_gambit"},
+					{Label: "Nimzo-Indian: Rubinstein (E40)", Value: "nimzo_indian"},
+					{Label: "English Opening: Symmetrical (A34)", Value: "english"},
+					{Label: "Scotch Game: Mieses (C45)", Value: "scotch"},
+				}},
+				{ID: "showCoordinates", Label: "Board Coordinates (Rank/File)", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 
-// BuiltinScreensavers returns all 22 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
+// BuiltinScreensavers returns all 23 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
 func BuiltinScreensavers() []models.Screensaver {
 	list := BuiltinSavers()
 	for i := range list {
