@@ -1,7 +1,13 @@
-// Chess Openings Screensaver — Interactive master opening visualizer
-// Features 16 legendary openings, smooth sliding animations with parabolic lift,
-// board theme palettes, coordinate ranks & files, last move glow, captured pieces,
-// ECO codes, and move notation ticker.
+// Chess Openings Screensaver — True 3D Master Chess Opening Visualizer
+// Matches the visual aesthetics and 3D rendering of XScreenSaver's classic "endgame":
+// - Full 3D Staunton pieces (Pawn, Rook, Knight, Bishop, Queen, King)
+// - Specular-lit 3D checkered board with raised beveled wooden frame
+// - Realistic contact shadows & phong/pbr lighting highlights
+// - Parabolic 3D piece lift during move transitions
+// - Smooth continuous 3D camera orbit with elevation wave (like endgame --rotate)
+// - 16 legendary master openings with ECO codes, commentary, and move ticker HUD
+
+import * as THREE from 'three';
 
 const OPENINGS = [
   {
@@ -124,7 +130,7 @@ const OPENINGS = [
     id: 'french_winawer',
     name: 'French Defense: Winawer Variation',
     eco: 'C18',
-    description: 'Sharp asymmetric warfare pinning White\'s c3 knight and disrupting White\'s pawn skeleton.',
+    description: 'Dynamic structural conflict; Black pins White\'s c3 knight leading to sharp asymmetry.',
     moves: [
       { from: 'e2', to: 'e4', san: '1. e4' },
       { from: 'e7', to: 'e6', san: '1... e6' },
@@ -146,7 +152,7 @@ const OPENINGS = [
     id: 'caro_kann',
     name: 'Caro-Kann Defense: Classical',
     eco: 'B18',
-    description: 'Anatoly Karpov\'s unshakeable bulwark with clean pawn structures and sound piece placement.',
+    description: 'Ultra-solid pawn structure; Black develops the light-squared bishop before sealing the chain.',
     moves: [
       { from: 'e2', to: 'e4', san: '1. e4' },
       { from: 'c7', to: 'c6', san: '1... c6' },
@@ -161,16 +167,14 @@ const OPENINGS = [
       { from: 'h2', to: 'h4', san: '6. h4' },
       { from: 'h7', to: 'h6', san: '6... h6' },
       { from: 'g1', to: 'f3', san: '7. Nf3' },
-      { from: 'b8', to: 'd7', san: '7... Nd7' },
-      { from: 'h4', to: 'h5', san: '8. h5' },
-      { from: 'g6', to: 'h7', san: '8... Bh7' }
+      { from: 'b8', to: 'd7', san: '7... Nd7' }
     ]
   },
   {
     id: 'grunfeld',
     name: 'Grünfeld Defense: Exchange Variation',
     eco: 'D85',
-    description: 'Allows White a towering pawn center only to immediately strike and undermine it from afar.',
+    description: 'Peter Svidler & Garry Kasparov\'s counter: allow White the center, then dismantle it from afar.',
     moves: [
       { from: 'd2', to: 'd4', san: '1. d4' },
       { from: 'g8', to: 'f6', san: '1... Nf6' },
@@ -190,9 +194,9 @@ const OPENINGS = [
   },
   {
     id: 'kings_gambit',
-    name: 'King\'s Gambit Accepted',
-    eco: 'C34',
-    description: 'Romantic 19th-century swashbuckler sacrificing a flank pawn for blazing tactical lines.',
+    name: 'King\'s Gambit: Muzio Gambit',
+    eco: 'C37',
+    description: 'Romantic 19th-century audacity: sacrifice a knight on f3 for overwhelming king attack.',
     moves: [
       { from: 'e2', to: 'e4', san: '1. e4' },
       { from: 'e7', to: 'e5', san: '1... e5' },
@@ -277,44 +281,56 @@ const OPENINGS = [
 
 const THEMES = {
   walnut: {
-    dark: '#b58863',
-    light: '#f0d9b5',
-    border: '#5c3a21',
-    borderOuter: '#3d2514',
-    highlight: 'rgba(234, 179, 8, 0.45)',
-    lastMove: 'rgba(245, 158, 11, 0.4)',
+    lightTile: 0xf0d9b5,
+    darkTile: 0x8a5231,
+    frame: 0x3d2012,
+    rimTrim: 0x221008,
+    whitePiece: 0xf5ede1,
+    blackPiece: 0x181a1f,
+    highlight: 0x22c55e,
+    lastMove: 0xf59e0b,
     accent: '#f59e0b',
-    coordColor: '#e2d4c0'
+    hudText: '#f8fafc',
+    coordColor: '#f0d9b5'
   },
   tournament: {
-    dark: '#769656',
-    light: '#eeeed2',
-    border: '#3f5926',
-    borderOuter: '#2b3d19',
-    highlight: 'rgba(250, 204, 21, 0.45)',
-    lastMove: 'rgba(234, 179, 8, 0.4)',
+    lightTile: 0xeeeed2,
+    darkTile: 0x5a7c42,
+    frame: 0x23381a,
+    rimTrim: 0x162410,
+    whitePiece: 0xfbfbfb,
+    blackPiece: 0x212529,
+    highlight: 0xfacc15,
+    lastMove: 0x84cc16,
     accent: '#84cc16',
-    coordColor: '#e8eed5'
+    hudText: '#f8fafc',
+    coordColor: '#eeeed2'
   },
   cyber: {
-    dark: '#0f172a',
-    light: '#1e293b',
-    border: '#0284c7',
-    borderOuter: '#0369a1',
-    highlight: 'rgba(56, 189, 248, 0.45)',
-    lastMove: 'rgba(14, 165, 233, 0.4)',
+    lightTile: 0x1e293b,
+    darkTile: 0x0a101d,
+    frame: 0x0369a1,
+    rimTrim: 0x0284c7,
+    whitePiece: 0x38bdf8,
+    blackPiece: 0x050811,
+    highlight: 0x00f5d4,
+    lastMove: 0x38bdf8,
     accent: '#38bdf8',
-    coordColor: '#94a3b8'
+    hudText: '#e0f2fe',
+    coordColor: '#38bdf8'
   },
   marble: {
-    dark: '#475569',
-    light: '#cbd5e1',
-    border: '#1e293b',
-    borderOuter: '#0f172a',
-    highlight: 'rgba(244, 63, 94, 0.45)',
-    lastMove: 'rgba(225, 29, 72, 0.4)',
+    lightTile: 0xe2e8f0,
+    darkTile: 0x475569,
+    frame: 0x1e293b,
+    rimTrim: 0x0f172a,
+    whitePiece: 0xffffff,
+    blackPiece: 0x131823,
+    highlight: 0xf43f5e,
+    lastMove: 0xfb7185,
     accent: '#f43f5e',
-    coordColor: '#f1f5f9'
+    hudText: '#f8fafc',
+    coordColor: '#cbd5e1'
   }
 };
 
@@ -324,9 +340,8 @@ function parseSquare(sq) {
   return { f, r };
 }
 
-function initBoard() {
+function initBoardState() {
   const b = Array.from({ length: 8 }, () => Array(8).fill(null));
-  // White pieces (rank 1 -> r=0, rank 2 -> r=1)
   const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
   for (let f = 0; f < 8; f++) {
     b[f][0] = { color: 'w', type: backRank[f] };
@@ -337,19 +352,416 @@ function initBoard() {
   return b;
 }
 
+// Convert board coordinates (f=0..7, r=0..7) to 3D world positions (X, Z)
+function sqToWorld(f, r) {
+  return {
+    x: (f - 3.5) * 1.0,
+    z: (3.5 - r) * 1.0
+  };
+}
+
+// --- Staunton 3D Geometry Factory ---
+function buildStauntonTemplates() {
+  // Pawn
+  const pawnPts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.34, 0),
+    new THREE.Vector2(0.34, 0.06),
+    new THREE.Vector2(0.30, 0.09),
+    new THREE.Vector2(0.24, 0.12),
+    new THREE.Vector2(0.16, 0.25),
+    new THREE.Vector2(0.12, 0.45),
+    new THREE.Vector2(0.18, 0.52),
+    new THREE.Vector2(0.14, 0.56),
+    new THREE.Vector2(0.20, 0.68),
+    new THREE.Vector2(0.00, 0.82)
+  ];
+  const pawnGeo = new THREE.LatheGeometry(pawnPts, 24);
+
+  // Rook
+  const rookPts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.35, 0),
+    new THREE.Vector2(0.35, 0.08),
+    new THREE.Vector2(0.30, 0.12),
+    new THREE.Vector2(0.24, 0.16),
+    new THREE.Vector2(0.20, 0.65),
+    new THREE.Vector2(0.26, 0.72),
+    new THREE.Vector2(0.28, 0.92),
+    new THREE.Vector2(0.20, 0.92),
+    new THREE.Vector2(0.20, 0.84),
+    new THREE.Vector2(0.00, 0.84)
+  ];
+  const rookGeo = new THREE.LatheGeometry(rookPts, 24);
+  const rookCrenGeo = new THREE.BoxGeometry(0.10, 0.12, 0.10);
+
+  // Bishop
+  const bishopPts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.35, 0),
+    new THREE.Vector2(0.35, 0.08),
+    new THREE.Vector2(0.30, 0.12),
+    new THREE.Vector2(0.22, 0.16),
+    new THREE.Vector2(0.15, 0.55),
+    new THREE.Vector2(0.22, 0.62),
+    new THREE.Vector2(0.16, 0.66),
+    new THREE.Vector2(0.23, 0.85),
+    new THREE.Vector2(0.18, 1.02),
+    new THREE.Vector2(0.06, 1.10),
+    new THREE.Vector2(0.00, 1.14)
+  ];
+  const bishopGeo = new THREE.LatheGeometry(bishopPts, 24);
+  const bishopBallGeo = new THREE.SphereGeometry(0.065, 16, 16);
+
+  // Queen
+  const queenPts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.38, 0),
+    new THREE.Vector2(0.38, 0.08),
+    new THREE.Vector2(0.32, 0.12),
+    new THREE.Vector2(0.24, 0.18),
+    new THREE.Vector2(0.16, 0.70),
+    new THREE.Vector2(0.26, 0.82),
+    new THREE.Vector2(0.22, 0.86),
+    new THREE.Vector2(0.32, 1.18),
+    new THREE.Vector2(0.28, 1.22),
+    new THREE.Vector2(0.00, 1.16)
+  ];
+  const queenGeo = new THREE.LatheGeometry(queenPts, 24);
+  const queenBallGeo = new THREE.SphereGeometry(0.085, 16, 16);
+
+  // King
+  const kingPts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.40, 0),
+    new THREE.Vector2(0.40, 0.09),
+    new THREE.Vector2(0.34, 0.13),
+    new THREE.Vector2(0.26, 0.20),
+    new THREE.Vector2(0.18, 0.75),
+    new THREE.Vector2(0.28, 0.88),
+    new THREE.Vector2(0.34, 1.22),
+    new THREE.Vector2(0.30, 1.28),
+    new THREE.Vector2(0.00, 1.28)
+  ];
+  const kingGeo = new THREE.LatheGeometry(kingPts, 24);
+  const crossVGeo = new THREE.BoxGeometry(0.06, 0.22, 0.05);
+  const crossHGeo = new THREE.BoxGeometry(0.16, 0.06, 0.05);
+
+  // Knight
+  const knightBasePts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.36, 0),
+    new THREE.Vector2(0.36, 0.08),
+    new THREE.Vector2(0.30, 0.12),
+    new THREE.Vector2(0.24, 0.18),
+    new THREE.Vector2(0.22, 0.28),
+    new THREE.Vector2(0.00, 0.28)
+  ];
+  const knightBaseGeo = new THREE.LatheGeometry(knightBasePts, 24);
+
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.16, 0.26);
+  shape.lineTo(-0.18, 0.50);
+  shape.lineTo(-0.12, 0.72);
+  shape.lineTo(-0.06, 0.88);
+  shape.lineTo(0.00, 0.98);
+  shape.lineTo(0.05, 0.88);
+  shape.lineTo(0.18, 0.72);
+  shape.lineTo(0.25, 0.60);
+  shape.lineTo(0.18, 0.53);
+  shape.lineTo(0.08, 0.53);
+  shape.lineTo(0.04, 0.26);
+  shape.closePath();
+
+  const knightHeadGeo = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.18,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    steps: 1,
+    bevelSize: 0.03,
+    bevelThickness: 0.03
+  });
+  knightHeadGeo.center();
+
+  return {
+    pawnGeo,
+    rookGeo,
+    rookCrenGeo,
+    bishopGeo,
+    bishopBallGeo,
+    queenGeo,
+    queenBallGeo,
+    kingGeo,
+    crossVGeo,
+    crossHGeo,
+    knightBaseGeo,
+    knightHeadGeo
+  };
+}
+
+function assemblePieceGroup(type, color, templates, mat) {
+  const group = new THREE.Group();
+
+  function makeMesh(geo) {
+    const m = new THREE.Mesh(geo, mat);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    return m;
+  }
+
+  if (type === 'P') {
+    group.add(makeMesh(templates.pawnGeo));
+  } else if (type === 'R') {
+    group.add(makeMesh(templates.rookGeo));
+    const angles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+    for (const a of angles) {
+      const cren = makeMesh(templates.rookCrenGeo);
+      cren.position.set(Math.cos(a) * 0.23, 0.96, Math.sin(a) * 0.23);
+      group.add(cren);
+    }
+  } else if (type === 'N') {
+    group.add(makeMesh(templates.knightBaseGeo));
+    const head = makeMesh(templates.knightHeadGeo);
+    head.position.set(0, 0.62, 0);
+    // Face opponent (White pieces look toward -Z, Black toward +Z)
+    head.rotation.y = color === 'w' ? Math.PI / 2 : -Math.PI / 2;
+    group.add(head);
+  } else if (type === 'B') {
+    group.add(makeMesh(templates.bishopGeo));
+    const ball = makeMesh(templates.bishopBallGeo);
+    ball.position.y = 1.18;
+    group.add(ball);
+  } else if (type === 'Q') {
+    group.add(makeMesh(templates.queenGeo));
+    const ball = makeMesh(templates.queenBallGeo);
+    ball.position.y = 1.26;
+    group.add(ball);
+  } else if (type === 'K') {
+    group.add(makeMesh(templates.kingGeo));
+    const v = makeMesh(templates.crossVGeo);
+    v.position.y = 1.38;
+    group.add(v);
+    const h = makeMesh(templates.crossHGeo);
+    h.position.y = 1.42;
+    group.add(h);
+  }
+
+  return group;
+}
+
 export function createChessOpenings(canvas, getParams) {
-  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Initialize Three.js WebGL Scene
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070a12);
+
+  const camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+  camera.position.set(5.5, 9.5, 11.5);
+  camera.lookAt(0, 0.4, 0);
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    powerPreference: 'high-performance'
+  });
+  renderer.setSize(w, h, false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+
+  // 2D HUD Overlay Canvas
+  let hudCanvas = null;
+  let hudCtx = null;
+  const parent = canvas.parentElement;
+  if (parent) {
+    hudCanvas = document.createElement('canvas');
+    hudCanvas.className = 'chess-hud-overlay';
+    hudCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;';
+    hudCanvas.width = w;
+    hudCanvas.height = h;
+    parent.appendChild(hudCanvas);
+    hudCtx = hudCanvas.getContext('2d');
+  }
+
+  // Lighting (Matches OpenGL endgame specular look)
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xfff6ea, 1.5);
+  dirLight.position.set(7.5, 15.0, 9.0);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.near = 1;
+  dirLight.shadow.camera.far = 30;
+  dirLight.shadow.camera.left = -6;
+  dirLight.shadow.camera.right = 6;
+  dirLight.shadow.camera.top = 6;
+  dirLight.shadow.camera.bottom = -6;
+  dirLight.shadow.bias = -0.0008;
+  scene.add(dirLight);
+
+  const fillLight = new THREE.DirectionalLight(0xa5c4ff, 0.45);
+  fillLight.position.set(-8.0, 9.0, -8.0);
+  scene.add(fillLight);
+
+  const templates = buildStauntonTemplates();
+
+  // Materials Cache
+  let currentThemeName = 'walnut';
+  let theme = THEMES.walnut;
+
+  let matWhite = new THREE.MeshStandardMaterial({
+    color: theme.whitePiece,
+    roughness: 0.22,
+    metalness: 0.05
+  });
+  let matBlack = new THREE.MeshStandardMaterial({
+    color: theme.blackPiece,
+    roughness: 0.20,
+    metalness: 0.12
+  });
+
+  let matLightTile = new THREE.MeshStandardMaterial({
+    color: theme.lightTile,
+    roughness: 0.26,
+    metalness: 0.04
+  });
+  let matDarkTile = new THREE.MeshStandardMaterial({
+    color: theme.darkTile,
+    roughness: 0.28,
+    metalness: 0.04
+  });
+  let matFrame = new THREE.MeshStandardMaterial({
+    color: theme.frame,
+    roughness: 0.35,
+    metalness: 0.06
+  });
+  let matTrim = new THREE.MeshStandardMaterial({
+    color: theme.rimTrim,
+    roughness: 0.40,
+    metalness: 0.08
+  });
+
+  let matLastMove = new THREE.MeshStandardMaterial({
+    color: theme.lastMove,
+    emissive: theme.lastMove,
+    emissiveIntensity: 0.45,
+    roughness: 0.3
+  });
+  let matHighlight = new THREE.MeshStandardMaterial({
+    color: theme.highlight,
+    emissive: theme.highlight,
+    emissiveIntensity: 0.55,
+    roughness: 0.3
+  });
+
+  function updateMaterials(themeName) {
+    if (themeName === currentThemeName) return;
+    currentThemeName = themeName;
+    theme = THEMES[themeName] || THEMES.walnut;
+
+    matWhite.color.setHex(theme.whitePiece);
+    matBlack.color.setHex(theme.blackPiece);
+    matLightTile.color.setHex(theme.lightTile);
+    matDarkTile.color.setHex(theme.darkTile);
+    matFrame.color.setHex(theme.frame);
+    matTrim.color.setHex(theme.rimTrim);
+    matLastMove.color.setHex(theme.lastMove);
+    matLastMove.emissive.setHex(theme.lastMove);
+    matHighlight.color.setHex(theme.highlight);
+    matHighlight.emissive.setHex(theme.highlight);
+  }
+
+  // Build 3D Board
+  const boardGroup = new THREE.Group();
+  scene.add(boardGroup);
+
+  // Wooden Base Plinth
+  const baseBox = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.45, 9.8), matFrame);
+  baseBox.position.y = -0.225;
+  baseBox.receiveShadow = true;
+  boardGroup.add(baseBox);
+
+  // Outer Beveled Trim Rims
+  const trimNorth = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.12, 0.9), matTrim);
+  trimNorth.position.set(0, 0.06, -4.45);
+  boardGroup.add(trimNorth);
+
+  const trimSouth = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.12, 0.9), matTrim);
+  trimSouth.position.set(0, 0.06, 4.45);
+  boardGroup.add(trimSouth);
+
+  const trimEast = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 8.0), matTrim);
+  trimEast.position.set(4.45, 0.06, 0);
+  boardGroup.add(trimEast);
+
+  const trimWest = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 8.0), matTrim);
+  trimWest.position.set(-4.45, 0.06, 0);
+  boardGroup.add(trimWest);
+
+  // 64 Chess Square Meshes
+  const tileMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
+  const tileGeo = new THREE.BoxGeometry(0.99, 0.08, 0.99);
+
+  for (let f = 0; f < 8; f++) {
+    for (let r = 0; r < 8; r++) {
+      const isLight = (f + r) % 2 === 1;
+      const tile = new THREE.Mesh(tileGeo, isLight ? matLightTile : matDarkTile);
+      const pos = sqToWorld(f, r);
+      tile.position.set(pos.x, 0.04, pos.z);
+      tile.receiveShadow = true;
+      boardGroup.add(tile);
+      tileMeshes[f][r] = tile;
+    }
+  }
+
+  // Piece Meshes Grid [f][r]
+  const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
+
+  // Game state
   let currentOpeningIndex = 0;
   let moveIndex = 0;
-  let moveProgress = 1.0; // 0 to 1 during move animation
-  let pauseTimer = 0;
+  let moveProgress = 1.0;
+  let pauseTimer = 0.8;
   let isPausedBetweenOpenings = false;
-  let board = initBoard();
+  let boardState = initBoardState();
   let lastMove = null;
   let currentMovingPiece = null;
   let currentCastlePiece = null;
   let capturedPieces = { w: [], b: [] };
   let movesPlayed = [];
+  let orbitAngle = 0.45;
+
+  function clearPieceMeshes() {
+    for (let f = 0; f < 8; f++) {
+      for (let r = 0; r < 8; r++) {
+        if (pieceMeshes[f][r]) {
+          scene.remove(pieceMeshes[f][r]);
+          pieceMeshes[f][r] = null;
+        }
+      }
+    }
+  }
+
+  function spawnBoardPieces() {
+    clearPieceMeshes();
+    for (let f = 0; f < 8; f++) {
+      for (let r = 0; r < 8; r++) {
+        const item = boardState[f][r];
+        if (item) {
+          const mat = item.color === 'w' ? matWhite : matBlack;
+          const pieceObj = assemblePieceGroup(item.type, item.color, templates, mat);
+          const pos = sqToWorld(f, r);
+          pieceObj.position.set(pos.x, 0.08, pos.z);
+          scene.add(pieceObj);
+          pieceMeshes[f][r] = pieceObj;
+        }
+      }
+    }
+  }
 
   function loadOpening(idx) {
     currentOpeningIndex = idx % OPENINGS.length;
@@ -357,24 +769,74 @@ export function createChessOpenings(canvas, getParams) {
     moveProgress = 1.0;
     pauseTimer = 0.8;
     isPausedBetweenOpenings = false;
-    board = initBoard();
+    boardState = initBoardState();
     lastMove = null;
     currentMovingPiece = null;
     currentCastlePiece = null;
     capturedPieces = { w: [], b: [] };
     movesPlayed = [];
+    spawnBoardPieces();
+    resetTileMaterials();
+  }
+
+  function resetTileMaterials() {
+    for (let f = 0; f < 8; f++) {
+      for (let r = 0; r < 8; r++) {
+        const isLight = (f + r) % 2 === 1;
+        tileMeshes[f][r].material = isLight ? matLightTile : matDarkTile;
+      }
+    }
+  }
+
+  function highlightSquares() {
+    resetTileMaterials();
+    if (lastMove) {
+      const fromSq = parseSquare(lastMove.from);
+      const toSq = parseSquare(lastMove.to);
+      tileMeshes[fromSq.f][fromSq.r].material = matLastMove;
+      tileMeshes[toSq.f][toSq.r].material = matLastMove;
+    }
+    if (currentMovingPiece) {
+      tileMeshes[currentMovingPiece.to.f][currentMovingPiece.to.r].material = matHighlight;
+    }
   }
 
   loadOpening(0);
 
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
   return {
+    resize(newW, newH) {
+      camera.aspect = newW / newH;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newW, newH, false);
+      if (hudCanvas) {
+        hudCanvas.width = newW;
+        hudCanvas.height = newH;
+      }
+    },
+
+    destroy() {
+      if (hudCanvas && hudCanvas.parentElement) {
+        hudCanvas.parentElement.removeChild(hudCanvas);
+        hudCanvas = null;
+        hudCtx = null;
+      }
+      clearPieceMeshes();
+      renderer.dispose();
+    },
+
     render(dt) {
       const p = getParams();
       const speed = Number(p.speed ?? 1.0);
       const moveDuration = Math.max(0.35, 1.2 / Math.max(0.2, speed));
       const themeName = p.theme || 'walnut';
-      const theme = THEMES[themeName] || THEMES.walnut;
-      const is3D = p.perspective !== '2d';
+      updateMaterials(themeName);
+
+      const perspective = p.perspective || '3d';
+      const shouldRotate = perspective !== 'fixed' && perspective !== '2d' && p.rotate !== false;
       const showCoords = p.showCoordinates !== false;
       const explicitOpening = p.opening;
 
@@ -392,7 +854,6 @@ export function createChessOpenings(canvas, getParams) {
         pauseTimer -= dt;
         if (pauseTimer <= 0) {
           if (isPausedBetweenOpenings) {
-            // Pick next opening
             if (p.opening === 'random') {
               loadOpening(Math.floor(Math.random() * OPENINGS.length));
             } else {
@@ -404,18 +865,31 @@ export function createChessOpenings(canvas, getParams) {
         moveProgress += dt / moveDuration;
         if (moveProgress >= 1.0) {
           moveProgress = 1.0;
-          // Commit move to board
           const m = activeOpening.moves[moveIndex];
           const toSq = parseSquare(m.to);
-          const captured = board[toSq.f][toSq.r];
-          if (captured) {
-            capturedPieces[captured.color].push(captured.type);
-          }
-          board[toSq.f][toSq.r] = currentMovingPiece.piece;
+          const toPos = sqToWorld(toSq.f, toSq.r);
 
-          if (m.castle) {
+          // Place moving mesh onto target square
+          currentMovingPiece.mesh.position.set(toPos.x, 0.08, toPos.z);
+          currentMovingPiece.mesh.rotation.x = 0;
+          currentMovingPiece.mesh.rotation.z = 0;
+
+          // Remove captured mesh if any
+          if (pieceMeshes[toSq.f][toSq.r]) {
+            scene.remove(pieceMeshes[toSq.f][toSq.r]);
+          }
+          pieceMeshes[toSq.f][toSq.r] = currentMovingPiece.mesh;
+          boardState[toSq.f][toSq.r] = currentMovingPiece.piece;
+
+          // Commit Castling Rook
+          if (m.castle && currentCastlePiece) {
             const cTo = parseSquare(m.castle.to);
-            board[cTo.f][cTo.r] = currentCastlePiece.piece;
+            const cPos = sqToWorld(cTo.f, cTo.r);
+            currentCastlePiece.mesh.position.set(cPos.x, 0.08, cPos.z);
+            currentCastlePiece.mesh.rotation.x = 0;
+            currentCastlePiece.mesh.rotation.z = 0;
+            pieceMeshes[cTo.f][cTo.r] = currentCastlePiece.mesh;
+            boardState[cTo.f][cTo.r] = currentCastlePiece.piece;
           }
 
           lastMove = m;
@@ -424,13 +898,40 @@ export function createChessOpenings(canvas, getParams) {
           currentCastlePiece = null;
           moveIndex++;
 
+          highlightSquares();
+
           if (moveIndex >= activeOpening.moves.length) {
-            // Opening finished! Pause to display result
             pauseTimer = 4.5;
             isPausedBetweenOpenings = true;
           } else {
-            // Brief pause before next move
             pauseTimer = 0.45 / speed;
+          }
+        } else {
+          // Animate 3D parabolic lift and flight
+          const ease = easeInOutCubic(moveProgress);
+          const startPos = sqToWorld(currentMovingPiece.from.f, currentMovingPiece.from.r);
+          const targetPos = sqToWorld(currentMovingPiece.to.f, currentMovingPiece.to.r);
+
+          const curX = startPos.x + (targetPos.x - startPos.x) * ease;
+          const curZ = startPos.z + (targetPos.z - startPos.z) * ease;
+          const lift = Math.sin(moveProgress * Math.PI) * 1.35; // 3D Y elevation
+
+          currentMovingPiece.mesh.position.set(curX, 0.08 + lift, curZ);
+
+          // Subtle natural flight tilt
+          const dx = targetPos.x - startPos.x;
+          const dz = targetPos.z - startPos.z;
+          currentMovingPiece.mesh.rotation.z = -Math.sin(moveProgress * Math.PI) * 0.12 * Math.sign(dx);
+          currentMovingPiece.mesh.rotation.x = Math.sin(moveProgress * Math.PI) * 0.12 * Math.sign(dz);
+
+          // Castling Rook simultaneous animation
+          if (currentCastlePiece) {
+            const cStart = sqToWorld(currentCastlePiece.from.f, currentCastlePiece.from.r);
+            const cTarget = sqToWorld(currentCastlePiece.to.f, currentCastlePiece.to.r);
+            const cX = cStart.x + (cTarget.x - cStart.x) * ease;
+            const cZ = cStart.z + (cTarget.z - cStart.z) * ease;
+            const cLift = Math.sin(moveProgress * Math.PI) * 0.85;
+            currentCastlePiece.mesh.position.set(cX, 0.08 + cLift, cZ);
           }
         }
       } else if (moveIndex < activeOpening.moves.length) {
@@ -438,263 +939,171 @@ export function createChessOpenings(canvas, getParams) {
         const m = activeOpening.moves[moveIndex];
         const fromSq = parseSquare(m.from);
         const toSq = parseSquare(m.to);
-        const piece = board[fromSq.f][fromSq.r];
-        board[fromSq.f][fromSq.r] = null;
-        currentMovingPiece = { piece, from: fromSq, to: toSq };
+        const piece = boardState[fromSq.f][fromSq.r];
+        const mesh = pieceMeshes[fromSq.f][fromSq.r];
+
+        boardState[fromSq.f][fromSq.r] = null;
+        pieceMeshes[fromSq.f][fromSq.r] = null;
+        currentMovingPiece = { piece, mesh, from: fromSq, to: toSq };
         moveProgress = 0.0;
 
         if (m.castle) {
           const cFrom = parseSquare(m.castle.from);
           const cTo = parseSquare(m.castle.to);
-          const cPiece = board[cFrom.f][cFrom.r];
-          board[cFrom.f][cFrom.r] = null;
-          currentCastlePiece = { piece: cPiece, from: cFrom, to: cTo };
+          const cPiece = boardState[cFrom.f][cFrom.r];
+          const cMesh = pieceMeshes[cFrom.f][cFrom.r];
+          boardState[cFrom.f][cFrom.r] = null;
+          pieceMeshes[cFrom.f][cFrom.r] = null;
+          currentCastlePiece = { piece: cPiece, mesh: cMesh, from: cFrom, to: cTo };
         }
+
+        highlightSquares();
       }
 
-      // Render Stage
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.fillStyle = '#080b12';
-      ctx.fillRect(0, 0, w, h);
-
-      // Radial background ambiance
-      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h) * 0.7);
-      bgGrad.addColorStop(0, '#131b2e');
-      bgGrad.addColorStop(0.65, '#090d16');
-      bgGrad.addColorStop(1, '#030508');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      const boardMargin = Math.min(w, h) * 0.12;
-      const boardSize = Math.min(w - boardMargin * 2, h - boardMargin * 2 - 80);
-      const sqSize = boardSize / 8;
-      const boardX = (w - boardSize) / 2;
-      const boardY = (h - boardSize) / 2 + 30;
-
-      ctx.save();
-      if (is3D) {
-        // Tilt isometric board view with subtle perspective
-        ctx.translate(w / 2, h / 2 + 40);
-        ctx.transform(1, 0, -0.06, 0.88, 0, 0);
-        ctx.translate(-w / 2, -(h / 2 + 40));
+      // Camera Orbit Animation (like endgame --rotate)
+      if (perspective === '2d') {
+        camera.position.set(0, 13.0, 0.001);
+        camera.lookAt(0, 0, 0);
+      } else if (shouldRotate) {
+        orbitAngle += dt * 0.12 * speed;
+        const camDist = 12.8;
+        const camHeight = 8.8 + Math.sin(orbitAngle * 0.4) * 1.2;
+        camera.position.set(
+          Math.sin(orbitAngle) * camDist,
+          camHeight,
+          Math.cos(orbitAngle) * camDist
+        );
+        camera.lookAt(0, 0.4, 0);
+      } else {
+        // Fixed 3D View from White perspective
+        camera.position.set(4.0, 8.8, 11.5);
+        camera.lookAt(0, 0.4, 0);
       }
 
-      // Board border with shadow
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-      ctx.shadowBlur = 35;
-      ctx.shadowOffsetY = 18;
-      const borderThick = 24;
+      // Render 3D WebGL scene
+      renderer.render(scene, camera);
 
-      // Outer wood rim
-      ctx.fillStyle = theme.borderOuter;
-      ctx.beginPath();
-      roundRect(ctx, boardX - borderThick - 4, boardY - borderThick - 4, boardSize + (borderThick + 4) * 2, boardSize + (borderThick + 4) * 2, 14);
-      ctx.fill();
+      // Render 2D HUD Overlay (ECO badge, title, commentary, notation ribbon, and 3D anchored coordinates)
+      if (hudCtx) {
+        const curW = hudCanvas.width;
+        const curH = hudCanvas.height;
+        hudCtx.clearRect(0, 0, curW, curH);
 
-      // Inner wood frame
-      ctx.shadowColor = 'transparent';
-      ctx.fillStyle = theme.border;
-      ctx.beginPath();
-      roundRect(ctx, boardX - borderThick, boardY - borderThick, boardSize + borderThick * 2, boardSize + borderThick * 2, 8);
-      ctx.fill();
+        // 3D Perspective Coordinates along board rims
+        if (showCoords) {
+          hudCtx.save();
+          hudCtx.font = '700 13px "JetBrains Mono", monospace';
+          hudCtx.textAlign = 'center';
+          hudCtx.textBaseline = 'middle';
+          hudCtx.fillStyle = theme.coordColor;
 
-      // 64 Chess Squares
-      for (let f = 0; f < 8; f++) {
-        for (let r = 0; r < 8; r++) {
-          const isLight = (f + r) % 2 === 1;
-          const x = boardX + f * sqSize;
-          const y = boardY + (7 - r) * sqSize; // rank 1 at bottom
+          const projV = new THREE.Vector3();
 
-          ctx.fillStyle = isLight ? theme.light : theme.dark;
-          ctx.fillRect(x, y, sqSize, sqSize);
+          // File letters (a-h) along South and North rims
+          for (let f = 0; f < 8; f++) {
+            const letter = String.fromCharCode(97 + f);
+            const worldPos = sqToWorld(f, 0);
 
-          // Highlight last move squares
-          if (lastMove) {
-            const fromSq = parseSquare(lastMove.from);
-            const toSq = parseSquare(lastMove.to);
-            if ((f === fromSq.f && r === fromSq.r) || (f === toSq.f && r === toSq.r)) {
-              ctx.fillStyle = theme.lastMove;
-              ctx.fillRect(x, y, sqSize, sqSize);
+            // South rim coordinate
+            projV.set(worldPos.x, 0.14, 4.45);
+            projV.project(camera);
+            if (projV.z < 1) {
+              const sx = (projV.x * 0.5 + 0.5) * curW;
+              const sy = (-projV.y * 0.5 + 0.5) * curH;
+              hudCtx.fillText(letter, sx, sy);
+            }
+
+            // North rim coordinate
+            projV.set(worldPos.x, 0.14, -4.45);
+            projV.project(camera);
+            if (projV.z < 1) {
+              const sx = (projV.x * 0.5 + 0.5) * curW;
+              const sy = (-projV.y * 0.5 + 0.5) * curH;
+              hudCtx.fillText(letter, sx, sy);
             }
           }
 
-          // Active moving piece target highlight
-          if (currentMovingPiece) {
-            if (f === currentMovingPiece.to.f && r === currentMovingPiece.to.r) {
-              ctx.fillStyle = theme.highlight;
-              ctx.fillRect(x, y, sqSize, sqSize);
+          // Rank numbers (1-8) along West and East rims
+          for (let r = 0; r < 8; r++) {
+            const num = String(r + 1);
+            const worldPos = sqToWorld(0, r);
+
+            // West rim coordinate
+            projV.set(-4.45, 0.14, worldPos.z);
+            projV.project(camera);
+            if (projV.z < 1) {
+              const sx = (projV.x * 0.5 + 0.5) * curW;
+              const sy = (-projV.y * 0.5 + 0.5) * curH;
+              hudCtx.fillText(num, sx, sy);
+            }
+
+            // East rim coordinate
+            projV.set(4.45, 0.14, worldPos.z);
+            projV.project(camera);
+            if (projV.z < 1) {
+              const sx = (projV.x * 0.5 + 0.5) * curW;
+              const sy = (-projV.y * 0.5 + 0.5) * curH;
+              hudCtx.fillText(num, sx, sy);
             }
           }
+          hudCtx.restore();
         }
-      }
 
-      // Coordinate Labels (ranks 1-8, files a-h)
-      if (showCoords) {
-        ctx.fillStyle = theme.coordColor;
-        ctx.font = '600 12px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        for (let f = 0; f < 8; f++) {
-          const letter = String.fromCharCode(97 + f);
-          const x = boardX + f * sqSize + sqSize / 2;
-          ctx.fillText(letter, x, boardY + boardSize + 12);
-          ctx.fillText(letter, x, boardY - 12);
+        // Top Header Banner
+        hudCtx.save();
+        const padX = 36;
+        const ecoY = 36;
+        hudCtx.textAlign = 'left';
+
+        // ECO Badge
+        hudCtx.font = '700 13px "JetBrains Mono", monospace';
+        const ecoW = hudCtx.measureText(activeOpening.eco).width + 16;
+        hudCtx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        hudCtx.strokeStyle = theme.accent;
+        hudCtx.lineWidth = 1.5;
+        hudCtx.beginPath();
+        roundRect(hudCtx, padX, ecoY - 14, ecoW, 26, 6);
+        hudCtx.fill();
+        hudCtx.stroke();
+
+        hudCtx.fillStyle = theme.accent;
+        hudCtx.fillText(activeOpening.eco, padX + 8, ecoY + 4);
+
+        // Opening Title
+        hudCtx.fillStyle = '#f8fafc';
+        hudCtx.font = '800 22px system-ui, -apple-system, sans-serif';
+        hudCtx.fillText(activeOpening.name, padX + ecoW + 14, ecoY + 4);
+
+        // Strategy Subtitle
+        hudCtx.fillStyle = '#94a3b8';
+        hudCtx.font = '500 13px system-ui, -apple-system, sans-serif';
+        hudCtx.fillText(activeOpening.description, padX, ecoY + 28);
+
+        // Active Player Turn Indicator
+        hudCtx.textAlign = 'right';
+        const moveCount = movesPlayed.length;
+        const isWhiteTurn = moveCount % 2 === 0;
+        hudCtx.fillStyle = isWhiteTurn ? '#f8fafc' : '#94a3b8';
+        hudCtx.font = '700 13px system-ui, sans-serif';
+        hudCtx.fillText(isWhiteTurn ? '⚪ White to move' : '⚫ Black to move', curW - padX, ecoY + 4);
+
+        // Bottom Move Notation Ribbon (PGN: 1. e4 c5  2. Nf3 ...)
+        const bottomY = curH - 34;
+        hudCtx.textAlign = 'left';
+        hudCtx.font = '600 13px "JetBrains Mono", monospace';
+        const historyStr = movesPlayed.join('  ');
+        if (historyStr) {
+          hudCtx.fillStyle = theme.accent;
+          hudCtx.fillText('PGN: ', padX, bottomY);
+          const pgnW = hudCtx.measureText('PGN: ').width;
+          hudCtx.fillStyle = '#cbd5e1';
+          hudCtx.fillText(historyStr, padX + pgnW, bottomY);
         }
-        for (let r = 0; r < 8; r++) {
-          const num = String(r + 1);
-          const y = boardY + (7 - r) * sqSize + sqSize / 2;
-          ctx.fillText(num, boardX - 12, y);
-          ctx.fillText(num, boardX + boardSize + 12, y);
-        }
+
+        hudCtx.restore();
       }
-
-      // Draw stationary pieces
-      for (let f = 0; f < 8; f++) {
-        for (let r = 0; r < 8; r++) {
-          const piece = board[f][r];
-          if (piece) {
-            const x = boardX + f * sqSize + sqSize / 2;
-            const y = boardY + (7 - r) * sqSize + sqSize / 2;
-            drawPiece(ctx, piece.color, piece.type, x, y, sqSize * 0.78);
-          }
-        }
-      }
-
-      // Draw active sliding pieces with smooth parabolic elevation arc
-      function easeInOutCubic(t) {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      }
-
-      if (currentMovingPiece) {
-        const ease = easeInOutCubic(moveProgress);
-        const startX = boardX + currentMovingPiece.from.f * sqSize + sqSize / 2;
-        const startY = boardY + (7 - currentMovingPiece.from.r) * sqSize + sqSize / 2;
-        const targetX = boardX + currentMovingPiece.to.f * sqSize + sqSize / 2;
-        const targetY = boardY + (7 - currentMovingPiece.to.r) * sqSize + sqSize / 2;
-
-        const curX = startX + (targetX - startX) * ease;
-        const curY = startY + (targetY - startY) * ease;
-        const lift = Math.sin(moveProgress * Math.PI) * (sqSize * 0.35);
-
-        // Piece shadow on board
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.beginPath();
-        ctx.ellipse(curX, curY + sqSize * 0.22, (sqSize * 0.28) * (1 + lift * 0.02), (sqSize * 0.12) * (1 + lift * 0.02), 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Lifted piece
-        drawPiece(ctx, currentMovingPiece.piece.color, currentMovingPiece.piece.type, curX, curY - lift, sqSize * 0.88);
-      }
-
-      if (currentCastlePiece) {
-        const ease = easeInOutCubic(moveProgress);
-        const startX = boardX + currentCastlePiece.from.f * sqSize + sqSize / 2;
-        const startY = boardY + (7 - currentCastlePiece.from.r) * sqSize + sqSize / 2;
-        const targetX = boardX + currentCastlePiece.to.f * sqSize + sqSize / 2;
-        const targetY = boardY + (7 - currentCastlePiece.to.r) * sqSize + sqSize / 2;
-
-        const curX = startX + (targetX - startX) * ease;
-        const curY = startY + (targetY - startY) * ease;
-        drawPiece(ctx, currentCastlePiece.piece.color, currentCastlePiece.piece.type, curX, curY, sqSize * 0.78);
-      }
-
-      ctx.restore();
-
-      // Top HUD Header Banner
-      ctx.save();
-      const padX = Math.max(24, (w - boardSize) / 2);
-      ctx.textAlign = 'left';
-
-      // ECO Badge
-      const ecoX = padX;
-      const ecoY = 32;
-      ctx.fillStyle = theme.accent;
-      ctx.font = '700 13px "JetBrains Mono", monospace';
-      const ecoW = ctx.measureText(activeOpening.eco).width + 16;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.strokeStyle = theme.accent;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      roundRect(ctx, ecoX, ecoY - 14, ecoW, 26, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = theme.accent;
-      ctx.fillText(activeOpening.eco, ecoX + 8, ecoY + 4);
-
-      // Opening Name
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = '800 22px system-ui, -apple-system, sans-serif';
-      ctx.fillText(activeOpening.name, ecoX + ecoW + 14, ecoY + 4);
-
-      // Strategy Subtitle
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '500 13px system-ui, -apple-system, sans-serif';
-      ctx.fillText(activeOpening.description, padX, ecoY + 28);
-
-      // Turn indicator & moves played ribbon
-      ctx.textAlign = 'right';
-      const moveCount = movesPlayed.length;
-      const isWhiteTurn = moveCount % 2 === 0;
-      ctx.fillStyle = isWhiteTurn ? '#f8fafc' : '#94a3b8';
-      ctx.font = '700 13px system-ui, sans-serif';
-      ctx.fillText(isWhiteTurn ? '⚪ White to move' : '⚫ Black to move', w - padX, ecoY + 4);
-
-      // Bottom Moves Ribbon (1. e4 c5  2. Nf3 ...)
-      const bottomY = h - 34;
-      ctx.textAlign = 'left';
-      ctx.font = '600 13px "JetBrains Mono", monospace';
-      const historyStr = movesPlayed.join('  ');
-      if (historyStr) {
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText('PGN: ', padX, bottomY);
-        const pgnW = ctx.measureText('PGN: ').width;
-        ctx.fillStyle = '#cbd5e1';
-        ctx.fillText(historyStr, padX + pgnW, bottomY);
-      }
-
-      ctx.restore();
     }
   };
-}
-
-function drawPiece(ctx, color, type, cx, cy, size) {
-  const isWhite = color === 'w';
-  const fillColor = isWhite ? '#ffffff' : '#1e293b';
-  const strokeColor = isWhite ? '#334155' : '#0f172a';
-  const glyphMap = {
-    K: isWhite ? '\u2654' : '\u265A',
-    Q: isWhite ? '\u2655' : '\u265B',
-    R: isWhite ? '\u2656' : '\u265C',
-    B: isWhite ? '\u2657' : '\u265D',
-    N: isWhite ? '\u2658' : '\u265E',
-    P: isWhite ? '\u2659' : '\u265F'
-  };
-
-  ctx.save();
-  ctx.translate(cx, cy);
-
-  // Soft ambient piece drop shadow
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 10;
-  ctx.shadowOffsetY = 4;
-
-  ctx.font = `${Math.floor(size * 0.95)}px "DejaVu Sans", "Noto Sans Symbols", "Segoe UI Symbol", "Apple Color Emoji", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Crisp outline for contrast against both light and dark squares
-  ctx.strokeStyle = strokeColor;
-  ctx.lineWidth = size * 0.06;
-  ctx.strokeText(glyphMap[type] || '', 0, 2);
-
-  ctx.fillStyle = fillColor;
-  ctx.fillText(glyphMap[type] || '', 0, 2);
-
-  ctx.restore();
 }
 
 function roundRect(ctx, x, y, width, height, radius) {

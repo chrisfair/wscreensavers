@@ -449,7 +449,7 @@ func BuiltinSavers() []models.Screensaver {
 			Year:        "2026",
 			AccentColor: "#f59e0b",
 			Tags:        []string{"Chess", "Openings", "Grandmaster", "Strategy", "Classic"},
-			Description: "Animated visualizer of 16 legendary grandmaster chess openings (Najdorf, Berlin, Queen's Gambit, King's Indian, and more) with smooth piece elevation glide, ECO codes, and move notation.",
+			Description: "True 3D rendered grandmaster chess openings (consistent with XScreenSaver endgame) featuring 3D Staunton pieces, specular wood-grain board, parabolic move arcs, smooth camera orbit, and move notation.",
 			Installed:   true,
 			Params: []models.SaverParam{
 				{ID: "speed", Label: "Move Playback Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1},
@@ -460,8 +460,9 @@ func BuiltinSavers() []models.Screensaver {
 					{Label: "Monochrome Marble", Value: "marble"},
 				}},
 				{ID: "perspective", Label: "Camera Perspective", Type: models.ParamSelect, Default: "3d", Options: []models.SelectOption{
-					{Label: "3D Isometric Angled", Value: "3d"},
-					{Label: "2D Tournament Broadcast", Value: "2d"},
+					{Label: "3D Continuous Orbit (Endgame Style)", Value: "3d"},
+					{Label: "3D Fixed Player Perspective", Value: "fixed"},
+					{Label: "2D Overhead Broadcast", Value: "2d"},
 				}},
 				{ID: "opening", Label: "Opening Selection", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
 					{Label: "Cycle Through All Openings", Value: "cycle"},

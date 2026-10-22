@@ -14,7 +14,7 @@
     </template>
 
     <!-- Native Built-In WebGL2 / Canvas2D Port (kept mounted with v-show so canvasRef is always ready) -->
-    <canvas v-show="!isExternalXSS" ref="canvasRef" class="saver-canvas"></canvas>
+    <canvas v-show="!isExternalXSS" ref="canvasRef" :key="props.saverId" class="saver-canvas"></canvas>
     <div v-if="!isExternalXSS && showFps" class="fps-badge">{{ currentFps }} FPS</div>
   </div>
 </template>
@@ -93,21 +93,23 @@ function syncSize() {
   if (cvs.width !== w || cvs.height !== h) {
     cvs.width = w;
     cvs.height = h;
+    if (instance && typeof instance.resize === 'function') {
+      instance.resize(w, h);
+    }
   }
 }
 
 function initVisualizer() {
-  if (isExternalXSS.value) {
+  if (instance && typeof instance.destroy === 'function') {
+    try { instance.destroy(); } catch (e) { console.error('Error destroying saver instance:', e); }
     instance = null;
+  }
+  if (isExternalXSS.value) {
     return;
   }
   const cvs = canvasRef.value;
   if (!cvs) return;
   syncSize();
-  const ctx = cvs.getContext('2d');
-  if (ctx) {
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-  }
   instance = createSaverInstance(
     props.saverId,
     cvs,
@@ -233,6 +235,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (instance && typeof instance.destroy === 'function') {
+    try { instance.destroy(); } catch (e) {}
+    instance = null;
+  }
   if (imgRef.value) {
     imgRef.value.src = '';
   }
