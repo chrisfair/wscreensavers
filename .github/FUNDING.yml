@@ -1,0 +1,4 @@
+# GitHub Funding Configuration for wscreensavers
+# Displays the "Sponsor this project" heart button on GitHub
+custom:
+  - 'https://buy.stripe.com/cNidR2e262cEeiOdpCefC01'
