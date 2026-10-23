@@ -113,11 +113,12 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   // Populate pieces from starting position
   spawnPieces();
 
-  // Camera State: Casual Swoopy Orbit & Zoom
+  // Camera State: Steady Diagonal Orbit & Smooth Breathing Zoom
   let animTime = 0;
   let orbitAngle = 0.5;
   let currentCamRadius = 21.0;
-  let activeBattleY = 0.0;
+  let currentLookAt = new THREE.Vector3(0, 0.5, 0);
+  let targetLookAt = new THREE.Vector3(0, 0.5, 0);
 
   function spawnPieces() {
     while (piecesGroup.children.length > 0) {
@@ -185,8 +186,10 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveHistoryLog.unshift(lastMoveDesc);
     if (moveHistoryLog.length > 8) moveHistoryLog.pop();
 
-    // Update active battle height for spectator focal tracking
-    activeBattleY = getLevelY(to.z);
+    // Update focal point smoothly towards recent activity on the board
+    targetLookAt.x = (to.x - 3.5) * 0.32;
+    targetLookAt.z = (to.y - 3.5) * 0.32;
+    targetLookAt.y = 0.5 + (getLevelY(to.z) * 0.20);
 
     // Portal visual rings if jumping vertically
     fxGroup.clear();
@@ -256,7 +259,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveCount = 0;
     moveHistoryLog = [];
     lastMoveDesc = 'New Match Started';
-    activeBattleY = 0;
+    targetLookAt.set(0, 0.5, 0);
     spawnPieces();
     nextMoveTimer = performance.now() + 800;
   }
@@ -290,11 +293,11 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
       // -------------------------------------------------------------
-      // Casual "Swoopy" Orbit & Smooth Zoom-In / Zoom-Out
-      // - Stable vertical elevation (subtle, calm, no up/down jumping)
-      // - Sweeping elliptical orbit with graceful swooping arcs
-      // - Smoothly zooms out to take in the whole 5-tier board, then
+      // Steady Diagonal Orbit & Smooth Zoom-In / Zoom-Out
+      // - ZERO up-and-down camera movement (rock-solid constant elevation)
+      // - Smoothly zooms out to frame the whole 5-tier board, then
       //   gently zooms in for closer piece viewing (~24s cycles)
+      // - Slight diagonal rotation using the most recent activity on the board as focal point
       // -------------------------------------------------------------
       animTime += dt * 0.26 * orbitSpeed;
 
@@ -307,20 +310,21 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const targetRadius = 21.2 + Math.sin(animTime) * 4.6;
       currentCamRadius += (targetRadius - currentCamRadius) * Math.min(1.0, dt * 1.5);
 
-      // 3. Very steady, calm elevation (removes noticeable up/down jumping)
-      // Gentle, subtle 3/4 angle elevation centered near upper-middle of the structure
-      const steadyElevation = 5.8 + Math.sin(animTime * 0.4) * 0.7;
+      // 3. ROCK-SOLID constant elevation: zero up-and-down movement!
+      camera.position.y = 5.8;
 
-      // 4. Sweeping elliptical orbit ("swoopy" feel without vertical nausea)
-      // An elliptical path (1.14x by 0.90x) gives that natural sweeping swoop around corners
-      camera.position.x = Math.sin(orbitAngle) * (currentCamRadius * 1.14);
-      camera.position.z = Math.cos(orbitAngle) * (currentCamRadius * 0.90);
-      camera.position.y = steadyElevation;
+      // 4. Slight diagonal rotation with elliptical sweeping arcs
+      const diagAngle = orbitAngle + Math.PI / 4;
+      camera.position.x = Math.sin(diagAngle) * (currentCamRadius * 1.14);
+      camera.position.z = Math.cos(diagAngle) * (currentCamRadius * 0.90);
 
-      // 5. Look-at target: solidly anchored at the arena core, with very gentle
-      // subtle bias towards active play level, avoiding any sudden vertical shifts
-      const lookAtY = (activeBattleY * 0.22);
-      camera.lookAt(0, lookAtY, 0);
+      // 5. Focal point tracking the most recent activity on the board
+      // Gently smoothed with exponential damping so there are zero jarring shifts
+      currentLookAt.x += (targetLookAt.x - currentLookAt.x) * Math.min(1.0, dt * 1.2);
+      currentLookAt.y += (targetLookAt.y - currentLookAt.y) * Math.min(1.0, dt * 1.2);
+      currentLookAt.z += (targetLookAt.z - currentLookAt.z) * Math.min(1.0, dt * 1.2);
+
+      camera.lookAt(currentLookAt);
       camera.up.set(0, 1, 0);
 
       // Move Dispatch
