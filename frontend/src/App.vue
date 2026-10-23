@@ -1230,15 +1230,16 @@ html, body, #app {
 .theme-switcher {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: var(--bg-card-subtle);
-  padding: 3px 6px;
+  padding: 4px 8px;
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 .btn-theme-toggle {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1250,17 +1251,20 @@ html, body, #app {
   font-size: 14px;
   transition: all 0.15s ease;
   padding: 0;
+  flex-shrink: 0;
 }
 .btn-theme-toggle:hover {
   border-color: var(--border-focus);
   transform: scale(1.08);
 }
 .theme-select {
-  padding: 5px 26px 5px 8px !important;
-  font-size: 11px !important;
-  height: 28px;
+  min-width: 175px;
+  height: 30px !important;
+  padding: 4px 28px 4px 12px !important;
+  font-size: 12px !important;
   border-radius: 7px !important;
   font-weight: 600 !important;
+  line-height: normal !important;
 }
 
 .btn {
@@ -1541,8 +1545,7 @@ html, body, #app {
 /* Bulletproof WebKitGTK High-Contrast Dropdowns Across All Themes */
 select,
 .setting-box select,
-.mon-select-row select,
-.theme-select {
+.mon-select-row select {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
@@ -1550,7 +1553,7 @@ select,
   color: var(--text-main) !important;
   border: 1px solid var(--border-strong) !important;
   border-radius: 8px !important;
-  padding: 7px 32px 7px 10px !important;
+  padding: 7px 32px 7px 12px !important;
   background-image: var(--select-arrow) !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
