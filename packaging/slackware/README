@@ -1,0 +1,22 @@
+wscreensavers (Native Wayland screensavers & live wallpapers)
+
+wscreensavers is a native Wayland screensaver and live desktop wallpaper
+suite featuring 23 built-in WebGL/Canvas visualizers, an XScreenSaver XML
+bridge, PAM-authenticated screen locking, and layer-shell integration
+compatible with Hyprland, Sway, River, and Wayfire.
+
+Build dependencies:
+- go (>= 1.22)
+- nodejs & npm (for building the WebGL/Vue frontend)
+- pkg-config
+
+Runtime dependencies:
+- gtk+3
+- webkit2gtk (4.1 API)
+- gtk-layer-shell
+- pam
+- xscreensaver (optional, for X11 legacy hack bridging)
+- xorg-server-xvfb & ffmpeg (optional, for legacy X11 hack streaming)
+
+To install the built package:
+  # installpkg /tmp/wscreensavers-1.0.26-x86_64-1_cf.txz

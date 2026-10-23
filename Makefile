@@ -7,7 +7,7 @@ SYSTEMDUSERDIR := $(PREFIX)/lib/systemd/user
 NOCTALIADIR := $(HOME)/.config/noctalia/plugins/wscreensavers
 PLUGINSRCDIR := $(PREFIX)/share/wscreensavers/noctalia-plugins/wscreensavers
 
-.PHONY: all frontend build test coverage pkg pacman pacman-install install-noctalia run daemon saver lock wallpaper clean install
+.PHONY: all frontend build test coverage pkg pacman pacman-install aur slackbuild slackware install-noctalia run daemon saver lock wallpaper clean install
 
 all: build
 
@@ -45,6 +45,12 @@ pacman-install: pacman
 
 aur:
 	./scripts/push-aur.sh
+
+slackbuild: test
+	@echo "==> Building Slackware package..."
+	bash ./packaging/slackware/wscreensavers.SlackBuild
+
+slackware: slackbuild
 
 install-noctalia:
 	mkdir -p "$(NOCTALIADIR)/translations"
