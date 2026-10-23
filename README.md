@@ -26,7 +26,7 @@ For years, Wayland compositors lacked a native, lightweight screensaver solution
 **WScreenSavers** solves this cleanly using standard Wayland protocols (`zwlr_layer_shell_v1` and `ext-idle-notify-v1`):
 
 * **Dual-Engine Architecture**:
-  * **23 Native WebGL2 Visualizers**: Hand-crafted 3D Chess, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and more.
+  * **24 Native WebGL2 Visualizers**: Hand-crafted Apex 3D Chess (spotlighting bughouse-online.com), 3D Chess Openings, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and more.
   * **Universal XScreenSaver Bridge**: Zero-overhead Wayland stream bridge for all **310+** original `/usr/lib/xscreensaver/*` binaries (`endgame`, `anemone`, `glknots`, `sierpinski3d`, etc.).
 * **Wayland Live Desktop Wallpapers**: Turn any visualizer into a 60 FPS animated desktop background with per-monitor unique assignments and auto-pause on lock.
 * **Glassmorphic PAM Screen Lock**: Native PAM password authentication overlay or seamless handoff to `hyprlock` / `swaylock`.
@@ -64,7 +64,7 @@ Everything you need to configure and customize WScreenSavers is detailed in dedi
 | :--- | :--- |
 | 📦 [**Installation Guide**](docs/installation.md) | Package manager instructions, pre-built binary downloads, and source compilation. |
 | 🚀 [**Compositor & CLI Guide**](docs/configuration.md) | Setup for Hyprland, Sway, River, systemd service, and complete `wscreensavers ctl` command reference. |
-| 🎨 [**23 Native Visualizers**](docs/visualizers.md) | Full catalog of built-in WebGL2 & Canvas visualizers with descriptions. |
+| 🎨 [**24 Native Visualizers**](docs/visualizers.md) | Full catalog of built-in WebGL2 & Canvas visualizers with descriptions. |
 | 🌐 [**Unlocking 330+ XScreenSavers**](docs/xscreensaver-packages.md) | How to install distro packages to unlock all 310+ classic visualizers (with guides for Arch, Debian/Ubuntu, Fedora, openSUSE, Slackware, NixOS, Alpine, and Gentoo). |
 | 🧩 [**Noctalia Integration**](docs/noctalia.md) | Installing and configuring the official Noctalia desktop shell plugin, status bar widget, and floating control deck. |
 | 🛠️ [**Development & Contributing**](docs/development.md) | Source build instructions, unit test execution, and release protocols. |

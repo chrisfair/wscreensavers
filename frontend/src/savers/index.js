@@ -33,6 +33,7 @@ import {
 } from './mathAndAutomata.js';
 
 import { createChessOpenings } from './chessOpenings.js';
+import { createBughouse3D } from './bughouse3d.js';
 
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
@@ -57,7 +58,8 @@ const SAVER_FACTORIES = {
   gameoflife: createGameOfLife,
   rorschach: createRorschach,
   mystify: createMystify,
-  chessopenings: createChessOpenings
+  chessopenings: createChessOpenings,
+  bughouse3d: createBughouse3D
 };
 
 export function createSaverInstance(saverId, canvas, getParams, getTelemetry) {
