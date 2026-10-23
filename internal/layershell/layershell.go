@@ -11,10 +11,28 @@ package layershell
 static int gtk_loop_active = 0;
 static GtkWidget *lock_windows[16];
 static int lock_window_count = 0;
+static GtkWidget *layer_windows[16];
+static int layer_window_count = 0;
+
+static void destroy_all_layer_windows(void) {
+    for (int i = 0; i < layer_window_count; i++) {
+        if (layer_windows[i] != NULL) {
+            gtk_widget_destroy(layer_windows[i]);
+            layer_windows[i] = NULL;
+        }
+    }
+    layer_window_count = 0;
+    lock_window_count = 0;
+    GdkDisplay *display = gdk_display_get_default();
+    if (display != NULL) {
+        gdk_display_flush(display);
+    }
+}
 
 static gboolean quit_idle_cb(gpointer data) {
     if (gtk_loop_active) {
         gtk_loop_active = 0;
+        destroy_all_layer_windows();
         gtk_main_quit();
     }
     return FALSE;
@@ -99,6 +117,7 @@ static gboolean on_button_dismiss(GtkWidget *widget, GdkEventButton *event, gpoi
 static void launch_layer_windows(const char **urls, int url_count, int is_wallpaper, int is_locked) {
     gtk_init(NULL, NULL);
     lock_window_count = 0;
+    layer_window_count = 0;
 
     GdkDisplay *display = gdk_display_get_default();
     int n_monitors = 1;
@@ -114,6 +133,10 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
     for (int i = 0; i < n_monitors; i++) {
         GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
+
+        if (layer_window_count < 16) {
+            layer_windows[layer_window_count++] = window;
+        }
 
         if (is_locked && lock_window_count < 16) {
             lock_windows[lock_window_count++] = window;
@@ -212,11 +235,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 	"unsafe"
 )
+
+// RequestQuit signals the GTK main loop to destroy all layer-shell windows and exit cleanly.
+func RequestQuit() {
+	C.request_gtk_quit()
+}
 
 // RunLayerShellWindows initializes GTK + gtk-layer-shell and creates borderless Wayland surfaces across all monitors.
 func RunLayerShellWindows(urls []string, isWallpaper bool, isLocked bool) {
@@ -328,7 +358,10 @@ func (p *ProcessController) StopSaverOverlay() {
 }
 
 func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error {
-	p.StopWallpaper()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.stopWallpaperLocked()
 
 	exe, err := os.Executable()
 	if err != nil {
@@ -348,10 +381,8 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 	}
 
 	done := make(chan struct{})
-	p.mu.Lock()
 	p.wallpaperProc = cmd
 	p.wallpaperDone = done
-	p.mu.Unlock()
 
 	go func() {
 		_ = cmd.Wait()
@@ -369,11 +400,15 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 
 func (p *ProcessController) StopWallpaper() {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.stopWallpaperLocked()
+}
+
+func (p *ProcessController) stopWallpaperLocked() {
 	cmd := p.wallpaperProc
 	done := p.wallpaperDone
 	p.wallpaperProc = nil
 	p.wallpaperDone = nil
-	p.mu.Unlock()
 
 	if cmd != nil && cmd.Process != nil && done != nil {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
@@ -383,8 +418,29 @@ func (p *ProcessController) StopWallpaper() {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 			select {
 			case <-done:
-			case <-time.After(500 * time.Millisecond):
+			case <-time.After(300 * time.Millisecond):
 			}
+		}
+	}
+
+	// Also terminate any stray or external wscreensavers --wallpaper processes on the system
+	stopMatchingWallpaperProcesses()
+}
+
+func stopMatchingWallpaperProcesses() {
+	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper(\\s|$)").Output()
+	if err != nil {
+		return
+	}
+	currentPID := os.Getpid()
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		pid, err := strconv.Atoi(line)
+		if err == nil && pid > 0 && pid != currentPID {
+			_ = syscall.Kill(pid, syscall.SIGTERM)
 		}
 	}
 }

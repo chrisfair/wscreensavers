@@ -81,3 +81,24 @@ func TestLockSurvivesDiscardedRelease(t *testing.T) {
 		t.Fatalf("second acquire after GC = %v, want ErrAlreadyRunning", err)
 	}
 }
+
+func TestAcquireOrReplaceTakesOver(t *testing.T) {
+	dir := t.TempDir()
+
+	rel1, err := acquireIn(dir, "wallpaper", 0)
+	if err != nil {
+		t.Fatalf("first acquire: %v", err)
+	}
+
+	// Release in background to simulate old process terminating upon SIGTERM
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		rel1()
+	}()
+
+	rel2, err := acquireOrReplaceIn(dir, "wallpaper", 2*time.Second)
+	if err != nil {
+		t.Fatalf("acquireOrReplace failed: %v", err)
+	}
+	defer rel2()
+}

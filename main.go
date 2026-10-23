@@ -24,6 +24,7 @@ import (
 	"wscreensavers/internal/ctl"
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/layershell"
+	"wscreensavers/internal/models"
 	"wscreensavers/internal/singleton"
 )
 
@@ -82,7 +83,13 @@ func main() {
 		case *wallpaperMode:
 			lockName = "wallpaper"
 		}
-		if _, err := singleton.Acquire(lockName, 2*time.Second); err != nil {
+
+		acquireFunc := singleton.Acquire
+		if *wallpaperMode {
+			acquireFunc = singleton.AcquireOrReplace
+		}
+
+		if _, err := acquireFunc(lockName, 3*time.Second); err != nil {
 			if errors.Is(err, singleton.ErrAlreadyRunning) {
 				log.Printf("wscreensavers --%s is already running; exiting", lockName)
 				return
@@ -105,13 +112,15 @@ func main() {
 		}
 		defer srv.Shutdown()
 
-		// Overlays are stopped with SIGTERM; clean up the hacks and Xvfb servers we
-		// started instead of dying with deferred work skipped.
+		// Overlays and wallpapers are stopped with SIGTERM; cleanly tear down
+		// GTK layer-shell surfaces and unmap Wayland windows before process exit.
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		go func() {
 			<-sigCh
 			srv.Shutdown()
+			layershell.RequestQuit()
+			time.Sleep(150 * time.Millisecond)
 			os.Exit(0)
 		}()
 
@@ -172,7 +181,7 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 	cfg := cfgMgr.Get()
 	monitors := display.DetectMonitors()
 	if len(monitors) == 0 {
-		monitors = append(monitors, display.DetectMonitors()...)
+		monitors = []models.MonitorOutput{{ID: 0, Name: "default", Width: 1920, Height: 1080}}
 	}
 
 	var urls []string
