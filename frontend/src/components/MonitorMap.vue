@@ -118,8 +118,8 @@ function assignWallpaper(monName, saverId) {
 
 <style scoped>
 .monitor-section {
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: var(--bg-card, rgba(15, 23, 42, 0.65));
+  border: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.14));
   border-radius: 16px;
   padding: 18px 20px;
 }
@@ -134,17 +134,17 @@ function assignWallpaper(monName, saverId) {
 .monitor-header h4 {
   margin: 0;
   font-size: 15px;
-  color: #f8fafc;
+  color: var(--text-main, #f8fafc);
 }
 .sub {
   margin: 3px 0 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
 }
 .mode-pills {
   display: flex;
   gap: 6px;
-  background: rgba(2, 6, 23, 0.65);
+  background: var(--bg-card-subtle, rgba(2, 6, 23, 0.65));
   padding: 4px;
   border-radius: 10px;
 }
@@ -153,13 +153,13 @@ function assignWallpaper(monName, saverId) {
   border-radius: 7px;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 .mode-pill.active {
-  background: #0ea5e9;
+  background: var(--accent, #0ea5e9);
   color: #ffffff;
 }
 .monitors-grid {
@@ -168,8 +168,8 @@ function assignWallpaper(monName, saverId) {
   gap: 14px;
 }
 .monitor-card {
-  background: rgba(2, 6, 23, 0.75);
-  border: 1px solid rgba(56, 189, 248, 0.24);
+  background: var(--bg-card-subtle, rgba(2, 6, 23, 0.75));
+  border: 1px solid var(--border-subtle, rgba(56, 189, 248, 0.24));
   border-radius: 12px;
   padding: 14px;
 }
@@ -188,16 +188,16 @@ function assignWallpaper(monName, saverId) {
   font-family: "JetBrains Mono", monospace;
   font-weight: 800;
   font-size: 15px;
-  color: #38bdf8;
+  color: var(--accent, #38bdf8);
 }
 .mon-res {
   font-size: 12px;
-  color: #e2e8f0;
+  color: var(--text-main, #e2e8f0);
   margin-top: 4px;
 }
 .mon-desc {
   font-size: 11px;
-  color: #64748b;
+  color: var(--text-dim, #64748b);
   margin-top: 2px;
 }
 .mon-select-row {
@@ -208,14 +208,30 @@ function assignWallpaper(monName, saverId) {
 }
 .mon-select-row label {
   font-size: 11px;
-  color: #94a3b8;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
 }
 .mon-select-row select {
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: #0f172a;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  color: #f8fafc;
-  font-size: 12px;
+  padding: 7px 30px 7px 10px !important;
+  border-radius: 8px !important;
+  background-color: var(--bg-input, #0f172a) !important;
+  border: 1px solid var(--border-strong, rgba(148, 163, 184, 0.25)) !important;
+  color: var(--text-main, #f8fafc) !important;
+  font-size: 12px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image: var(--select-arrow) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 11px !important;
+  cursor: pointer !important;
+  outline: none !important;
+}
+.mon-select-row select:focus {
+  border-color: var(--border-focus, #38bdf8) !important;
+}
+.mon-select-row select option {
+  background-color: var(--bg-dropdown-item, #0f172a) !important;
+  color: var(--text-main, #f8fafc) !important;
 }
 </style>

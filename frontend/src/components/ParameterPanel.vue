@@ -100,8 +100,8 @@ function formatVal(v) {
 
 <style scoped>
 .param-panel {
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: var(--bg-card, rgba(15, 23, 42, 0.72));
+  border: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.14));
   border-radius: 16px;
   padding: 18px;
   display: flex;
@@ -117,7 +117,7 @@ function formatVal(v) {
 .param-header h4 {
   margin: 0 0 6px;
   font-size: 15px;
-  color: #f8fafc;
+  color: var(--text-main, #f8fafc);
 }
 .engine-badge {
   display: inline-block;
@@ -139,16 +139,17 @@ function formatVal(v) {
 .reset-btn {
   padding: 6px 11px;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(30, 41, 59, 0.65);
-  color: #cbd5e1;
+  border: 1px solid var(--border-strong, rgba(148, 163, 184, 0.25));
+  background: var(--bg-card-subtle, rgba(30, 41, 59, 0.65));
+  color: var(--text-muted, #cbd5e1);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 .reset-btn:hover {
-  border-color: #38bdf8;
-  color: #ffffff;
+  border-color: var(--border-focus, #38bdf8);
+  color: var(--text-main, #ffffff);
 }
 .param-list {
   display: flex;
@@ -164,33 +165,60 @@ function formatVal(v) {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #cbd5e1;
+  color: var(--text-muted, #cbd5e1);
   font-weight: 500;
 }
 .param-val {
   font-family: "JetBrains Mono", monospace;
-  color: #38bdf8;
+  color: var(--accent, #38bdf8);
   font-weight: 700;
 }
 .param-range {
   width: 100%;
-  accent-color: #0ea5e9;
+  accent-color: var(--accent, #0ea5e9);
   cursor: pointer;
 }
-.param-select, .param-text {
-  padding: 8px 10px;
+.param-select {
+  padding: 7px 30px 7px 10px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border-strong, rgba(148, 163, 184, 0.25)) !important;
+  background-color: var(--bg-input, #090d18) !important;
+  color: var(--text-main, #f8fafc) !important;
+  font-size: 12px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image: var(--select-arrow) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 11px !important;
+  cursor: pointer !important;
+  outline: none !important;
+}
+.param-select:focus {
+  border-color: var(--border-focus, #38bdf8) !important;
+}
+.param-select option {
+  background-color: var(--bg-dropdown-item, #0f172a) !important;
+  color: var(--text-main, #f8fafc) !important;
+}
+.param-text {
+  padding: 7px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: #090d18;
-  color: #f8fafc;
+  border: 1px solid var(--border-strong, rgba(148, 163, 184, 0.25));
+  background-color: var(--bg-input, #090d18);
+  color: var(--text-main, #f8fafc);
   font-size: 12px;
+  outline: none;
+}
+.param-text:focus {
+  border-color: var(--border-focus, #38bdf8);
 }
 .toggle-row {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #e2e8f0;
+  color: var(--text-main, #e2e8f0);
   cursor: pointer;
 }
 .color-row {
@@ -201,11 +229,11 @@ function formatVal(v) {
 .color-hex {
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-dim, #94a3b8);
 }
 .empty-params {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-dim, #64748b);
   padding: 12px 0;
 }
 </style>
