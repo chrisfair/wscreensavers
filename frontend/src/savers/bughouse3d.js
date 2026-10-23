@@ -113,12 +113,10 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   // Populate pieces from starting position
   spawnPieces();
 
-  // Camera State: The Spectator Stroll
-  let strollTime = 0;
+  // Camera State: Casual Swoopy Orbit & Zoom
+  let animTime = 0;
   let orbitAngle = 0.5;
   let currentCamRadius = 21.0;
-  let currentCamHeight = 5.5;
-  let currentLookAtY = 0.0;
   let activeBattleY = 0.0;
 
   function spawnPieces() {
@@ -292,36 +290,37 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
       // -------------------------------------------------------------
-      // Calm "Spectator Stroll" Camera System
-      // Gradually walks around the board, slowly zooming in and out,
-      // looking at each level a while while keeping active play in primary focus.
+      // Casual "Swoopy" Orbit & Smooth Zoom-In / Zoom-Out
+      // - Stable vertical elevation (subtle, calm, no up/down jumping)
+      // - Sweeping elliptical orbit with graceful swooping arcs
+      // - Smoothly zooms out to take in the whole 5-tier board, then
+      //   gently zooms in for closer piece viewing (~24s cycles)
       // -------------------------------------------------------------
-      strollTime += dt * 0.12 * orbitSpeed;
+      animTime += dt * 0.26 * orbitSpeed;
 
-      // 1. Stately, steady walking pace around the perimeter (~140 seconds per full revolution)
-      orbitAngle += dt * 0.055 * orbitSpeed;
+      // 1. Casual, relaxed orbit pace (~50 seconds per full revolution)
+      orbitAngle += dt * 0.125 * orbitSpeed;
 
-      // 2. Slow, gradual breathing zoom (cycles gently over ~75 seconds)
-      // Gently glides between closer look (~17.5) and overview (~22.5)
-      const targetRadius = 20.2 + Math.sin(strollTime * 0.35) * 2.8;
-      currentCamRadius += (targetRadius - currentCamRadius) * Math.min(1.0, dt * 0.7);
+      // 2. Smooth zoom-in / zoom-out cycles (~24 seconds per cycle)
+      // Outward: ~25.8 (generously takes in the entire 5-tier board & corner pillars)
+      // Inward:  ~16.6 (closer view of the active pieces)
+      const targetRadius = 21.2 + Math.sin(animTime) * 4.6;
+      currentCamRadius += (targetRadius - currentCamRadius) * Math.min(1.0, dt * 1.5);
 
-      // 3. Gradually looking across each level a while (cycles gently over ~100 seconds)
-      // Lingers and drifts across lower, middle, and upper tiers (height ~2.2 to ~8.8)
-      const spectatorElevation = 5.4 + Math.sin(strollTime * 0.22) * 3.4;
-      currentCamHeight += (spectatorElevation - currentCamHeight) * Math.min(1.0, dt * 0.7);
+      // 3. Very steady, calm elevation (removes noticeable up/down jumping)
+      // Gentle, subtle 3/4 angle elevation centered near upper-middle of the structure
+      const steadyElevation = 5.8 + Math.sin(animTime * 0.4) * 0.7;
 
-      camera.position.x = Math.sin(orbitAngle) * currentCamRadius;
-      camera.position.z = Math.cos(orbitAngle) * currentCamRadius;
-      camera.position.y = currentCamHeight;
+      // 4. Sweeping elliptical orbit ("swoopy" feel without vertical nausea)
+      // An elliptical path (1.14x by 0.90x) gives that natural sweeping swoop around corners
+      camera.position.x = Math.sin(orbitAngle) * (currentCamRadius * 1.14);
+      camera.position.z = Math.cos(orbitAngle) * (currentCamRadius * 0.90);
+      camera.position.y = steadyElevation;
 
-      // 4. Keeping active play in primary focus:
-      // Arena center (x=0, z=0) stays solidly framed.
-      // Vertical look-at gently, slowly tracks the active battle plane without abrupt jumps.
-      const targetLookAtY = activeBattleY * 0.45;
-      currentLookAtY += (targetLookAtY - currentLookAtY) * Math.min(1.0, dt * 0.8);
-
-      camera.lookAt(0, currentLookAtY, 0);
+      // 5. Look-at target: solidly anchored at the arena core, with very gentle
+      // subtle bias towards active play level, avoiding any sudden vertical shifts
+      const lookAtY = (activeBattleY * 0.22);
+      camera.lookAt(0, lookAtY, 0);
       camera.up.set(0, 1, 0);
 
       // Move Dispatch
