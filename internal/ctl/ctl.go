@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,13 +30,14 @@ type CompactSaver struct {
 }
 
 type StatusPayload struct {
-	Config           models.AppConfig `json:"config"`
-	SelectedName     string           `json:"selectedName"`
-	WallpaperName    string           `json:"wallpaperName"`
-	WallpaperRunning bool             `json:"wallpaperRunning"`
-	Savers           []CompactSaver   `json:"savers"`
+	Config           models.AppConfig       `json:"config"`
+	SelectedName     string                 `json:"selectedName"`
+	WallpaperName    string                 `json:"wallpaperName"`
+	WallpaperRunning bool                   `json:"wallpaperRunning"`
+	Savers           []CompactSaver         `json:"savers"`
 	// OtherWallpapers names other wallpaper programs running under the live wallpaper.
-	OtherWallpapers []string `json:"otherWallpapers"`
+	OtherWallpapers []string               `json:"otherWallpapers"`
+	Monitors        []models.MonitorOutput `json:"monitors"`
 }
 
 func allSavers() []models.Screensaver {
@@ -158,6 +160,7 @@ func buildStatus(cfgMgr *config.Manager) StatusPayload {
 		WallpaperRunning: isWallpaperProcessRunning(),
 		Savers:           compact,
 		OtherWallpapers:  display.OtherWallpaperPrograms(),
+		Monitors:         display.DetectMonitors(),
 	}
 }
 
@@ -410,6 +413,36 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if len(args) >= 2 {
 			action = args[1]
 		}
+
+		if action == "shuffle" {
+			mons := display.DetectMonitors()
+			pool := cfg.EnabledSavers
+			if len(pool) == 0 {
+				for _, s := range allSavers() {
+					pool = append(pool, s.ID)
+				}
+			}
+			rPool := make([]string, len(pool))
+			copy(rPool, pool)
+			rand.Shuffle(len(rPool), func(i, j int) { rPool[i], rPool[j] = rPool[j], rPool[i] })
+			if cfg.WallpaperPerMonitor == nil {
+				cfg.WallpaperPerMonitor = make(map[string]string)
+			}
+			for i, m := range mons {
+				cfg.WallpaperPerMonitor[m.Name] = rPool[i%len(rPool)]
+			}
+			cfg.WallpaperMode = "per-monitor"
+			cfg.WallpaperEnabled = true
+			if err := cfgMgr.Update(cfg); err != nil {
+				return err
+			}
+			if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": "per-monitor"}) {
+				stopWallpaperProcesses()
+				_ = spawnDetached("--wallpaper")
+			}
+			return printStatus(cfgMgr)
+		}
+
 		saverID := cfg.WallpaperSaver
 		if saverID == "" {
 			saverID = cfg.SelectedSaver

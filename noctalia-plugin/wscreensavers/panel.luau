@@ -456,7 +456,7 @@ render = function()
 
     local statusLabel = wpRunning and (tr("wallpaper_running") .. ": " .. (stateData.wallpaperName or cfg.wallpaperSaver)) or tr("wallpaper_stopped")
 
-    table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, {
+    local wpColChildren = {
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("wallpaper_section"), fontSize = 14, fontWeight = "bold", color = "primary" }),
         ui.label({
@@ -485,17 +485,70 @@ render = function()
         }),
       }),
       ui.row({ gap = 8, align = "center" }, {
-        ui.label({ text = tr("wallpaper_fps") .. ":", fontSize = 12, color = "on_surface_variant" }),
-        chipRow(FPS_CAPS, cfg.wallpaperFpsCap or 30, function(val) setConfig("wallpaperFpsCap", val) end, "fps"),
+        ui.label({ text = "Mode:", fontSize = 12, color = "on_surface_variant" }),
+        chipRow({
+          { "single", "Same on All" },
+          { "per-monitor", "Unique Per Screen" },
+        }, cfg.wallpaperMode or "single", function(val) setConfig("wallpaperMode", val) end, "wpMode"),
+        ui.spacer({ flexGrow = 1 }),
+        ui.button({
+          text = "Control Center",
+          glyph = "external-link",
+          controlSize = "sm",
+          variant = "ghost",
+          enabled = not busy,
+          onClick = callback("openGui", function() runCmd("gui", "Control Center") end),
+        }),
       }),
-      ui.label({ text = tr("wallpaper_covers_note"), fontSize = 11, color = "on_surface_variant" }),
-      ((stateData.otherWallpapers or {})[1] ~= nil) and ui.label({
+    }
+
+    if cfg.wallpaperMode == "per-monitor" and #(stateData.monitors or {}) > 0 then
+      local wpMap = cfg.wallpaperPerMonitor or {}
+      for _, mon in ipairs(stateData.monitors) do
+        local curSaver = wpMap[mon.name] or cfg.wallpaperSaver or "flurry"
+        local assignClick = callback("assignWp_" .. mon.name, function()
+          runCmd("set wallpaperPerMonitor " .. mon.name .. "=" .. shellQuote(cfg.selectedSaver), "Set " .. mon.name .. ": " .. (stateData.selectedName or cfg.selectedSaver))
+        end)
+        table.insert(wpColChildren, ui.row({ gap = 8, align = "center" }, {
+          ui.label({ text = "🖥 " .. mon.name .. ":", fontSize = 11, fontWeight = "bold", color = "primary" }),
+          ui.label({ text = curSaver, fontSize = 11, color = "on_surface" }),
+          ui.spacer({ flexGrow = 1 }),
+          ui.button({
+            text = "Use " .. (stateData.selectedName or cfg.selectedSaver),
+            controlSize = "sm",
+            variant = "ghost",
+            enabled = not busy and curSaver ~= cfg.selectedSaver,
+            onClick = assignClick,
+          }),
+        }))
+      end
+      table.insert(wpColChildren, ui.row({ gap = 8, align = "center" }, {
+        ui.button({
+          text = "🎲 Randomize Unique Set",
+          glyph = "refresh",
+          controlSize = "sm",
+          variant = "ghost",
+          enabled = not busy,
+          onClick = callback("wpShuffle", function() runCmd("wallpaper shuffle", "Shuffled Unique Wallpapers") end),
+        }),
+      }))
+    end
+
+    table.insert(wpColChildren, ui.row({ gap = 8, align = "center" }, {
+      ui.label({ text = tr("wallpaper_fps") .. ":", fontSize = 12, color = "on_surface_variant" }),
+      chipRow(FPS_CAPS, cfg.wallpaperFpsCap or 30, function(val) setConfig("wallpaperFpsCap", val) end, "fps"),
+    }))
+    table.insert(wpColChildren, ui.label({ text = tr("wallpaper_covers_note"), fontSize = 11, color = "on_surface_variant" }))
+    if (stateData.otherWallpapers or {})[1] ~= nil then
+      table.insert(wpColChildren, ui.label({
         text = tr("wallpaper_others_detected") .. ": " .. table.concat(stateData.otherWallpapers, ", "),
         fontSize = 11,
         fontWeight = "bold",
         color = "primary",
-      }) or ui.spacer({ height = 0 }),
-    }))
+      }))
+    end
+
+    table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, wpColChildren))
 
     -- 3. Screensaver Catalog & Category Picker
     local catItems = {}
