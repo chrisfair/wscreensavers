@@ -214,6 +214,9 @@ wscreensavers ctl pool all
 
 # Open the graphical Control Center Studio
 wscreensavers ctl gui
+
+# Permanently silence the startup support reminder
+wscreensavers ctl nag off
 ```
 
 ---
@@ -252,6 +255,26 @@ If you enjoy using WScreenSavers on your Wayland desktop and would like to suppo
 | **King** | [**$350 one-time**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | Major patron of Wayland open-source tooling |
 
 *All contributions directly fund development hardware, compositor test matrices, and open source maintenance.*
+
+### 🕊️ Disabling the Support Reminder Manually
+
+We believe in complete respect for user autonomy. All features are always 100% unlocked and available to everyone. If you prefer to permanently disable or silence the voluntary support reminder without contributing, you can do so in any of the following ways:
+
+- **Via CLI (Instant)**:
+  ```bash
+  wscreensavers ctl nag off
+  ```
+- **Via User Configuration (No root required, survives package upgrades)**:
+  ```bash
+  mkdir -p ~/.config/wscreensavers
+  echo '{"supported": true, "isLifetime": true}' > ~/.config/wscreensavers/support.json
+  ```
+- **Via Package Nag File (System-wide)**:
+  ```bash
+  sudo rm -f /usr/share/wscreensavers/nag
+  ```
+- **Via GUI**:
+  In the reminder dialog, simply click **"I've Supported"** (an honor system—no receipt or verification required) or click **"Maybe Later"** to dismiss for 24 hours.
 
 ---
 
