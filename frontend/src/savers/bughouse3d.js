@@ -113,17 +113,13 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   // Populate pieces from starting position
   spawnPieces();
 
-  // Camera State: Steady, Cinematic "Inspect & Overview"
-  let orbitAngle = 0.4;
-  let targetOrbitAngle = 0.4;
-  let currentCamRadius = 22.5;
-  let targetCamRadius = 22.5;
-  let currentCamElevation = 6.2;
-  let targetCamElevation = 6.2;
-  let currentLookAt = new THREE.Vector3(0, 0, 0);
-  let targetLookAt = new THREE.Vector3(0, 0, 0);
-  let inspectTimer = 0;
-  let activeBattleY = 0;
+  // Camera State: The Spectator Stroll
+  let strollTime = 0;
+  let orbitAngle = 0.5;
+  let currentCamRadius = 21.0;
+  let currentCamHeight = 5.5;
+  let currentLookAtY = 0.0;
+  let activeBattleY = 0.0;
 
   function spawnPieces() {
     while (piecesGroup.children.length > 0) {
@@ -191,26 +187,8 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveHistoryLog.unshift(lastMoveDesc);
     if (moveHistoryLog.length > 8) moveHistoryLog.pop();
 
-    // Update active battle height and trigger gradual zoom-in & gentle rotation "to get a better look"
-    const destX = to.x - 3.5;
-    const destY = getLevelY(to.z);
-    const destZ = to.y - 3.5;
-    activeBattleY = destY;
-
-    // Gentle look-at: blend between active destination piece (35%) and board center (65%)
-    targetLookAt.set(destX * 0.35, destY * 0.35, destZ * 0.35);
-
-    // Slight rotation of board/camera to get an optimal vantage point on the new move
-    const destAngle = Math.atan2(destX, destZ);
-    targetOrbitAngle = destAngle + 0.35;
-
-    // Gradual slight zoom-in from 22.5 to 17.5
-    targetCamRadius = 17.5;
-    // Gentle stable elevation matching the level without jumping
-    targetCamElevation = 5.8 + (destY * 0.16);
-
-    // Hold inspection view through the move, lingering gently before easing back out
-    inspectTimer = performance.now() + 3200;
+    // Update active battle height for spectator focal tracking
+    activeBattleY = getLevelY(to.z);
 
     // Portal visual rings if jumping vertically
     fxGroup.clear();
@@ -281,10 +259,6 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveHistoryLog = [];
     lastMoveDesc = 'New Match Started';
     activeBattleY = 0;
-    targetCamRadius = 22.5;
-    targetCamElevation = 6.2;
-    targetLookAt.set(0, 0, 0);
-    inspectTimer = 0;
     spawnPieces();
     nextMoveTimer = performance.now() + 800;
   }
@@ -318,36 +292,36 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
       // -------------------------------------------------------------
-      // Steady Cinematic "Inspect & Overview" Camera System
+      // Calm "Spectator Stroll" Camera System
+      // Gradually walks around the board, slowly zooming in and out,
+      // looking at each level a while while keeping active play in primary focus.
       // -------------------------------------------------------------
-      // If lingering inspection duration expired, gradually ease back out to majestic overview
-      if (now > inspectTimer) {
-        targetCamRadius = 22.5;
-        targetLookAt.set(0, activeBattleY * 0.15, 0);
-        targetCamElevation = 6.2;
-      }
+      strollTime += dt * 0.12 * orbitSpeed;
 
-      // Continuous gentle cruising orbit
-      targetOrbitAngle += dt * 0.09 * orbitSpeed;
+      // 1. Stately, steady walking pace around the perimeter (~140 seconds per full revolution)
+      orbitAngle += dt * 0.055 * orbitSpeed;
 
-      // Smoothly interpolate orbit angle around the shortest arc (slight board rotation)
-      const angleDiff = Math.atan2(Math.sin(targetOrbitAngle - orbitAngle), Math.cos(targetOrbitAngle - orbitAngle));
-      orbitAngle += angleDiff * Math.min(1.0, dt * 1.5);
+      // 2. Slow, gradual breathing zoom (cycles gently over ~75 seconds)
+      // Gently glides between closer look (~17.5) and overview (~22.5)
+      const targetRadius = 20.2 + Math.sin(strollTime * 0.35) * 2.8;
+      currentCamRadius += (targetRadius - currentCamRadius) * Math.min(1.0, dt * 0.7);
 
-      // Buttery smooth gradual zoom in/out (no sudden jumps, completely stable elevation)
-      currentCamRadius += (targetCamRadius - currentCamRadius) * Math.min(1.0, dt * 1.6);
-      currentCamElevation += (targetCamElevation - currentCamElevation) * Math.min(1.0, dt * 1.6);
+      // 3. Gradually looking across each level a while (cycles gently over ~100 seconds)
+      // Lingers and drifts across lower, middle, and upper tiers (height ~2.2 to ~8.8)
+      const spectatorElevation = 5.4 + Math.sin(strollTime * 0.22) * 3.4;
+      currentCamHeight += (spectatorElevation - currentCamHeight) * Math.min(1.0, dt * 0.7);
 
       camera.position.x = Math.sin(orbitAngle) * currentCamRadius;
       camera.position.z = Math.cos(orbitAngle) * currentCamRadius;
-      camera.position.y = currentCamElevation;
+      camera.position.y = currentCamHeight;
 
-      // Smoothly glide look-at target to keep view centered & stable
-      currentLookAt.x += (targetLookAt.x - currentLookAt.x) * Math.min(1.0, dt * 2.0);
-      currentLookAt.y += (targetLookAt.y - currentLookAt.y) * Math.min(1.0, dt * 2.0);
-      currentLookAt.z += (targetLookAt.z - currentLookAt.z) * Math.min(1.0, dt * 2.0);
+      // 4. Keeping active play in primary focus:
+      // Arena center (x=0, z=0) stays solidly framed.
+      // Vertical look-at gently, slowly tracks the active battle plane without abrupt jumps.
+      const targetLookAtY = activeBattleY * 0.45;
+      currentLookAtY += (targetLookAtY - currentLookAtY) * Math.min(1.0, dt * 0.8);
 
-      camera.lookAt(currentLookAt);
+      camera.lookAt(0, currentLookAtY, 0);
       camera.up.set(0, 1, 0);
 
       // AI Move Dispatch
