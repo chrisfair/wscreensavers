@@ -130,7 +130,7 @@
             </svg>
           </button>
           <p class="merchant-note">
-            💳 <em>Stripe checkout will display <strong>Bughouse Online (bughouse-online.com)</strong>, the author's primary unified business account for all open-source projects.</em>
+            💳 <em>Billing will indicate <strong>bughouse-online.com</strong> (Bughouse Online), the author's primary website &amp; unified business account for open-source development.</em>
           </p>
         </div>
 

@@ -80,7 +80,7 @@ WScreenSavers is 100% free and open source software released under the **GNU Gen
 > 1. **100% Non-Obligatory**: Supporting is strictly voluntary appreciation for the author's work.
 > 2. **Zero Locked Features**: Every single visualizer, PAM lock, multi-monitor configuration, live wallpaper, and CLI feature is completely unlocked and available to all users forever.
 > 3. **Single One-Time Charges ONLY (No Subscriptions)**: All Stripe payment links are **one-time charges**. You will **never** be enrolled in a recurring subscription or recurring billing. The labels below (e.g., monthly coffee, annual pass) are merely suggested contribution frequencies.
-> 4. **Merchant Name Notice**: Stripe checkout will display as **Bughouse Online (`bughouse-online.com`)**. This is the author's primary website and registered unified business Stripe merchant account for all independent open-source projects. All contributions directly support WScreenSavers development and test hardware.
+> 4. **Billing & Merchant Name**: Your billing and Stripe checkout will indicate **`bughouse-online.com`** (Bughouse Online). This is the author's primary website and registered business account used for all independent open-source projects—please do not be surprised or put off when you see it! All contributions directly support WScreenSavers development and test hardware.
 
 If you enjoy using WScreenSavers on your Wayland desktop and would like to support ongoing maintenance, new visualizers, and multi-monitor compositor testing, contributions are warmly welcomed and deeply appreciated!
 
@@ -92,7 +92,7 @@ If you enjoy using WScreenSavers on your Wayland desktop and would like to suppo
 | **Queen** | [**$35**](https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03) | *Single One-Time* | Generous sponsor & feature booster |
 | **King** | [**$350**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | *Single One-Time* | Major patron of Wayland open-source tooling |
 
-*All contributions directly fund development hardware, compositor test matrices, and open source maintenance.*
+*All contributions directly fund development hardware, compositor test matrices, and open source maintenance. All charges are one-time only; billing will indicate bughouse-online.com.*
 
 ### 🕊️ Disabling the Support Reminder Manually
 
