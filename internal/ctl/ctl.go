@@ -147,6 +147,10 @@ func buildStatus(cfgMgr *config.Manager) StatusPayload {
 		})
 	}
 
+	if cfg.WallpaperMode == "per-monitor" {
+		wpName = "Per-Monitor (Unique)"
+	}
+
 	return StatusPayload{
 		Config:           cfg,
 		SelectedName:     selName,
@@ -231,6 +235,39 @@ func Run(cfgMgr *config.Manager, args []string) error {
 				if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": actualSaver}) {
 					stopWallpaperProcesses()
 					_ = spawnDetached("--wallpaper", "--saver-id", actualSaver)
+				}
+			}
+		case "wallpaperMode":
+			cfg.WallpaperMode = val
+			if isWallpaperProcessRunning() {
+				if cfg.WallpaperMode == "per-monitor" {
+					if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": "per-monitor"}) {
+						stopWallpaperProcesses()
+						_ = spawnDetached("--wallpaper")
+					}
+				} else {
+					if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": cfg.WallpaperSaver}) {
+						stopWallpaperProcesses()
+						_ = spawnDetached("--wallpaper", "--saver-id", cfg.WallpaperSaver)
+					}
+				}
+			}
+		case "wallpaperPerMonitor":
+			parts := strings.SplitN(val, "=", 2)
+			if len(parts) == 2 {
+				mon := strings.TrimSpace(parts[0])
+				sav := strings.TrimSpace(parts[1])
+				if cfg.WallpaperPerMonitor == nil {
+					cfg.WallpaperPerMonitor = make(map[string]string)
+				}
+				cfg.WallpaperPerMonitor[mon] = sav
+				cfg.WallpaperPerMonitor = config.SanitizeWallpaperPerMonitor(cfg.WallpaperPerMonitor)
+				cfg.WallpaperMode = "per-monitor"
+				if isWallpaperProcessRunning() {
+					if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": "per-monitor"}) {
+						stopWallpaperProcesses()
+						_ = spawnDetached("--wallpaper")
+					}
 				}
 			}
 		case "wallpaperFpsCap":

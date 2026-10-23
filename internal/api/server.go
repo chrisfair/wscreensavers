@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"net"
 	"net/http"
 	"os/exec"
@@ -57,11 +58,15 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 		// Resume wallpaper if enabled in config
 		cfg := srv.cfgMgr.Get()
 		if cfg.WallpaperEnabled {
-			wpSaver := cfg.WallpaperSaver
-			if wpSaver == "random" || wpSaver == "" {
-				wpSaver = srv.PickRandomSaver()
+			if cfg.WallpaperMode == "per-monitor" {
+				_ = srv.layerCtrl.StartWallpaper(srv.baseURL, "")
+			} else {
+				wpSaver := cfg.WallpaperSaver
+				if wpSaver == "random" || wpSaver == "" {
+					wpSaver = srv.PickRandomSaver()
+				}
+				_ = srv.layerCtrl.StartWallpaper(srv.baseURL, wpSaver)
 			}
-			_ = srv.layerCtrl.StartWallpaper(srv.baseURL, wpSaver)
 		}
 	})
 	srv.RefreshCatalog()
@@ -118,6 +123,28 @@ func (s *Server) PickRandomSaver() string {
 		return "glmatrix"
 	}
 	return shuffle.Next(s.cfgMgr.ShufflePath(), pool)
+}
+
+// PickUniqueRandomSaver draws a screensaver not in the exclude map, ensuring no
+// duplicate live wallpapers across multi-head setups.
+func (s *Server) PickUniqueRandomSaver(exclude map[string]bool) string {
+	cfg := s.cfgMgr.Get()
+	pool := cfg.EnabledSavers
+	if len(pool) == 0 {
+		for _, sv := range s.GetSavers() {
+			pool = append(pool, sv.ID)
+		}
+	}
+	var available []string
+	for _, id := range pool {
+		if !exclude[id] {
+			available = append(available, id)
+		}
+	}
+	if len(available) == 0 {
+		return s.PickRandomSaver()
+	}
+	return available[rand.Intn(len(available))]
 }
 
 func (s *Server) Handler() http.Handler {
@@ -239,17 +266,21 @@ func (s *Server) StopScreensaver() {
 	// Resume wallpaper if enabled in config
 	cfg := s.cfgMgr.Get()
 	if cfg.WallpaperEnabled {
-		wpSaver := cfg.WallpaperSaver
-		if wpSaver == "random" || wpSaver == "" {
-			wpSaver = s.PickRandomSaver()
+		if cfg.WallpaperMode == "per-monitor" {
+			_ = s.layerCtrl.StartWallpaper(s.baseURL, "")
+		} else {
+			wpSaver := cfg.WallpaperSaver
+			if wpSaver == "random" || wpSaver == "" {
+				wpSaver = s.PickRandomSaver()
+			}
+			_ = s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
 		}
-		_ = s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
 	}
 }
 
 func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
 	cfg := s.cfgMgr.Get()
-	if saverID != "" {
+	if saverID != "" && saverID != "per-monitor" {
 		cfg.WallpaperSaver = saverID
 	}
 	if cfg.WallpaperSaver == "" {
@@ -260,6 +291,9 @@ func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
 
 	if enabled {
 		s.idleMon.SetWallpaperActive(true)
+		if cfg.WallpaperMode == "per-monitor" {
+			return s.layerCtrl.StartWallpaper(s.baseURL, "")
+		}
 		actualSaver := cfg.WallpaperSaver
 		if actualSaver == "random" {
 			actualSaver = s.PickRandomSaver()
@@ -311,14 +345,19 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 				_ = s.LaunchScreensaver("", false)
 			}
 
-			// Wallpaper rotation if set to random and cycle timeout configured
-			if cfg.WallpaperEnabled && cfg.WallpaperSaver == "random" && !st.ScreensaverActive &&
-				cfg.CycleTimeoutMinutes > 0 {
-				if lastWallpaperSwitchAt.IsZero() {
-					lastWallpaperSwitchAt = time.Now()
-				} else if time.Since(lastWallpaperSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
-					lastWallpaperSwitchAt = time.Now()
-					_ = s.layerCtrl.StartWallpaper(s.baseURL, s.PickRandomSaver())
+			// Wallpaper rotation if set to random/per-monitor and cycle timeout configured
+			if cfg.WallpaperEnabled && !st.ScreensaverActive && cfg.CycleTimeoutMinutes > 0 {
+				if cfg.WallpaperMode == "per-monitor" || cfg.WallpaperSaver == "random" {
+					if lastWallpaperSwitchAt.IsZero() {
+						lastWallpaperSwitchAt = time.Now()
+					} else if time.Since(lastWallpaperSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
+						lastWallpaperSwitchAt = time.Now()
+						if cfg.WallpaperMode == "per-monitor" {
+							_ = s.layerCtrl.StartWallpaper(s.baseURL, "")
+						} else {
+							_ = s.layerCtrl.StartWallpaper(s.baseURL, s.PickRandomSaver())
+						}
+					}
 				}
 			}
 

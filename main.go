@@ -185,20 +185,29 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 	}
 
 	var urls []string
+	usedWallpaperSavers := make(map[string]bool)
+
 	for idx, mon := range monitors {
 		chosenSaver := explicitSaverID
 		if isWallpaper {
-			if perMon, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && perMon != "" && explicitSaverID == "" {
-				chosenSaver = perMon
-			}
-			if chosenSaver == "" || chosenSaver == "random" {
-				chosenSaver = cfg.WallpaperSaver
-			}
-			if chosenSaver == "" || chosenSaver == "random" {
-				chosenSaver = srv.PickRandomSaver()
-			}
-			if chosenSaver == "" || chosenSaver == "random" {
-				chosenSaver = "flurry"
+			isPerMon := cfg.WallpaperMode == "per-monitor" || (explicitSaverID == "" && len(cfg.WallpaperPerMonitor) > 0)
+			if isPerMon {
+				if assigned, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && assigned != "" && assigned != "random" && !usedWallpaperSavers[assigned] {
+					chosenSaver = assigned
+				} else {
+					chosenSaver = srv.PickUniqueRandomSaver(usedWallpaperSavers)
+				}
+				usedWallpaperSavers[chosenSaver] = true
+			} else {
+				if chosenSaver == "" || chosenSaver == "random" {
+					chosenSaver = cfg.WallpaperSaver
+				}
+				if chosenSaver == "" || chosenSaver == "random" {
+					chosenSaver = srv.PickRandomSaver()
+				}
+				if chosenSaver == "" || chosenSaver == "random" {
+					chosenSaver = "flurry"
+				}
 			}
 		} else {
 			if chosenSaver == "" || chosenSaver == "random" {

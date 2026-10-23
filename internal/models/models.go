@@ -102,6 +102,7 @@ type AppConfig struct {
 	InhibitOnFullscreen bool                      `json:"inhibitOnFullscreen"`
 	MultiMonitorMode    string                    `json:"multiMonitorMode"` // "independent", "clone", "per-monitor"
 	PerMonitorSaver     map[string]string         `json:"perMonitorSaver"`  // outputName -> saverID
+	WallpaperMode       string                    `json:"wallpaperMode"`    // "single", "per-monitor"
 	WallpaperEnabled    bool                      `json:"wallpaperEnabled"`
 	WallpaperSaver      string                    `json:"wallpaperSaver"`
 	WallpaperPerMonitor map[string]string         `json:"wallpaperPerMonitor"`

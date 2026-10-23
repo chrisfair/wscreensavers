@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 	"wscreensavers/internal/catalog"
@@ -43,6 +44,7 @@ func DefaultConfig() models.AppConfig {
 		InhibitOnFullscreen:   true,
 		MultiMonitorMode:      "independent",
 		PerMonitorSaver:       make(map[string]string),
+		WallpaperMode:         "single",
 		WallpaperEnabled:      false,
 		WallpaperSaver:        "flurry",
 		WallpaperPerMonitor:   make(map[string]string),
@@ -99,8 +101,13 @@ func (m *Manager) loadLocked() error {
 	if loaded.PerMonitorSaver == nil {
 		loaded.PerMonitorSaver = make(map[string]string)
 	}
+	if loaded.WallpaperMode == "" {
+		loaded.WallpaperMode = "single"
+	}
 	if loaded.WallpaperPerMonitor == nil {
 		loaded.WallpaperPerMonitor = make(map[string]string)
+	} else {
+		loaded.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(loaded.WallpaperPerMonitor)
 	}
 	if loaded.SaverParams == nil {
 		loaded.SaverParams = make(map[string]map[string]any)
@@ -159,14 +166,50 @@ func (m *Manager) Get() models.AppConfig {
 	return m.cfg
 }
 
+// SanitizeWallpaperPerMonitor ensures that no two monitor outputs share the same saver ID.
+// If a duplicate is encountered, earlier assignments keep their value and the duplicate is cleared,
+// guaranteeing that each monitor is assigned a strictly unique screensaver.
+func SanitizeWallpaperPerMonitor(perMon map[string]string) map[string]string {
+	if perMon == nil {
+		return make(map[string]string)
+	}
+	keys := make([]string, 0, len(perMon))
+	for k := range perMon {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	cleaned := make(map[string]string)
+	seenSavers := make(map[string]string) // saverID -> monitorName
+	for _, mon := range keys {
+		saver := perMon[mon]
+		if saver == "" || saver == "random" {
+			cleaned[mon] = saver
+			continue
+		}
+		if existingMon, exists := seenSavers[saver]; exists && existingMon != mon {
+			// Duplicate saver assigned to another monitor; clear the duplicate on mon
+			continue
+		}
+		cleaned[mon] = saver
+		seenSavers[saver] = mon
+	}
+	return cleaned
+}
+
 func (m *Manager) Update(next models.AppConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if next.PerMonitorSaver == nil {
 		next.PerMonitorSaver = make(map[string]string)
 	}
+	if next.WallpaperMode == "" {
+		next.WallpaperMode = "single"
+	}
 	if next.WallpaperPerMonitor == nil {
 		next.WallpaperPerMonitor = make(map[string]string)
+	} else {
+		next.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(next.WallpaperPerMonitor)
 	}
 	if next.SaverParams == nil {
 		next.SaverParams = m.cfg.SaverParams
