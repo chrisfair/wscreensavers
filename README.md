@@ -1,7 +1,7 @@
 # WScreenSavers
 
 <p align="center">
-  <img src="assets/screenshot-chess3d.png" alt="WScreenSavers 3D Chess Openings" width="800" style="border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+  <img src="assets/screenshot-chess3d.png" alt="WScreenSavers 3D Chess Openings" width="850" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.6);" />
 </p>
 
 <p align="center">
@@ -19,224 +19,55 @@
 
 ---
 
-## ⚡ Quick Install
+## 🌟 Overview
 
-### Arch Linux / Manjaro (AUR)
-```bash
-paru -S wscreensavers
-# or
-yay -S wscreensavers
-```
-
-### Direct Package Downloads (Pre-built Binaries)
-Pre-built packages are available on the [**GitHub Releases**](https://github.com/chrisfair/wscreensavers/releases) page:
-* **Universal AppImage**: `wscreensavers-*-x86_64.AppImage` (runs on any Linux distro)
-* **Debian / Ubuntu / Mint / Pop!_OS**: `wscreensavers_*_amd64.deb` (`sudo dpkg -i ...`)
-* **Arch Linux / CachyOS**: `wscreensavers-*-x86_64.pkg.tar.xz` (`sudo pacman -U ...`)
-* **Portable Linux Tarball**: `wscreensavers-*-linux-x86_64.tar.gz`
-
-### NixOS / Nix Flakes
-```bash
-nix run github:chrisfair/wscreensavers
-```
-
-### Build from Source
-```bash
-git clone https://github.com/chrisfair/wscreensavers.git
-cd wscreensavers
-make build
-sudo make install
-```
-
----
-
-## 🧩 Noctalia Desktop Shell Integration
-
-WScreenSavers includes an official native plugin for the **Noctalia** Wayland desktop shell (`christopherpfair/wscreensavers`), featuring a status bar widget, per-monitor live wallpaper controls, and a floating control deck.
-
-### Adding the Noctalia Plugin Repository
-```bash
-# 1. Add the official Noctalia plugin repository
-noctalia msg plugins source add chrisfair git https://gitlab.com/chrisfair/noctalia-plugins
-
-# 2. Update and enable the plugin
-noctalia msg plugins update chrisfair
-noctalia msg plugins enable christopherpfair/wscreensavers
-```
-*(If installed via AUR or `.deb`, you can alternatively register the local source: `noctalia msg plugins source add wscreensavers path /usr/share/wscreensavers/noctalia-plugins`)*
-
-👉 **For full widget configuration, IPC triggers, and keybinding examples, see the [Noctalia Integration Guide](docs/noctalia.md).**
-
----
-
-## 🌐 Unlocking All 330+ Classic XScreenSaver Visualizers
-
-WScreenSavers includes **23 built-in WebGL2 visualizers** out of the box. Installing your distribution's standard XScreenSaver packages unlocks **310+ additional classic and 3D OpenGL visualizers** (`endgame`, `anemone`, `glknots`, `superquadrics`, `circuit`, etc.) through WScreenSavers' zero-overhead Wayland bridge.
-
-### Generic Distro Setup Commands:
-* **Arch / Manjaro / CachyOS**: `sudo pacman -S xscreensaver rss-glx`
-* **Debian / Ubuntu / Mint**: `sudo apt install xscreensaver xscreensaver-gl xscreensaver-gl-extra rss-glx`
-* **Fedora / RHEL**: `sudo dnf install xscreensaver-extras xscreensaver-gl-extras rss-glx`
-* **openSUSE**: `sudo zypper in xscreensaver xscreensaver-gl xscreensaver-gl-extra`
-* **Slackware**: `sboinstall xscreensaver rss-glx`
-* **NixOS**: `environment.systemPackages = [ pkgs.xscreensaver ];`
-
-### Detailed Per-Distribution Guides:
-For step-by-step package breakdowns and verification instructions:
-* [Overview & Architecture](docs/xscreensaver-packages.md)
-* [Arch Linux & Derivatives](docs/distros/arch.md)
-* [Debian, Ubuntu, & Linux Mint](docs/distros/debian-ubuntu.md)
-* [Fedora & Enterprise Linux](docs/distros/fedora-rhel.md)
-* [openSUSE (Tumbleweed & Leap)](docs/distros/opensuse.md)
-* [Slackware Linux & SBo](docs/distros/slackware.md)
-* [NixOS & Flakes](docs/distros/nixos.md)
-* [Alpine Linux](docs/distros/alpine.md)
-* [Gentoo Linux](docs/distros/gentoo.md)
-
-Once installed, simply run:
-```bash
-# Add all 330+ hacks to your active rotation pool
-wscreensavers ctl pool all
-```
-
----
-
-## 🌟 Why WScreenSavers?
-
-For years, Wayland compositors lacked a native, lightweight screensaver solution. Classic XScreenSaver relied on X11 root-window hacks that do not work on Wayland.
+For years, Wayland compositors lacked a native, lightweight screensaver solution because classic XScreenSaver relied on X11 root-window hacks that do not work on Wayland.
 
 **WScreenSavers** solves this cleanly using standard Wayland protocols (`zwlr_layer_shell_v1` and `ext-idle-notify-v1`):
 
-- **Dual-Engine Flexibility**:
-  - **Engine A (Native WebGL2/Canvas)**: 23 hand-crafted, hardware-accelerated visualizers with real-time UI parameter controls.
-  - **Engine B (Universal XScreenSaver Bridge)**: Zero-overhead live stream bridge for all **310+** original `/usr/lib/xscreensaver/*` binaries (`endgame`, `anemone`, `glknots`, `sierpinski3d`, etc.) with full XML parameter parsing.
-- **Wayland Live Desktop Wallpapers**: Turn any screensaver into an interactive, 60 FPS live animated background (`GTK_LAYER_SHELL_LAYER_BACKGROUND`) with configurable FPS caps.
-- **Glassmorphic PAM Screen Lock**: Native Linux PAM password authentication or seamless plug-and-play handoff to `hyprlock` / `swaylock`.
-- **Multi-Monitor Superpowers**:
-  - **Independent Random**: Different screensaver on every monitor.
-  - **Synchronized Clone**: Same hack running across all screens.
-  - **Per-Monitor Pinning**: Set 3D Chess on your main monitor, GLMatrix on your vertical display, and Flurry on your secondary screen.
-- **Smart Idle & Media Inhibition**: Automatically inhibits screen blanking when watching YouTube, Twitch, MPV, or VLC (via PipeWire/PulseAudio) or playing fullscreen games.
-- **Noctalia Integration**: Includes an official Noctalia floating control deck and status bar widget.
+* **Dual-Engine Architecture**:
+  * **23 Native WebGL2 Visualizers**: Hand-crafted 3D Chess, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and more.
+  * **Universal XScreenSaver Bridge**: Zero-overhead Wayland stream bridge for all **310+** original `/usr/lib/xscreensaver/*` binaries (`endgame`, `anemone`, `glknots`, `sierpinski3d`, etc.).
+* **Wayland Live Desktop Wallpapers**: Turn any visualizer into a 60 FPS animated desktop background with per-monitor unique assignments and auto-pause on lock.
+* **Glassmorphic PAM Screen Lock**: Native PAM password authentication overlay or seamless handoff to `hyprlock` / `swaylock`.
+* **Multi-Monitor Superpowers**: Run independent random visualizers per monitor, synchronized clones, or pin specific visualizers to specific screens.
+* **Smart Media & Game Inhibition**: Automatically inhibits blanking during audio/video playback (PipeWire/PulseAudio) or fullscreen games.
+* **Noctalia Desktop Shell Integration**: Official floating control deck, status bar widget, and IPC controls.
 
 ---
 
-## 📸 Screenshots & Showcase
+## 📸 Screenshots
 
-| True 3D Chess Openings (endgame style) | Studio Control Center |
+| Studio Control Center | Noctalia Floating Deck |
 | :---: | :---: |
-| <img src="assets/screenshot-chess3d.png" width="400" /> | <img src="assets/screenshot-studio.png" width="400" /> |
-
-<p align="center">
-  <strong>Noctalia Shell Control Deck</strong><br />
-  <img src="assets/screenshot-noctalia.png" width="500" style="border-radius: 8px;" />
-</p>
+| <img src="assets/screenshot-studio.png" width="420" style="border-radius: 8px;" /> | <img src="assets/screenshot-noctalia.png" width="420" style="border-radius: 8px;" /> |
 
 ---
 
-## 🎨 23 Native Hardware-Accelerated Visualizers
-
-WScreenSavers includes 23 built-in WebGL2/Canvas visualizers with zero external dependencies:
-
-1. **Chess Openings (3D)**: True 3D rendered grandmaster chess openings (Najdorf, Berlin, Queen's Gambit, King's Indian, etc.) with 3D Staunton pieces, specular board, parabolic lift arcs, and smooth camera orbit matching XScreenSaver's classic `endgame`.
-2. **GLMatrix**: 3D Matrix katakana glyph digital rain with depth fog, volumetric glow, and camera drift.
-3. **Flurry**: Multi-stream particle smoke plumes swirling around oscillating gravitational attractors.
-4. **3D Pipes**: Self-building metallic plumbing networks with ball joints, 90° elbows, and Utah teapot Easter eggs.
-5. **Amiga Boing**: 1984 Amiga 1000 red-and-white checkered bouncing sphere with purple room grid.
-6. **Flying Toasters**: Winged chrome toasters and crispy toast slices soaring through the midnight sky.
-7. **Star Wars Crawl**: Receding perspective opening text streaming live system logs or Unix lore.
-8. **Geodesic Gears**: Interlocking 3D planetary gear assemblies with metallic specular highlights.
-9. **Hyperspace**: Relativistic starfield warp drive tunnel with colorful nebula clouds.
-10. **3D Maze**: First-person raycasted labyrinth with HUD minimap and brick wall textures.
-11. **Sonar**: Tactical radar sweep plotting real LAN ARP network peers and active Linux processes.
-12. **XAnalogTV**: Vintage CRT tube simulation with RF static, sync roll, and SMPTE color bars.
-13. **BSOD**: Multi-OS crash screens (Windows NT, Linux Kernel Panic, Amiga Guru, Mac Sad Mac, TempleOS).
-14. **Molecule**: 3D ball-and-stick molecular models (Caffeine, DNA, Buckminsterfullerene C60, Benzene).
-15. **Phosphor**: Vintage P1 green or P3 amber teletype terminal typing live Linux telemetry.
-16. **Strange Attractors**: Lorenz, Rössler, Aizawa, and Thomas chaotic dynamical systems.
-17. **Mandelbrot & Julia**: Smooth continuous fractal zoom explorer with cycling palettes.
-18. **Galaxy**: Colliding N-body spiral galactic arms with glowing dust cores.
-19. **Game of Life**: Conway's cellular automaton with rainbow aging and glider genesis.
-20. **Pyro**: Multi-stage aerial firework detonations with gravity particle physics.
-21. **Epicycle**: Fourier harmonic epicycles drawing complex orbital curves.
-22. **Rorschach**: Procedural inkblot symmetry patterns.
-23. **Mystify**: Classic Windows 3.1 glowing bouncing polygons with color cycling trails.
-
----
-
-## 🚀 Quickstart & Compositor Setup
-
-### Hyprland (`~/.config/hypr/hyprland.conf`)
-
-```ini
-# Start the WScreenSavers idle daemon on login
-exec-once = wscreensavers --daemon
-
-# Keybinding to lock screen
-bind = $mainMod, L, exec, wscreensavers --lock
-
-# Keybinding to launch immediate screensaver preview
-bind = $mainMod SHIFT, S, exec, wscreensavers --saver
-
-# Keybinding to toggle live desktop wallpaper
-bind = $mainMod ALT, W, exec, wscreensavers ctl wallpaper toggle
-```
-
-### Sway (`~/.config/sway/config`)
-
-```ini
-exec wscreensavers --daemon
-bindsym $mod+l exec wscreensavers --lock
-```
-
-### CLI Controls (`wscreensavers ctl`)
-
-WScreenSavers includes a CLI control tool for scripting and keybindings:
+## ⚡ Quick Install
 
 ```bash
-# Launch screensaver overlay
-wscreensavers ctl launch
-
-# Launch specific screensaver
-wscreensavers ctl launch chessopenings
-
-# Lock screen immediately
-wscreensavers ctl lock
-
-# Pick a random screensaver from the enabled pool and launch
-wscreensavers ctl randomize launch
-
-# Toggle live desktop wallpaper mode
-wscreensavers ctl wallpaper toggle
-
-# Enable all 330+ installed screensavers in rotation pool
-wscreensavers ctl pool all
-
-# Open the graphical Control Center Studio
-wscreensavers ctl gui
-
-# Permanently silence the startup support reminder
-wscreensavers ctl nag off
+# Arch Linux / Manjaro / CachyOS (AUR)
+paru -S wscreensavers
+# or: yay -S wscreensavers
 ```
+
+Pre-built binaries are also available on [**GitHub Releases**](https://github.com/chrisfair/wscreensavers/releases) (`.AppImage`, `.deb`, `.pkg.tar.xz`, `.tar.gz`) and via Nix flakes (`nix run github:chrisfair/wscreensavers`).
 
 ---
 
-## 🛠️ Building & Contributing
+## 📚 Documentation & Guides
 
-WScreenSavers is written in **Go** and **Vue 3 / Three.js**:
+Everything you need to configure and customize WScreenSavers is detailed in dedicated guides:
 
-```bash
-# Install build dependencies (Arch Linux)
-sudo pacman -S --needed go nodejs npm gtk3 webkit2gtk-4.1 gtk-layer-shell pam xscreensaver xorg-server-xvfb ffmpeg
-
-# Clone & Build
-git clone https://github.com/chrisfair/wscreensavers.git
-cd wscreensavers
-make build
-
-# Run Unit Tests with Coverage
-make test
-```
+| Guide | Description |
+| :--- | :--- |
+| 📦 [**Installation Guide**](docs/installation.md) | Package manager instructions, pre-built binary downloads, and source compilation. |
+| 🚀 [**Compositor & CLI Guide**](docs/configuration.md) | Setup for Hyprland, Sway, River, systemd service, and complete `wscreensavers ctl` command reference. |
+| 🎨 [**23 Native Visualizers**](docs/visualizers.md) | Full catalog of built-in WebGL2 & Canvas visualizers with descriptions. |
+| 🌐 [**Unlocking 330+ XScreenSavers**](docs/xscreensaver-packages.md) | How to install distro packages to unlock all 310+ classic visualizers (with guides for Arch, Debian/Ubuntu, Fedora, openSUSE, Slackware, NixOS, Alpine, and Gentoo). |
+| 🧩 [**Noctalia Integration**](docs/noctalia.md) | Installing and configuring the official Noctalia desktop shell plugin, status bar widget, and floating control deck. |
+| 🛠️ [**Development & Contributing**](docs/development.md) | Source build instructions, unit test execution, and release protocols. |
 
 ---
 
