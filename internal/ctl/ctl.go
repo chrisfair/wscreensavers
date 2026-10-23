@@ -50,7 +50,7 @@ func allSavers() []models.Screensaver {
 }
 
 func isWallpaperProcessRunning() bool {
-	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper(\\s|$)").Output()
+	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper([[:space:]]|$)").Output()
 	return err == nil && len(strings.TrimSpace(string(out))) > 0
 }
 
@@ -90,15 +90,15 @@ func stopMatchingProcesses(pattern string) {
 }
 
 func stopWallpaperProcesses() {
-	stopMatchingProcesses("wscreensavers.*--wallpaper(\\s|$)")
+	stopMatchingProcesses("wscreensavers.*--wallpaper([[:space:]]|$)")
 }
 
 func stopSaverProcesses() {
-	stopMatchingProcesses("wscreensavers.*--saver(\\s|$)")
+	stopMatchingProcesses("wscreensavers.*--saver([[:space:]]|$)")
 }
 
 func stopLockProcesses() {
-	stopMatchingProcesses("wscreensavers.*--lock(\\s|$)")
+	stopMatchingProcesses("wscreensavers.*--lock([[:space:]]|$)")
 }
 
 func spawnDetached(args ...string) error {
@@ -188,6 +188,13 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			cfg.Mode = val
 		case "selectedSaver", "saver":
 			cfg.SelectedSaver = val
+			if cfg.WallpaperEnabled && isWallpaperProcessRunning() {
+				cfg.WallpaperSaver = val
+				if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": val}) {
+					stopWallpaperProcesses()
+					_ = spawnDetached("--wallpaper", "--saver-id", val)
+				}
+			}
 		case "multiMonitorMode":
 			cfg.MultiMonitorMode = val
 		case "idleTimeoutMinutes":
@@ -373,6 +380,7 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if len(args) >= 3 && args[2] != "" {
 			saverID = args[2]
 			cfg.WallpaperSaver = saverID
+			cfg.SelectedSaver = saverID
 		}
 
 		running := isWallpaperProcessRunning()

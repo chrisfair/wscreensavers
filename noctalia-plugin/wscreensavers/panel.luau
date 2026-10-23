@@ -14,6 +14,8 @@ local busy = false
 local panelOpen = false
 local selectedCategory = "All"
 local searchQuery = ""
+local CATALOG_INITIAL_LIMIT = 40
+local catalogLimit = CATALOG_INITIAL_LIMIT
 local render
 
 local MODES = {
@@ -88,8 +90,20 @@ local CATEGORIES = {
   "XScreenSaver Classic",
 }
 
+local FALLBACK_TEXTS = {
+  wallpaper_stop_short = "Stop Wallpaper",
+  wallpaper_badge = "Live Wallpaper",
+  wallpaper_set_selected = "Use Selected as Wallpaper",
+  catalog_show_more = "Show More",
+  catalog_show_all = "Show All",
+}
+
 local function tr(key)
-  return noctalia.tr(key)
+  local val = noctalia.tr(key)
+  if val == nil or val == "" then
+    return FALLBACK_TEXTS[key] or key
+  end
+  return val
 end
 
 -- Prefer a personal $HOME/bin copy when present, otherwise fall back to PATH
@@ -144,7 +158,6 @@ end
 local function runCmd(args, msg)
   busy = true
   statusMsg = nil
-  if panelOpen then render() end
   noctalia.runAsync(ctl(args), function(result)
     busy = false
     if result.timedOut or result.exitCode ~= 0 or (result.stdout or "") == "" then
@@ -244,6 +257,7 @@ local function renderSaverRow(saver, cfg, poolSet)
   end)
   local isSelected = (cfg.selectedSaver == saver.id)
   local isWallpaper = (cfg.wallpaperSaver == saver.id and stateData.wallpaperRunning)
+  local isHighlighted = isSelected or isWallpaper
 
   local pickClick = callback("sel_" .. saver.id, function()
     setConfig("selectedSaver", saver.id)
@@ -252,7 +266,11 @@ local function renderSaverRow(saver, cfg, poolSet)
     runCmd("launch " .. shellQuote(saver.id), tr("launched") .. ": " .. saver.name)
   end)
   local wpClick = callback("wp_" .. saver.id, function()
-    runCmd("wallpaper on " .. shellQuote(saver.id), "Live Wallpaper: " .. saver.name)
+    if isWallpaper then
+      runCmd("wallpaper off", tr("wallpaper_stopped"))
+    else
+      runCmd("wallpaper on " .. shellQuote(saver.id), "Live Wallpaper: " .. saver.name)
+    end
   end)
 
   return ui.column({
@@ -261,9 +279,9 @@ local function renderSaverRow(saver, cfg, poolSet)
     align = "stretch",
     padding = 10,
     radius = 8,
-    fill = isSelected and "surface" or "surface_variant",
-    border = isSelected and "primary" or "outline",
-    borderWidth = isSelected and 1 or 0,
+    fill = isHighlighted and "surface" or "surface_variant",
+    border = isWallpaper and "primary" or (isSelected and "secondary" or "outline"),
+    borderWidth = isHighlighted and 1 or 0,
   }, {
     ui.row({ gap = 8, align = "center" }, {
       ui.box({
@@ -274,6 +292,7 @@ local function renderSaverRow(saver, cfg, poolSet)
       }),
       ui.label({ text = saver.name, fontSize = 13, fontWeight = "bold", color = "on_surface" }),
       ui.label({ text = "• " .. (saver.category or ""), fontSize = 11, color = "primary" }),
+      isWallpaper and ui.label({ text = "• " .. tr("wallpaper_badge"), fontSize = 11, fontWeight = "bold", color = "primary" }) or ui.spacer({ width = 0 }),
       ui.spacer({ flexGrow = 1 }),
       ui.button({
         text = pooled and tr("in_pool") or "+ Pool",
@@ -301,8 +320,8 @@ local function renderSaverRow(saver, cfg, poolSet)
         onClick = launchClick,
       }),
       ui.button({
-        text = tr("set_wallpaper"),
-        glyph = "photo",
+        text = isWallpaper and tr("wallpaper_stop_short") or tr("set_wallpaper"),
+        glyph = isWallpaper and "x" or "photo",
         controlSize = "sm",
         variant = isWallpaper and "primary" or "ghost",
         selected = isWallpaper,
@@ -425,6 +444,9 @@ render = function()
     local wpToggleClick = callback("wpToggle", function()
       runCmd("wallpaper toggle", wpRunning and tr("wallpaper_stopped") or tr("wallpaper_running"))
     end)
+    local wpUseSelectedClick = callback("wpUseSelected", function()
+      runCmd("wallpaper on " .. shellQuote(cfg.selectedSaver), "Live Wallpaper: " .. (stateData.selectedName or cfg.selectedSaver))
+    end)
 
     table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, {
       ui.row({ gap = 8, align = "center" }, {
@@ -437,13 +459,20 @@ render = function()
         }),
         ui.button({
           text = wpRunning and tr("wallpaper_stop") or tr("wallpaper_start"),
-          glyph = "photo",
+          glyph = wpRunning and "x" or "photo",
           controlSize = "sm",
           variant = wpRunning and "primary" or "ghost",
           selected = wpRunning,
           enabled = not busy,
           onClick = wpToggleClick,
         }),
+        (not wpRunning or cfg.wallpaperSaver ~= cfg.selectedSaver) and ui.button({
+          text = tr("wallpaper_set_selected") .. " (" .. (stateData.selectedName or cfg.selectedSaver) .. ")",
+          controlSize = "sm",
+          variant = "ghost",
+          enabled = not busy,
+          onClick = wpUseSelectedClick,
+        }) or ui.spacer({ width = 0 }),
       }),
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("wallpaper_fps") .. ":", fontSize = 12, color = "on_surface_variant" }),
@@ -466,25 +495,67 @@ render = function()
 
     local onSearchChange = callback("searchChange", function(val)
       searchQuery = val or ""
+      catalogLimit = CATALOG_INITIAL_LIMIT
       render()
     end)
 
     -- Noctalia drops children past 256 in one node, so rows go into chunked
-    -- columns inside a catalog-only scroll area.
+    -- columns inside a catalog-only scroll area. Limit initial display to prevent
+    -- exceeding Luau callback CPU budget with 300+ items.
     local poolSet = poolSetOf(cfg)
     local saverChunks = {}
     local chunk = nil
     local matched = 0
+    local renderedCount = 0
     for _, s in ipairs(stateData.savers or {}) do
       if matchesFilter(s) then
         matched += 1
-        if chunk == nil or #chunk >= CATALOG_CHUNK_ROWS then
-          chunk = {}
-          table.insert(saverChunks, chunk)
+        if renderedCount < catalogLimit then
+          renderedCount += 1
+          if chunk == nil or #chunk >= CATALOG_CHUNK_ROWS then
+            chunk = {}
+            table.insert(saverChunks, chunk)
+          end
+          table.insert(chunk, renderSaverRow(s, cfg, poolSet))
         end
-        table.insert(chunk, renderSaverRow(s, cfg, poolSet))
       end
     end
+
+    if matched > renderedCount then
+      local showMoreClick = callback("catShowMore", function()
+        catalogLimit += 40
+        render()
+      end)
+      local showAllClick = callback("catShowAll", function()
+        catalogLimit = matched
+        render()
+      end)
+      local moreRow = ui.row({ key = "cat-more-row", gap = 8, align = "center", padding = 8 }, {
+        ui.button({
+          text = tr("catalog_show_more") .. " (+" .. tostring(math.min(40, matched - renderedCount)) .. ")",
+          controlSize = "sm",
+          variant = "primary",
+          onClick = showMoreClick,
+        }),
+        ui.button({
+          text = tr("catalog_show_all") .. " (" .. tostring(matched) .. ")",
+          controlSize = "sm",
+          variant = "ghost",
+          onClick = showAllClick,
+        }),
+        ui.label({
+          text = tostring(renderedCount) .. " / " .. tostring(matched),
+          fontSize = 12,
+          color = "on_surface_variant",
+        }),
+      })
+      if chunk == nil then
+        chunk = {}
+        table.insert(saverChunks, chunk)
+      end
+      table.insert(chunk, moreRow)
+    end
+
     local chunkColumns = {}
     for index, rows in ipairs(saverChunks) do
       table.insert(chunkColumns, ui.column({ key = "catalog-chunk-" .. index, gap = 6, align = "stretch" }, rows))
@@ -504,6 +575,7 @@ render = function()
       }),
       chipGrid(catItems, selectedCategory, function(val)
         selectedCategory = val
+        catalogLimit = CATALOG_INITIAL_LIMIT
         render()
       end, "cat", 4),
       ui.scroll({ key = "catalog-scroll", height = CATALOG_HEIGHT, gap = 6 }, chunkColumns),
@@ -522,6 +594,7 @@ end
 function onOpen(_context)
   panelOpen = true
   statusMsg = nil
+  catalogLimit = CATALOG_INITIAL_LIMIT
   render()
   refresh()
 end
