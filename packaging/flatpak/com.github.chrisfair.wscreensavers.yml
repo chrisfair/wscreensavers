@@ -1,0 +1,33 @@
+app-id: com.github.chrisfair.wscreensavers
+runtime: org.gnome.Platform
+runtime-version: '46'
+sdk: org.gnome.Sdk
+command: wscreensavers
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --share=network
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --filesystem=xdg-config/noctalia:create
+  - --filesystem=xdg-run/wscreensavers:create
+
+modules:
+  - name: gtk-layer-shell
+    buildsystem: meson
+    sources:
+      - type: git
+        url: https://github.com/wmww/gtk-layer-shell.git
+        tag: v0.9.0
+
+  - name: wscreensavers
+    buildsystem: simple
+    build-commands:
+      - make build
+      - make install DESTDIR=/app PREFIX=/app
+    sources:
+      - type: git
+        url: https://github.com/chrisfair/wscreensavers.git
+        tag: v1.0.26
