@@ -80,6 +80,7 @@ WScreenSavers is 100% free and open source software released under the **GNU Gen
 > 1. **100% Non-Obligatory**: Supporting is strictly voluntary appreciation for the author's work.
 > 2. **Zero Locked Features**: Every single visualizer, PAM lock, multi-monitor configuration, live wallpaper, and CLI feature is completely unlocked and available to all users forever.
 > 3. **Single One-Time Charges ONLY (No Subscriptions)**: All Stripe payment links are **one-time charges**. You will **never** be enrolled in a recurring subscription or recurring billing. The labels below (e.g., monthly coffee, annual pass) are merely suggested contribution frequencies.
+> 4. **Merchant Name Notice**: Stripe checkout will display as **Bughouse Online (`bughouse-online.com`)**. This is the author's primary website and registered unified business Stripe merchant account for all independent open-source projects. All contributions directly support WScreenSavers development and test hardware.
 
 If you enjoy using WScreenSavers on your Wayland desktop and would like to support ongoing maintenance, new visualizers, and multi-monitor compositor testing, contributions are warmly welcomed and deeply appreciated!
 

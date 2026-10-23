@@ -129,6 +129,9 @@
               <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
           </button>
+          <p class="merchant-note">
+            💳 <em>Stripe checkout will display <strong>Bughouse Online (bughouse-online.com)</strong>, the author's primary unified business account for all open-source projects.</em>
+          </p>
         </div>
 
         <!-- Supporter / Author Verification to disable Nag Screen -->
@@ -574,6 +577,16 @@ async function handleDismiss() {
 }
 .stripe-btn:hover {
   filter: brightness(1.08);
+}
+.merchant-note {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+}
+.merchant-note strong {
+  color: #cbd5e1;
 }
 .ext-icon {
   opacity: 0.85;
