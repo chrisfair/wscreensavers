@@ -80,12 +80,11 @@ local CATALOG_HEIGHT = 440
 
 local CATEGORIES = {
   "All",
-  "Matrix & Cyber",
   "3D OpenGL Classics",
   "Retro & Whimsical",
-  "Fractals & Shaders",
-  "Math & Automata",
-  "System & Telemetry",
+  "Matrix & Cyber",
+  "Space & Physics",
+  "Geometric & Fractal",
   "XScreenSaver OpenGL",
   "XScreenSaver Classic",
 }
@@ -120,7 +119,7 @@ end
 
 local function ctl(args)
   local home = noctalia.getenv("HOME") or "/home/christopher"
-  return home .. "/bin/wscreensavers ctl " .. args
+  return home .. "/.local/bin/wscreensavers ctl " .. args
 end
 
 local function resetCallbacks()
@@ -552,8 +551,16 @@ render = function()
 
     -- 3. Screensaver Catalog & Category Picker
     local catItems = {}
+    local catSet = {}
     for _, c in ipairs(CATEGORIES) do
       table.insert(catItems, { c, c })
+      catSet[c] = true
+    end
+    for _, s in ipairs(stateData.savers or {}) do
+      if s.category and s.category ~= "" and not catSet[s.category] then
+        catSet[s.category] = true
+        table.insert(catItems, { s.category, s.category })
+      end
     end
 
     local onSearchChange = callback("searchChange", function(val)

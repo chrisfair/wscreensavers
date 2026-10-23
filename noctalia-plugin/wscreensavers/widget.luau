@@ -14,7 +14,7 @@ end
 
 local function ctlCommand(args)
   local home = noctalia.getenv("HOME") or "/home/christopher"
-  return home .. "/bin/wscreensavers ctl " .. args
+  return home .. "/.local/bin/wscreensavers ctl " .. args
 end
 
 local function render()
