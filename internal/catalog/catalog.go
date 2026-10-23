@@ -483,6 +483,22 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showCoordinates", Label: "Board Coordinates (Rank/File)", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "bughouse3d",
+			Name:        "Apex 3D Chess (Bughouse)",
+			Category:    "Retro & Whimsical",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (bughouse-online.com)",
+			Year:        "2026",
+			AccentColor: "#38bdf8",
+			Tags:        []string{"Chess", "3D", "Bughouse", "AI", "WebGL", "Space"},
+			Description: "Spectacular 8x8x5 spatial 3D chess arena from bughouse-online.com with five multi-level glass boards, 3D Staunton & Royal pieces, neon forcefields, dimensional portals, and real-time AI autonomous battles.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "orbitSpeed", Label: "Camera Orbit Speed", Type: models.ParamRange, Default: 0.6, Min: 0.0, Max: 2.0, Step: 0.1, LowLabel: "Static", HighLabel: "Fast"},
+				{ID: "showHud", Label: "Show bughouse-online.com HUD Overlay", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 
