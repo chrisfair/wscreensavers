@@ -237,6 +237,24 @@ make test
 
 ---
 
+## 💖 Supporting the Project
+
+WScreenSavers is 100% free and open source software released under the **GNU General Public License v3.0**. There are no paywalls, telemetry, or locked features.
+
+If you enjoy using WScreenSavers on your Wayland desktop and would like to support ongoing maintenance, new visualizers, and multi-monitor compositor testing, contributions are warmly welcomed and deeply appreciated!
+
+| Level | Link | Notes |
+| :--- | :---: | :--- |
+| **Pawn** | [**$1 / month**](https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00) | Monthly coffee supporter |
+| **Knight** (Recommended) | [**$5 / year**](https://buy.stripe.com/cNidR2e262cEeiOdpCefC01) | Annual community supporter |
+| **Rook** | [**$10 one-time**](https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02) | Lifetime appreciation pass |
+| **Queen** | [**$35 one-time**](https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03) | Generous sponsor & feature booster |
+| **King** | [**$350 one-time**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | Major patron of Wayland open-source tooling |
+
+*All contributions directly fund development hardware, compositor test matrices, and open source maintenance.*
+
+---
+
 ## 📜 License
 
 WScreenSavers is open source licensed under the **GNU General Public License v3.0** ([`GPL-3.0-or-later`](LICENSE)).
