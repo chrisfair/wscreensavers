@@ -115,7 +115,10 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
 
   // Animation / Camera Orbit State
   let orbitAngle = 0.4;
-  let orbitRadius = 23;
+  let cameraTime = 0.0;
+  let currentCamPos = new THREE.Vector3(0, 8, 23);
+  let currentLookAt = new THREE.Vector3(0, 0, 0);
+  let activeBattleY = 0;
 
   function spawnPieces() {
     while (piecesGroup.children.length > 0) {
@@ -145,15 +148,15 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
 
     if (game.result && game.result.isOver) {
       isGameOver = true;
-      gameOverResetTimer = performance.now() + 4500;
+      gameOverResetTimer = performance.now() + 4000;
       return;
     }
 
-    // Engine Best Move search (depth 2 with randomness 0.1 for spectator dynamism)
-    const best = game.findBestMove(2, 16, 0.1);
+    // Engine Best Move search (depth 1 with 16 candidates: blazing fast ~35ms, zero main-thread freeze!)
+    const best = game.findBestMove(1, 16, 0.12);
     if (!best || !best.from || !best.to) {
       isGameOver = true;
-      gameOverResetTimer = performance.now() + 4000;
+      gameOverResetTimer = performance.now() + 3500;
       return;
     }
 
@@ -183,15 +186,18 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveHistoryLog.unshift(lastMoveDesc);
     if (moveHistoryLog.length > 8) moveHistoryLog.pop();
 
+    // Update active battle height for dramatic camera tracking
+    activeBattleY = getLevelY(to.z);
+
     // Portal visual rings if jumping vertically
     fxGroup.clear();
     if (isTransit) {
-      const ringGeo = new THREE.RingGeometry(0.24, 0.52, 32);
+      const ringGeo = new THREE.RingGeometry(0.24, 0.55, 32);
       const ringMat = new THREE.MeshBasicMaterial({
         color: 0x38bdf8,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: 0.85
+        opacity: 0.9
       });
 
       const ring1 = new THREE.Mesh(ringGeo, ringMat);
@@ -205,17 +211,13 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       fxGroup.add(ring2);
     }
 
-    if (capturedEntry) {
-      piecesGroup.remove(capturedEntry.mesh);
-      pieceMeshes = pieceMeshes.filter(p => p !== capturedEntry);
-    }
-
     const startPos = movingEntry.mesh.position.clone();
     const targetPos = new THREE.Vector3(to.x - 3.5, getLevelY(to.z), to.y - 3.5);
-    const animDuration = isTransit ? 520 : 380;
+    const animDuration = isTransit ? 840 : 640;
 
     activeMoveAnim = {
       entry: movingEntry,
+      captured: capturedEntry || null,
       startPos,
       targetPos,
       fromZ: from.z,
@@ -228,13 +230,22 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
         movingEntry.y = to.y;
         movingEntry.z = to.z;
         movingEntry.mesh.position.copy(targetPos);
+        movingEntry.mesh.rotation.x = 0;
+        movingEntry.mesh.rotation.z = 0;
+
+        if (capturedEntry) {
+          piecesGroup.remove(capturedEntry.mesh);
+          pieceMeshes = pieceMeshes.filter(p => p !== capturedEntry);
+        }
+
         activeMoveAnim = null;
 
         if (fxGroup.children.length > 0) {
-          setTimeout(() => { fxGroup.clear(); }, 250);
+          setTimeout(() => { fxGroup.clear(); }, 350);
         }
 
-        nextMoveTimer = performance.now() + 650;
+        // Seamless transition: start next move virtually immediately (45ms graceful breath)
+        nextMoveTimer = performance.now() + 45;
       }
     };
   }
@@ -246,8 +257,9 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveCount = 0;
     moveHistoryLog = [];
     lastMoveDesc = 'New Match Started';
+    activeBattleY = 0;
     spawnPieces();
-    nextMoveTimer = performance.now() + 1000;
+    nextMoveTimer = performance.now() + 800;
   }
 
   return {
@@ -278,13 +290,46 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const orbitSpeed = p.orbitSpeed !== undefined ? Number(p.orbitSpeed) : 0.6;
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
-      // Continuous 3D Camera Orbit
-      orbitAngle += dt * 0.18 * orbitSpeed;
-      const camY = 6.0 + Math.sin(orbitAngle * 0.7) * 3.5;
-      camera.position.x = Math.sin(orbitAngle) * orbitRadius;
-      camera.position.z = Math.cos(orbitAngle) * orbitRadius;
-      camera.position.y = camY;
-      camera.lookAt(0, 0, 0);
+      // -------------------------------------------------------------
+      // Dramatic Multi-Perspective Camera "Swoop Around" System
+      // -------------------------------------------------------------
+      cameraTime += dt * 0.32 * orbitSpeed;
+      orbitAngle += dt * 0.22 * orbitSpeed;
+
+      const swoopCycle = cameraTime * 0.45;
+
+      // Dynamic Radius: swoops between close-up intimate action (~16) and wide overview (~24.5)
+      const targetRadius = 19.8 + Math.sin(swoopCycle * 0.7) * 4.6 + Math.cos(swoopCycle * 0.25) * 1.6;
+
+      // Dynamic Elevation: swoops dramatically from low under-board view (-4.2, looking up through glowing crystal tiers)
+      // up to high aerial command view (+15.2, overlooking all 5 spatial planes)
+      const targetElevation = 5.2 + Math.sin(swoopCycle * 0.85) * 9.6 + Math.cos(swoopCycle * 0.35) * 3.2;
+
+      const desiredCamX = Math.sin(orbitAngle) * targetRadius;
+      const desiredCamZ = Math.cos(orbitAngle) * targetRadius;
+      const desiredCamY = targetElevation;
+
+      // Buttery smooth positional lerp
+      const posLerp = Math.min(1.0, dt * 2.8);
+      currentCamPos.x += (desiredCamX - currentCamPos.x) * posLerp;
+      currentCamPos.y += (desiredCamY - currentCamPos.y) * posLerp;
+      currentCamPos.z += (desiredCamZ - currentCamPos.z) * posLerp;
+      camera.position.copy(currentCamPos);
+
+      // Dynamic Look-At Target: smoothly drifts between arena center and the active battle level
+      const lookLerp = Math.min(1.0, dt * 2.2);
+      const desiredLookY = (activeBattleY * 0.5) + Math.sin(swoopCycle * 0.6) * 1.2;
+      const desiredLookX = Math.sin(swoopCycle * 0.4) * 1.2;
+      const desiredLookZ = Math.cos(swoopCycle * 0.4) * 1.2;
+
+      currentLookAt.x += (desiredLookX - currentLookAt.x) * lookLerp;
+      currentLookAt.y += (desiredLookY - currentLookAt.y) * lookLerp;
+      currentLookAt.z += (desiredLookZ - currentLookAt.z) * lookLerp;
+      camera.lookAt(currentLookAt);
+
+      // Subtle cinematic banking / Dutch tilt during swooping elevation shifts
+      const bankAngle = Math.sin(swoopCycle * 0.85) * 0.055;
+      camera.rotation.z += bankAngle;
 
       // Move Dispatch
       if (!activeMoveAnim && !isGameOver && now >= nextMoveTimer) {
@@ -293,13 +338,13 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
         resetGame();
       }
 
-      // Active Move Parabolic Flight
+      // Active Move Parabolic Flight & Graceful Easing
       if (activeMoveAnim) {
         const elapsed = now - activeMoveAnim.startTime;
         const t = Math.min(1.0, elapsed / activeMoveAnim.durationMs);
 
-        // Smooth cubic easeInOut
-        const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        // Sine easeInOut for natural, organic momentum
+        const ease = 0.5 - 0.5 * Math.cos(t * Math.PI);
         const start = activeMoveAnim.startPos;
         const target = activeMoveAnim.targetPos;
 
@@ -307,9 +352,22 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
         activeMoveAnim.entry.mesh.position.z = start.z + (target.z - start.z) * ease;
 
         const isVertical = activeMoveAnim.isTransit;
-        const arcPeak = isVertical ? 1.4 : 0.5;
+        const arcPeak = isVertical ? 2.2 : 0.85;
         const arc = Math.sin(t * Math.PI) * arcPeak;
         activeMoveAnim.entry.mesh.position.y = start.y + (target.y - start.y) * ease + arc;
+
+        // Graceful forward tilt / lean in direction of flight
+        const dx = target.x - start.x;
+        const dz = target.z - start.z;
+        const tiltFactor = Math.sin(t * Math.PI);
+        activeMoveAnim.entry.mesh.rotation.z = -dx * tiltFactor * 0.07;
+        activeMoveAnim.entry.mesh.rotation.x = dz * tiltFactor * 0.07;
+
+        // Gracefully shrink & dissolve captured piece
+        if (activeMoveAnim.captured) {
+          const fadeScale = Math.max(0.001, 1.0 - Math.pow(t, 1.6));
+          activeMoveAnim.captured.mesh.scale.setScalar(fadeScale);
+        }
 
         if (t >= 1.0) {
           activeMoveAnim.onComplete();
