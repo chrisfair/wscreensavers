@@ -113,12 +113,10 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   // Populate pieces from starting position
   spawnPieces();
 
-  // Camera State: Steady Diagonal Orbit & Smooth Breathing Zoom
+  // Camera State: Steady Diagonal Orbit & Smooth Breathing Zoom (Zero focal movement)
   let animTime = 0;
   let orbitAngle = 0.5;
   let currentCamRadius = 21.0;
-  let currentLookAt = new THREE.Vector3(0, 0.5, 0);
-  let targetLookAt = new THREE.Vector3(0, 0.5, 0);
 
   function spawnPieces() {
     while (piecesGroup.children.length > 0) {
@@ -185,11 +183,6 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     lastMoveDesc = `${sideName}: ${sym} ${fromStr.slice(1)}➔${toStr.slice(1)}${capNote}${transitNote}`;
     moveHistoryLog.unshift(lastMoveDesc);
     if (moveHistoryLog.length > 8) moveHistoryLog.pop();
-
-    // Update focal point smoothly towards recent activity on the board
-    targetLookAt.x = (to.x - 3.5) * 0.32;
-    targetLookAt.z = (to.y - 3.5) * 0.32;
-    targetLookAt.y = 0.5 + (getLevelY(to.z) * 0.20);
 
     // Portal visual rings if jumping vertically
     fxGroup.clear();
@@ -259,7 +252,6 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveCount = 0;
     moveHistoryLog = [];
     lastMoveDesc = 'New Match Started';
-    targetLookAt.set(0, 0.5, 0);
     spawnPieces();
     nextMoveTimer = performance.now() + 800;
   }
@@ -293,38 +285,33 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
       // -------------------------------------------------------------
-      // Steady Diagonal Orbit & Smooth Zoom-In / Zoom-Out
-      // - ZERO up-and-down camera movement (rock-solid constant elevation)
-      // - Smoothly zooms out to frame the whole 5-tier board, then
-      //   gently zooms in for closer piece viewing (~24s cycles)
-      // - Slight diagonal rotation using the most recent activity on the board as focal point
+      // Pure Diagonal Orbit & Smooth Zoom-In / Zoom-Out
+      // - Focal center is 100% locked at the screen center (0, 0, 0)
+      // - ZERO up-and-down movement (rock-solid camera elevation at y = 5.6)
+      // - Relies exclusively on smooth diagonal rotation and graceful zoom-in/out
       // -------------------------------------------------------------
-      animTime += dt * 0.26 * orbitSpeed;
+      animTime += dt * 0.24 * orbitSpeed;
 
-      // 1. Casual, relaxed orbit pace (~50 seconds per full revolution)
-      orbitAngle += dt * 0.125 * orbitSpeed;
+      // 1. Continuous smooth orbit pace (~55 seconds per full revolution)
+      orbitAngle += dt * 0.115 * orbitSpeed;
 
-      // 2. Smooth zoom-in / zoom-out cycles (~24 seconds per cycle)
-      // Outward: ~25.8 (generously takes in the entire 5-tier board & corner pillars)
-      // Inward:  ~16.6 (closer view of the active pieces)
-      const targetRadius = 21.2 + Math.sin(animTime) * 4.6;
+      // 2. Smooth zoom-in / zoom-out cycles (~26 seconds per cycle)
+      // Outward: ~25.8 (frames the entire 5-tier board & corner pillars cleanly)
+      // Inward:  ~16.8 (closer look at the active pieces)
+      const targetRadius = 21.3 + Math.sin(animTime) * 4.5;
       currentCamRadius += (targetRadius - currentCamRadius) * Math.min(1.0, dt * 1.5);
 
-      // 3. ROCK-SOLID constant elevation: zero up-and-down movement!
-      camera.position.y = 5.8;
+      // 3. ROCK-SOLID constant camera elevation: strictly 5.6, zero vertical movement
+      camera.position.y = 5.6;
 
-      // 4. Slight diagonal rotation with elliptical sweeping arcs
+      // 4. Smooth diagonal elliptical rotation
       const diagAngle = orbitAngle + Math.PI / 4;
       camera.position.x = Math.sin(diagAngle) * (currentCamRadius * 1.14);
       camera.position.z = Math.cos(diagAngle) * (currentCamRadius * 0.90);
 
-      // 5. Focal point tracking the most recent activity on the board
-      // Gently smoothed with exponential damping so there are zero jarring shifts
-      currentLookAt.x += (targetLookAt.x - currentLookAt.x) * Math.min(1.0, dt * 1.2);
-      currentLookAt.y += (targetLookAt.y - currentLookAt.y) * Math.min(1.0, dt * 1.2);
-      currentLookAt.z += (targetLookAt.z - currentLookAt.z) * Math.min(1.0, dt * 1.2);
-
-      camera.lookAt(currentLookAt);
+      // 5. Focal point locked permanently at the center point (0, 0, 0)
+      // Center of the screen never moves or shifts on any move!
+      camera.lookAt(0, 0, 0);
       camera.up.set(0, 1, 0);
 
       // Move Dispatch
@@ -348,7 +335,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
         activeMoveAnim.entry.mesh.position.z = start.z + (target.z - start.z) * ease;
 
         const isVertical = activeMoveAnim.isTransit;
-        const arcPeak = isVertical ? 2.2 : 0.85;
+        const arcPeak = isVertical ? 1.6 : 0.45;
         const arc = Math.sin(t * Math.PI) * arcPeak;
         activeMoveAnim.entry.mesh.position.y = start.y + (target.y - start.y) * ease + arc;
 
