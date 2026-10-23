@@ -113,11 +113,16 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   // Populate pieces from starting position
   spawnPieces();
 
-  // Animation / Camera Orbit State
+  // Camera State: Steady, Cinematic "Inspect & Overview"
   let orbitAngle = 0.4;
-  let cameraTime = 0.0;
-  let currentCamPos = new THREE.Vector3(0, 8, 23);
+  let targetOrbitAngle = 0.4;
+  let currentCamRadius = 22.5;
+  let targetCamRadius = 22.5;
+  let currentCamElevation = 6.2;
+  let targetCamElevation = 6.2;
   let currentLookAt = new THREE.Vector3(0, 0, 0);
+  let targetLookAt = new THREE.Vector3(0, 0, 0);
+  let inspectTimer = 0;
   let activeBattleY = 0;
 
   function spawnPieces() {
@@ -186,8 +191,26 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveHistoryLog.unshift(lastMoveDesc);
     if (moveHistoryLog.length > 8) moveHistoryLog.pop();
 
-    // Update active battle height for dramatic camera tracking
-    activeBattleY = getLevelY(to.z);
+    // Update active battle height and trigger gradual zoom-in & gentle rotation "to get a better look"
+    const destX = to.x - 3.5;
+    const destY = getLevelY(to.z);
+    const destZ = to.y - 3.5;
+    activeBattleY = destY;
+
+    // Gentle look-at: blend between active destination piece (35%) and board center (65%)
+    targetLookAt.set(destX * 0.35, destY * 0.35, destZ * 0.35);
+
+    // Slight rotation of board/camera to get an optimal vantage point on the new move
+    const destAngle = Math.atan2(destX, destZ);
+    targetOrbitAngle = destAngle + 0.35;
+
+    // Gradual slight zoom-in from 22.5 to 17.5
+    targetCamRadius = 17.5;
+    // Gentle stable elevation matching the level without jumping
+    targetCamElevation = 5.8 + (destY * 0.16);
+
+    // Hold inspection view through the move, lingering gently before easing back out
+    inspectTimer = performance.now() + 3200;
 
     // Portal visual rings if jumping vertically
     fxGroup.clear();
@@ -258,6 +281,10 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     moveHistoryLog = [];
     lastMoveDesc = 'New Match Started';
     activeBattleY = 0;
+    targetCamRadius = 22.5;
+    targetCamElevation = 6.2;
+    targetLookAt.set(0, 0, 0);
+    inspectTimer = 0;
     spawnPieces();
     nextMoveTimer = performance.now() + 800;
   }
@@ -291,45 +318,37 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
       // -------------------------------------------------------------
-      // Dramatic Multi-Perspective Camera "Swoop Around" System
+      // Steady Cinematic "Inspect & Overview" Camera System
       // -------------------------------------------------------------
-      cameraTime += dt * 0.32 * orbitSpeed;
-      orbitAngle += dt * 0.22 * orbitSpeed;
+      // If lingering inspection duration expired, gradually ease back out to majestic overview
+      if (now > inspectTimer) {
+        targetCamRadius = 22.5;
+        targetLookAt.set(0, activeBattleY * 0.15, 0);
+        targetCamElevation = 6.2;
+      }
 
-      const swoopCycle = cameraTime * 0.45;
+      // Continuous gentle cruising orbit
+      targetOrbitAngle += dt * 0.09 * orbitSpeed;
 
-      // Dynamic Radius: swoops between close-up intimate action (~16) and wide overview (~24.5)
-      const targetRadius = 19.8 + Math.sin(swoopCycle * 0.7) * 4.6 + Math.cos(swoopCycle * 0.25) * 1.6;
+      // Smoothly interpolate orbit angle around the shortest arc (slight board rotation)
+      const angleDiff = Math.atan2(Math.sin(targetOrbitAngle - orbitAngle), Math.cos(targetOrbitAngle - orbitAngle));
+      orbitAngle += angleDiff * Math.min(1.0, dt * 1.5);
 
-      // Dynamic Elevation: swoops dramatically from low under-board view (-4.2, looking up through glowing crystal tiers)
-      // up to high aerial command view (+15.2, overlooking all 5 spatial planes)
-      const targetElevation = 5.2 + Math.sin(swoopCycle * 0.85) * 9.6 + Math.cos(swoopCycle * 0.35) * 3.2;
+      // Buttery smooth gradual zoom in/out (no sudden jumps, completely stable elevation)
+      currentCamRadius += (targetCamRadius - currentCamRadius) * Math.min(1.0, dt * 1.6);
+      currentCamElevation += (targetCamElevation - currentCamElevation) * Math.min(1.0, dt * 1.6);
 
-      const desiredCamX = Math.sin(orbitAngle) * targetRadius;
-      const desiredCamZ = Math.cos(orbitAngle) * targetRadius;
-      const desiredCamY = targetElevation;
+      camera.position.x = Math.sin(orbitAngle) * currentCamRadius;
+      camera.position.z = Math.cos(orbitAngle) * currentCamRadius;
+      camera.position.y = currentCamElevation;
 
-      // Buttery smooth positional lerp
-      const posLerp = Math.min(1.0, dt * 2.8);
-      currentCamPos.x += (desiredCamX - currentCamPos.x) * posLerp;
-      currentCamPos.y += (desiredCamY - currentCamPos.y) * posLerp;
-      currentCamPos.z += (desiredCamZ - currentCamPos.z) * posLerp;
-      camera.position.copy(currentCamPos);
+      // Smoothly glide look-at target to keep view centered & stable
+      currentLookAt.x += (targetLookAt.x - currentLookAt.x) * Math.min(1.0, dt * 2.0);
+      currentLookAt.y += (targetLookAt.y - currentLookAt.y) * Math.min(1.0, dt * 2.0);
+      currentLookAt.z += (targetLookAt.z - currentLookAt.z) * Math.min(1.0, dt * 2.0);
 
-      // Dynamic Look-At Target: smoothly drifts between arena center and the active battle level
-      const lookLerp = Math.min(1.0, dt * 2.2);
-      const desiredLookY = (activeBattleY * 0.5) + Math.sin(swoopCycle * 0.6) * 1.2;
-      const desiredLookX = Math.sin(swoopCycle * 0.4) * 1.2;
-      const desiredLookZ = Math.cos(swoopCycle * 0.4) * 1.2;
-
-      currentLookAt.x += (desiredLookX - currentLookAt.x) * lookLerp;
-      currentLookAt.y += (desiredLookY - currentLookAt.y) * lookLerp;
-      currentLookAt.z += (desiredLookZ - currentLookAt.z) * lookLerp;
       camera.lookAt(currentLookAt);
-
-      // Subtle cinematic banking / Dutch tilt during swooping elevation shifts
-      const bankAngle = Math.sin(swoopCycle * 0.85) * 0.055;
-      camera.rotation.z += bankAngle;
+      camera.up.set(0, 1, 0);
 
       // AI Move Dispatch
       if (!activeMoveAnim && !isGameOver && now >= nextMoveTimer) {
