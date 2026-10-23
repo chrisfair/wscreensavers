@@ -191,11 +191,17 @@ func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 	if s.listenAddr == preferredAddr {
 		cfg := s.cfgMgr.Get()
 		if cfg.WallpaperEnabled {
-			wpSaver := cfg.WallpaperSaver
-			if wpSaver == "random" || wpSaver == "" {
-				wpSaver = s.PickRandomSaver()
-			}
-			_ = s.SetWallpaperActive(true, wpSaver)
+			go func() {
+				// Allow compositor socket and layer-shell protocol to be fully initialized on boot
+				time.Sleep(1 * time.Second)
+				wpSaver := cfg.WallpaperSaver
+				if cfg.WallpaperMode == "per-monitor" {
+					wpSaver = "per-monitor"
+				} else if wpSaver == "random" || wpSaver == "" {
+					wpSaver = s.PickRandomSaver()
+				}
+				_ = s.SetWallpaperActive(true, wpSaver)
+			}()
 		}
 	}
 

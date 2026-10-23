@@ -486,12 +486,12 @@ func BuiltinSavers() []models.Screensaver {
 		{
 			ID:          "bughouse3d",
 			Name:        "Apex 3D Chess (Bughouse)",
-			Category:    "Retro & Whimsical",
+			Category:    "3D OpenGL Classics",
 			Source:      models.SourceNative,
 			Author:      "Christopher Patrick Fair (bughouse-online.com)",
 			Year:        "2026",
 			AccentColor: "#38bdf8",
-			Tags:        []string{"Chess", "3D", "Bughouse", "AI", "WebGL", "Space"},
+			Tags:        []string{"Chess", "3D", "Bughouse", "AI", "WebGL", "Space", "OpenGL"},
 			Description: "Spectacular 8x8x5 spatial 3D chess arena from bughouse-online.com with five multi-level glass boards, 3D Staunton & Royal pieces, neon forcefields, dimensional portals, and real-time AI autonomous battles.",
 			Installed:   true,
 			Params: []models.SaverParam{

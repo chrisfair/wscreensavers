@@ -178,6 +178,34 @@ func printStatus(cfgMgr *config.Manager) error {
 // Run executes a CLI control subcommand for the Noctalia plugin or shell scripts.
 func Run(cfgMgr *config.Manager, args []string) error {
 	if len(args) == 0 || args[0] == "status" || args[0] == "get" {
+		cfg := cfgMgr.Get()
+		if cfg.WallpaperEnabled && !isWallpaperProcessRunning() {
+			// Auto-persist on reboot/login: user enabled live wallpaper, but process is not running.
+			saverID := cfg.WallpaperSaver
+			if cfg.WallpaperMode == "per-monitor" {
+				saverID = "per-monitor"
+			} else {
+				if saverID == "" {
+					saverID = cfg.SelectedSaver
+				}
+				if saverID == "random" || saverID == "" {
+					pool := cfg.EnabledSavers
+					if len(pool) == 0 {
+						for _, s := range allSavers() {
+							pool = append(pool, s.ID)
+						}
+					}
+					saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
+				}
+			}
+			if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": saverID}) {
+				if saverID == "per-monitor" {
+					_ = spawnDetached("--wallpaper")
+				} else {
+					_ = spawnDetached("--wallpaper", "--saver-id", saverID)
+				}
+			}
+		}
 		return printStatus(cfgMgr)
 	}
 
