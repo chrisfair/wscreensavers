@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.0.27
+Version:        1.0.28
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -26,7 +26,7 @@ Recommends:     ffmpeg
 
 %description
 WScreenSavers is a native Wayland screensaver and live desktop wallpaper
-suite featuring 23 built-in WebGL/Canvas visualizers, an XScreenSaver XML
+suite featuring 24 built-in WebGL/Canvas visualizers, an XScreenSaver XML
 bridge, PAM-authenticated screen locking, and layer-shell integration
 compatible with Hyprland, Sway, River, and Wayfire.
 
@@ -50,6 +50,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Fri Oct 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.0.28-1
+- Release v1.0.28 with Apex 3D Chess screensaver (bughouse3d), HUD watermark, and clean visualizer improvements
+
 * Fri Oct 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.0.27-1
 - Release v1.0.27 with unique per-monitor live wallpaper support and screensaver auto-pause
 
