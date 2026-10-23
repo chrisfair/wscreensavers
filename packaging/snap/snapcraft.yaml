@@ -1,6 +1,6 @@
 name: wscreensavers
 base: core24
-version: '1.0.26'
+version: '1.0.27'
 summary: Native Wayland screensaver and live desktop wallpaper suite
 description: |
   WScreenSavers brings classic and modern screensavers to Wayland with 23

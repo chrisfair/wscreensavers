@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.0.26
+Version:        1.0.27
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -50,5 +50,8 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Fri Oct 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.0.27-1
+- Release v1.0.27 with unique per-monitor live wallpaper support and screensaver auto-pause
+
 * Fri Oct 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.0.26-1
 - Release v1.0.26 with Noctalia panel paging and live wallpaper improvements
