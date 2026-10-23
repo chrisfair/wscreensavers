@@ -10,7 +10,6 @@
         alt="XScreenSaver Live Stream"
         @error="onStreamError"
       />
-      <div class="xss-badge">XScreenSaver Binary &bull; Live Xvfb Bridge</div>
     </template>
 
     <!-- Native Built-In WebGL2 / Canvas2D Port (kept mounted with v-show so canvasRef is always ready) -->
@@ -267,8 +266,7 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
 }
-.fps-badge,
-.xss-badge {
+.fps-badge {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -281,9 +279,5 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;
-}
-.xss-badge {
-  border-color: rgba(245, 158, 11, 0.45);
-  color: #fbbf24;
 }
 </style>
