@@ -91,9 +91,15 @@ local CATEGORIES = {
 }
 
 local FALLBACK_TEXTS = {
-  wallpaper_stop_short = "Stop Wallpaper",
+  wallpaper_section = "Live Desktop Wallpaper",
+  wallpaper_start = "Start",
+  wallpaper_stop = "Stop",
+  wallpaper_stop_short = "Stop",
   wallpaper_badge = "Live Wallpaper",
-  wallpaper_set_selected = "Use Selected as Wallpaper",
+  wallpaper_set_selected = "Use Selected",
+  wallpaper_running = "Active",
+  wallpaper_stopped = "Stopped",
+  wallpaper_fps = "FPS Cap",
   catalog_show_more = "Show More",
   catalog_show_all = "Show All",
 }
@@ -448,15 +454,26 @@ render = function()
       runCmd("wallpaper on " .. shellQuote(cfg.selectedSaver), "Live Wallpaper: " .. (stateData.selectedName or cfg.selectedSaver))
     end)
 
+    local statusLabel = wpRunning and (tr("wallpaper_running") .. ": " .. (stateData.wallpaperName or cfg.wallpaperSaver)) or tr("wallpaper_stopped")
+
     table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, {
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("wallpaper_section"), fontSize = 14, fontWeight = "bold", color = "primary" }),
-        ui.spacer({ flexGrow = 1 }),
         ui.label({
-          text = wpRunning and (tr("wallpaper_running") .. " (" .. (stateData.wallpaperName or cfg.wallpaperSaver) .. ")") or tr("wallpaper_stopped"),
+          text = "• " .. statusLabel,
           fontSize = 12,
+          fontWeight = wpRunning and "bold" or "normal",
           color = wpRunning and "primary" or "on_surface_variant",
         }),
+        ui.spacer({ flexGrow = 1 }),
+        (not wpRunning or cfg.wallpaperSaver ~= cfg.selectedSaver) and ui.button({
+          text = tr("wallpaper_set_selected"),
+          glyph = "check",
+          controlSize = "sm",
+          variant = "ghost",
+          enabled = not busy,
+          onClick = wpUseSelectedClick,
+        }) or ui.spacer({ width = 0 }),
         ui.button({
           text = wpRunning and tr("wallpaper_stop") or tr("wallpaper_start"),
           glyph = wpRunning and "x" or "photo",
@@ -466,13 +483,6 @@ render = function()
           enabled = not busy,
           onClick = wpToggleClick,
         }),
-        (not wpRunning or cfg.wallpaperSaver ~= cfg.selectedSaver) and ui.button({
-          text = tr("wallpaper_set_selected") .. " (" .. (stateData.selectedName or cfg.selectedSaver) .. ")",
-          controlSize = "sm",
-          variant = "ghost",
-          enabled = not busy,
-          onClick = wpUseSelectedClick,
-        }) or ui.spacer({ width = 0 }),
       }),
       ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("wallpaper_fps") .. ":", fontSize = 12, color = "on_surface_variant" }),
