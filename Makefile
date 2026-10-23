@@ -7,7 +7,7 @@ SYSTEMDUSERDIR := $(PREFIX)/lib/systemd/user
 NOCTALIADIR := $(HOME)/.config/noctalia/plugins/wscreensavers
 PLUGINSRCDIR := $(PREFIX)/share/wscreensavers/noctalia-plugins/wscreensavers
 
-.PHONY: all frontend build test coverage pkg pacman pacman-install aur deb rpm appimage flatpak snap slackbuild slackware install-noctalia run daemon saver lock wallpaper clean install
+.PHONY: all frontend build test coverage pkg pacman pacman-install aur deb rpm appimage flatpak snap slackbuild slackware install-noctalia release run daemon saver lock wallpaper clean install
 
 all: build
 
@@ -45,6 +45,13 @@ pacman-install: pacman
 
 aur:
 	./scripts/push-aur.sh
+
+release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make release VERSION=1.0.28"; \
+		exit 1; \
+	fi
+	bash ./scripts/release.sh $(VERSION)
 
 deb: test
 	@echo "==> Building Debian package..."
