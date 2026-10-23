@@ -17,6 +17,7 @@ import (
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/shuffle"
+	"wscreensavers/internal/support"
 	"wscreensavers/internal/xscreensaver"
 )
 
@@ -501,6 +502,33 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			return err
 		}
 		return printStatus(cfgMgr)
+
+	case "nag", "support":
+		// usage: wscreensavers ctl nag <off|disable|status>
+		suppMgr, err := support.NewManager("")
+		if err != nil {
+			return err
+		}
+		action := "off"
+		if len(args) >= 2 {
+			action = args[1]
+		}
+		switch action {
+		case "off", "disable", "mute":
+			_, err := suppMgr.RecordSupport("Community Supporter", "cli-disabled")
+			if err != nil {
+				return err
+			}
+			fmt.Println("Startup support reminder disabled permanently.")
+			return nil
+		case "status":
+			st := suppMgr.GetStatus(nil, nil)
+			data, _ := json.MarshalIndent(st, "", "  ")
+			fmt.Println(string(data))
+			return nil
+		default:
+			return fmt.Errorf("usage: wscreensavers ctl nag <off|disable|status>")
+		}
 
 	default:
 		return fmt.Errorf("unknown ctl command: %s", sub)

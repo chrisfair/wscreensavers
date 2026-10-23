@@ -51,7 +51,15 @@ func TestCtlCommands(t *testing.T) {
 		t.Errorf("expected randomize to succeed, got: %v", err)
 	}
 
-	// 4. Test invalid key/command error handling
+	// 4. Test nag disable
+	if err := Run(cfgMgr, []string{"nag", "off"}); err != nil {
+		t.Errorf("expected nag off to succeed, got: %v", err)
+	}
+	if err := Run(cfgMgr, []string{"nag", "status"}); err != nil {
+		t.Errorf("expected nag status to succeed, got: %v", err)
+	}
+
+	// 5. Test invalid key/command error handling
 	if err := Run(cfgMgr, []string{"set", "invalidKey", "123"}); err == nil {
 		t.Errorf("expected error on invalid set key")
 	}
