@@ -1,5 +1,5 @@
 Package: wscreensavers
-Version: 1.0.27
+Version: 1.0.28
 Section: x11
 Priority: optional
 Architecture: amd64
@@ -7,6 +7,6 @@ Maintainer: Christopher Patrick Fair <christopherpatrickfair@gmail.com>
 Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libgtk-layer-shell0, libpam0g, xscreensaver (>= 6.0), xvfb, ffmpeg
 Description: Native Wayland version of XScreenSaver with live desktop wallpapers
  WScreenSavers is a native Wayland screensaver and live desktop wallpaper
- suite featuring 23 built-in WebGL and Canvas visualizer ports, an XScreenSaver
+ suite featuring 24 built-in WebGL and Canvas visualizer ports, an XScreenSaver
  XML bridge, PAM-authenticated screen locking, and layer-shell integration
  for Hyprland, Sway, River, and Wayfire.
