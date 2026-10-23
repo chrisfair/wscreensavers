@@ -287,6 +287,7 @@ func NewProcessController(onSaverExit func()) *ProcessController {
 
 func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, locked bool) error {
 	p.StopSaverOverlay()
+	p.StopWallpaper()
 
 	exe, err := os.Executable()
 	if err != nil {
@@ -424,15 +425,18 @@ func (p *ProcessController) stopWallpaperLocked() {
 	}
 
 	// Also terminate any stray or external wscreensavers --wallpaper processes on the system
-	stopMatchingWallpaperProcesses()
+	StopMatchingWallpaperProcesses()
 }
 
-func stopMatchingWallpaperProcesses() {
+// StopMatchingWallpaperProcesses terminates all running wscreensavers --wallpaper processes
+// across the system and waits for them to exit so GPU and compositor resources are fully freed.
+func StopMatchingWallpaperProcesses() {
 	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper(\\s|$)").Output()
 	if err != nil {
 		return
 	}
 	currentPID := os.Getpid()
+	var killed []int
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -441,6 +445,23 @@ func stopMatchingWallpaperProcesses() {
 		pid, err := strconv.Atoi(line)
 		if err == nil && pid > 0 && pid != currentPID {
 			_ = syscall.Kill(pid, syscall.SIGTERM)
+			killed = append(killed, pid)
+		}
+	}
+	if len(killed) > 0 {
+		deadline := time.Now().Add(250 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			alive := false
+			for _, pid := range killed {
+				if err := syscall.Kill(pid, 0); err == nil {
+					alive = true
+					break
+				}
+			}
+			if !alive {
+				break
+			}
+			time.Sleep(15 * time.Millisecond)
 		}
 	}
 }

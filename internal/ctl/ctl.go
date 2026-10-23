@@ -312,6 +312,7 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if tryDaemonPost("/api/action/launch-saver", map[string]any{"saverId": saverID, "locked": false}) {
 			return printStatus(cfgMgr)
 		}
+		stopWallpaperProcesses()
 		stopSaverProcesses()
 		if err := spawnDetached("--saver", "--saver-id", saverID); err != nil {
 			return err
@@ -337,6 +338,7 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if tryDaemonPost("/api/action/lock", map[string]any{"saverId": saverID}) {
 			return printStatus(cfgMgr)
 		}
+		stopWallpaperProcesses()
 		stopLockProcesses()
 		stopSaverProcesses()
 		if err := spawnDetached("--lock", "--saver-id", saverID); err != nil {
@@ -348,6 +350,11 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		_ = tryDaemonPost("/api/action/stop-saver", map[string]any{})
 		stopSaverProcesses()
 		stopLockProcesses()
+		if cfg.WallpaperEnabled && !isWallpaperProcessRunning() {
+			if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": "per-monitor"}) {
+				_ = spawnDetached("--wallpaper")
+			}
+		}
 		return printStatus(cfgMgr)
 
 	case "randomize":

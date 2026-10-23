@@ -1,15 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
 	"log"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -124,8 +128,18 @@ func main() {
 			os.Exit(0)
 		}()
 
+		// Temporarily disable any active background live wallpaper to free all GPU and compositor resources
+		if *saverMode || *lockMode {
+			layershell.StopMatchingWallpaperProcesses()
+		}
+
 		urls := buildMonitorURLs(baseURL, cfgMgr, srv, *saverIDFlag, *wallpaperMode, *lockMode)
 		layershell.RunLayerShellWindows(urls, *wallpaperMode, *lockMode)
+
+		// When screensaver or lock screen finishes and exits, resume live wallpaper if enabled in user configuration
+		if (*saverMode || *lockMode) && cfgMgr.Get().WallpaperEnabled {
+			resumeWallpaper()
+		}
 		return
 	}
 
@@ -268,4 +282,22 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 	}
 
 	return urls
+}
+
+func resumeWallpaper() {
+	reqBody := map[string]any{"enabled": true, "saverId": "per-monitor"}
+	data, _ := json.Marshal(reqBody)
+	resp, err := http.Post("http://127.0.0.1:8642/api/action/toggle-wallpaper", "application/json", bytes.NewReader(data))
+	if err == nil && resp.StatusCode == http.StatusOK {
+		_ = resp.Body.Close()
+		return
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	cmd := exec.Command(exe, "--wallpaper")
+	cmd.Env = os.Environ()
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	_ = cmd.Start()
 }
