@@ -28,12 +28,75 @@ paru -S wscreensavers
 yay -S wscreensavers
 ```
 
+### Direct Package Downloads (Pre-built Binaries)
+Pre-built packages are available on the [**GitHub Releases**](https://github.com/chrisfair/wscreensavers/releases) page:
+* **Universal AppImage**: `wscreensavers-*-x86_64.AppImage` (runs on any Linux distro)
+* **Debian / Ubuntu / Mint / Pop!_OS**: `wscreensavers_*_amd64.deb` (`sudo dpkg -i ...`)
+* **Arch Linux / CachyOS**: `wscreensavers-*-x86_64.pkg.tar.xz` (`sudo pacman -U ...`)
+* **Portable Linux Tarball**: `wscreensavers-*-linux-x86_64.tar.gz`
+
+### NixOS / Nix Flakes
+```bash
+nix run github:chrisfair/wscreensavers
+```
+
 ### Build from Source
 ```bash
 git clone https://github.com/chrisfair/wscreensavers.git
 cd wscreensavers
 make build
 sudo make install
+```
+
+---
+
+## 🧩 Noctalia Desktop Shell Integration
+
+WScreenSavers includes an official native plugin for the **Noctalia** Wayland desktop shell (`christopherpfair/wscreensavers`), featuring a status bar widget, per-monitor live wallpaper controls, and a floating control deck.
+
+### Adding the Noctalia Plugin Repository
+```bash
+# 1. Add the official Noctalia plugin repository
+noctalia msg plugins source add chrisfair git https://gitlab.com/chrisfair/noctalia-plugins
+
+# 2. Update and enable the plugin
+noctalia msg plugins update chrisfair
+noctalia msg plugins enable christopherpfair/wscreensavers
+```
+*(If installed via AUR or `.deb`, you can alternatively register the local source: `noctalia msg plugins source add wscreensavers path /usr/share/wscreensavers/noctalia-plugins`)*
+
+👉 **For full widget configuration, IPC triggers, and keybinding examples, see the [Noctalia Integration Guide](docs/noctalia.md).**
+
+---
+
+## 🌐 Unlocking All 330+ Classic XScreenSaver Visualizers
+
+WScreenSavers includes **23 built-in WebGL2 visualizers** out of the box. Installing your distribution's standard XScreenSaver packages unlocks **310+ additional classic and 3D OpenGL visualizers** (`endgame`, `anemone`, `glknots`, `superquadrics`, `circuit`, etc.) through WScreenSavers' zero-overhead Wayland bridge.
+
+### Generic Distro Setup Commands:
+* **Arch / Manjaro / CachyOS**: `sudo pacman -S xscreensaver rss-glx`
+* **Debian / Ubuntu / Mint**: `sudo apt install xscreensaver xscreensaver-gl xscreensaver-gl-extra rss-glx`
+* **Fedora / RHEL**: `sudo dnf install xscreensaver-extras xscreensaver-gl-extras rss-glx`
+* **openSUSE**: `sudo zypper in xscreensaver xscreensaver-gl xscreensaver-gl-extra`
+* **Slackware**: `sboinstall xscreensaver rss-glx`
+* **NixOS**: `environment.systemPackages = [ pkgs.xscreensaver ];`
+
+### Detailed Per-Distribution Guides:
+For step-by-step package breakdowns and verification instructions:
+* [Overview & Architecture](docs/xscreensaver-packages.md)
+* [Arch Linux & Derivatives](docs/distros/arch.md)
+* [Debian, Ubuntu, & Linux Mint](docs/distros/debian-ubuntu.md)
+* [Fedora & Enterprise Linux](docs/distros/fedora-rhel.md)
+* [openSUSE (Tumbleweed & Leap)](docs/distros/opensuse.md)
+* [Slackware Linux & SBo](docs/distros/slackware.md)
+* [NixOS & Flakes](docs/distros/nixos.md)
+* [Alpine Linux](docs/distros/alpine.md)
+* [Gentoo Linux](docs/distros/gentoo.md)
+
+Once installed, simply run:
+```bash
+# Add all 330+ hacks to your active rotation pool
+wscreensavers ctl pool all
 ```
 
 ---
