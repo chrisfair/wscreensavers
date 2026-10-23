@@ -7,4 +7,8 @@
 /coverage.html
 *.pkg.tar*
 *.tar.gz
+*.deb
+*.rpm
+*.AppImage
+*.txz
 

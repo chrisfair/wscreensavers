@@ -7,7 +7,7 @@ SYSTEMDUSERDIR := $(PREFIX)/lib/systemd/user
 NOCTALIADIR := $(HOME)/.config/noctalia/plugins/wscreensavers
 PLUGINSRCDIR := $(PREFIX)/share/wscreensavers/noctalia-plugins/wscreensavers
 
-.PHONY: all frontend build test coverage pkg pacman pacman-install aur slackbuild slackware install-noctalia run daemon saver lock wallpaper clean install
+.PHONY: all frontend build test coverage pkg pacman pacman-install aur deb rpm appimage flatpak snap slackbuild slackware install-noctalia run daemon saver lock wallpaper clean install
 
 all: build
 
@@ -45,6 +45,26 @@ pacman-install: pacman
 
 aur:
 	./scripts/push-aur.sh
+
+deb: test
+	@echo "==> Building Debian package..."
+	bash ./packaging/debian/build-deb.sh
+
+rpm: test
+	@echo "==> Building RPM package..."
+	bash ./packaging/rpm/build-rpm.sh
+
+appimage: test
+	@echo "==> Building AppImage package..."
+	bash ./packaging/appimage/build-appimage.sh
+
+flatpak:
+	@echo "==> Building Flatpak package..."
+	bash ./packaging/flatpak/build-flatpak.sh
+
+snap:
+	@echo "==> Building Snap package..."
+	bash ./packaging/snap/build-snap.sh
 
 slackbuild: test
 	@echo "==> Building Slackware package..."
