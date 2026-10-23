@@ -63,7 +63,8 @@
             Enjoying WScreenSavers? Consider supporting the author with a voluntary contribution (<span class="emerald-hl">$5 or higher</span> recommended).
           </p>
           <p class="pitch-sub">
-            Your support directly funds continued open-source Wayland screensaver &amp; live wallpaper development, GPU shaders, and multi-monitor tools. Supporting is completely optional—dismissing hides this reminder for 24 hours with all features unlocked, or choose a tier below for a longer reminder-free pass!
+            <strong>100% Non-Obligatory &bull; All Features Unlocked &bull; One-Time Charges Only</strong><br />
+            All Stripe links are single one-time payments (<strong>no recurring subscriptions or auto-renewals</strong>). The monthly or annual labels are merely suggested support frequencies. Dismissing hides this reminder for 24 hours with all features fully functional, or support once to silence it permanently!
           </p>
         </div>
 
@@ -163,7 +164,7 @@
 
         <!-- Footer / Non-obligatory Dismiss -->
         <div class="support-footer">
-          <span class="footer-note">100% non-obligatory &bull; All features unlocked</span>
+          <span class="footer-note">100% non-obligatory &bull; Single one-time charge &bull; All features unlocked</span>
           <button
             type="button"
             data-testid="dismiss-support-btn"
@@ -211,11 +212,11 @@ const referenceInput = ref('');
 const confirmMessage = ref('');
 
 const presetAmounts = [
-  { amount: 1, label: '$1', desc: 'Pawn • 1 Month' },
-  { amount: 5, label: '$5', desc: 'Knight • 1 Year' },
-  { amount: 10, label: '$10', desc: 'Rook • Good for Life' },
-  { amount: 35, label: '$35', desc: 'Queen • Super Thanks' },
-  { amount: 350, label: '$350', desc: 'King • Super Thanks' }
+  { amount: 1, label: '$1', desc: 'Pawn (1-time coffee)' },
+  { amount: 5, label: '$5', desc: 'Knight (1-time pass)' },
+  { amount: 10, label: '$10', desc: 'Rook (1-time lifetime)' },
+  { amount: 35, label: '$35', desc: 'Queen (1-time booster)' },
+  { amount: 350, label: '$350', desc: 'King (1-time patron)' }
 ];
 
 const effectiveAmount = computed(() => {
