@@ -46,3 +46,24 @@ func TestConfigManagerPersistence(t *testing.T) {
 		t.Errorf("persisted config mismatch: %+v", mgr2.Get())
 	}
 }
+
+func TestSanitizeWallpaperPerMonitor(t *testing.T) {
+	input := map[string]string{
+		"HDMI-A-1": "glmatrix",
+		"DP-2":     "sonar",
+		"DP-3":     "glmatrix", // duplicate with HDMI-A-1
+	}
+	cleaned := SanitizeWallpaperPerMonitor(input)
+	if len(cleaned) != 2 {
+		t.Fatalf("expected 2 unique monitor mappings, got %d", len(cleaned))
+	}
+	if cleaned["DP-3"] != "glmatrix" {
+		t.Errorf("expected DP-3 to have glmatrix, got %s", cleaned["DP-3"])
+	}
+	if _, exists := cleaned["HDMI-A-1"]; exists {
+		t.Errorf("expected HDMI-A-1 duplicate to be cleared")
+	}
+	if cleaned["DP-2"] != "sonar" {
+		t.Errorf("expected DP-2 to keep sonar, got %s", cleaned["DP-2"])
+	}
+}

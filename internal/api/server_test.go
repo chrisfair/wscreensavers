@@ -35,6 +35,14 @@ func TestAPIServerEndpoints(t *testing.T) {
 		t.Errorf("expected non-empty random saver ID")
 	}
 
+	exclude := map[string]bool{"glmatrix": true, "sonar": true, "flurry": true}
+	for i := 0; i < 20; i++ {
+		uniqueID := srv.PickUniqueRandomSaver(exclude)
+		if exclude[uniqueID] {
+			t.Errorf("PickUniqueRandomSaver returned excluded saver: %s", uniqueID)
+		}
+	}
+
 	// 1. GET & POST /api/savers
 	resp, err := http.Get(baseURL + "/api/savers")
 	if err != nil {

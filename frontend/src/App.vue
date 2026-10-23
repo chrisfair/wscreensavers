@@ -282,50 +282,116 @@
           />
 
           <!-- Tab 3: Live Desktop Wallpaper -->
-          <div v-else-if="activeTab === 'wallpaper'" class="settings-grid">
-            <div class="setting-box wallpaper-note" :class="{ warn: otherWallpapers.length }">
-              <label>Other wallpapers</label>
-              <p>
-                The live wallpaper is drawn on top of every other wallpaper, including
-                Noctalia's own, hyprpaper, swww and swaybg. They keep running underneath it,
-                so turn them off if you do not want them running behind this one.
-              </p>
-              <p v-if="otherWallpapers.length">
-                Detected running now: <strong>{{ otherWallpapers.join(', ') }}</strong>
-              </p>
+          <div v-else-if="activeTab === 'wallpaper'" class="wallpaper-tab-container">
+            <div class="settings-grid">
+              <div class="setting-box wallpaper-note" :class="{ warn: otherWallpapers.length }">
+                <label>Other wallpapers</label>
+                <p>
+                  The live wallpaper is drawn on top of every other wallpaper, including
+                  Noctalia's own, hyprpaper, swww and swaybg. They keep running underneath it,
+                  so turn them off if you do not want them running behind this one.
+                </p>
+                <p v-if="otherWallpapers.length">
+                  Detected running now: <strong>{{ otherWallpapers.join(', ') }}</strong>
+                </p>
+              </div>
+
+              <div class="setting-box">
+                <label>Background Layer Status (zwlr_layer_shell_v1)</label>
+                <button
+                  class="btn btn-wallpaper"
+                  :class="{ active: config.wallpaperEnabled }"
+                  @click="toggleWallpaperMode"
+                >
+                  {{ config.wallpaperEnabled ? 'Disable Live Desktop Wallpaper' : 'Enable Live Desktop Wallpaper' }}
+                </button>
+              </div>
+
+              <div class="setting-box">
+                <label>Wallpaper Layout Mode</label>
+                <div class="mode-pills-row">
+                  <button
+                    class="mode-pill"
+                    :class="{ active: (config.wallpaperMode || 'single') === 'single' }"
+                    @click="setWallpaperMode('single')"
+                  >
+                    Same on All Screens
+                  </button>
+                  <button
+                    class="mode-pill"
+                    :class="{ active: config.wallpaperMode === 'per-monitor' }"
+                    @click="setWallpaperMode('per-monitor')"
+                  >
+                    Unique Per Screen ({{ monitors.length || 1 }})
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="(config.wallpaperMode || 'single') === 'single'" class="setting-box">
+                <label>Wallpaper Screensaver</label>
+                <select v-model="config.wallpaperSaver" @change="updateWallpaperSaver">
+                  <option value="random">🎲 Random (Shuffle All)</option>
+                  <option v-for="s in savers" :key="s.id" :value="s.id">
+                    {{ s.name }} ({{ s.category }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="setting-box">
+                <label>Wallpaper Frame Rate Cap ({{ config.wallpaperFpsCap }} FPS)</label>
+                <input
+                  type="range"
+                  min="15"
+                  max="60"
+                  step="5"
+                  v-model.number="config.wallpaperFpsCap"
+                  @change="persistConfig"
+                />
+              </div>
             </div>
 
-            <div class="setting-box">
-              <label>Background Layer Status (zwlr_layer_shell_v1)</label>
-              <button
-                class="btn btn-wallpaper"
-                :class="{ active: config.wallpaperEnabled }"
-                @click="toggleWallpaperMode"
-              >
-                {{ config.wallpaperEnabled ? 'Disable Live Desktop Wallpaper' : 'Enable Live Desktop Wallpaper' }}
-              </button>
-            </div>
+            <!-- Per-Monitor Unique Live Wallpaper Configuration Section -->
+            <div v-if="config.wallpaperMode === 'per-monitor'" class="per-monitor-wallpaper-section">
+              <div class="section-subbar">
+                <div>
+                  <h4 class="subbar-title">Per-Screen Unique Live Wallpapers</h4>
+                  <p class="subbar-desc">Each screen must run a distinct live wallpaper. Duplicate screensavers are locked out to ensure strict visual uniqueness.</p>
+                </div>
+                <button class="btn btn-secondary btn-sm" @click="randomizeUniqueWallpapers">
+                  🎲 Randomize Unique Set
+                </button>
+              </div>
 
-            <div class="setting-box">
-              <label>Wallpaper Screensaver</label>
-              <select v-model="config.wallpaperSaver" @change="updateWallpaperSaver">
-                <option value="random">🎲 Random (Shuffle All)</option>
-                <option v-for="s in savers" :key="s.id" :value="s.id">
-                  {{ s.name }} ({{ s.category }})
-                </option>
-              </select>
-            </div>
+              <div class="monitors-grid">
+                <div
+                  v-for="mon in (monitors.length ? monitors : [{ name: 'default', width: 1920, height: 1080, refreshRate: 60 }])"
+                  :key="mon.name"
+                  class="monitor-card"
+                >
+                  <div class="monitor-screen">
+                    <div class="mon-badge">{{ mon.name }}</div>
+                    <div class="mon-res">{{ mon.width }}×{{ mon.height }} @ {{ Math.round(mon.refreshRate) }}Hz</div>
+                    <div class="mon-desc">{{ mon.description || mon.model || 'Wayland Output' }}</div>
+                  </div>
 
-            <div class="setting-box">
-              <label>Wallpaper Frame Rate Cap ({{ config.wallpaperFpsCap }} FPS)</label>
-              <input
-                type="range"
-                min="15"
-                max="60"
-                step="5"
-                v-model.number="config.wallpaperFpsCap"
-                @change="persistConfig"
-              />
+                  <div class="mon-select-row">
+                    <label>Assigned Unique Live Wallpaper:</label>
+                    <select
+                      :value="getMonitorWallpaper(mon.name)"
+                      @change="setMonitorWallpaper(mon.name, $event.target.value)"
+                    >
+                      <option
+                        v-for="s in savers"
+                        :key="s.id"
+                        :value="s.id"
+                        :disabled="isSaverAssignedToOther(s.id, mon.name)"
+                      >
+                        {{ s.name }} ({{ s.category }}){{ isSaverAssignedToOther(s.id, mon.name) ? ' 🔒 (In use on ' + getMonitorUsingSaver(s.id, mon.name) + ')' : '' }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -606,7 +672,10 @@ async function launchWaylandOverlay(locked) {
 
 async function toggleWallpaperMode() {
   const nextState = !config.value.wallpaperEnabled;
-  const saverId = config.value.selectedSaver || config.value.wallpaperSaver || 'flurry';
+  config.value.wallpaperEnabled = nextState;
+  const saverId = config.value.wallpaperMode === 'per-monitor'
+    ? 'per-monitor'
+    : (config.value.selectedSaver || config.value.wallpaperSaver || 'flurry');
   try {
     const res = await fetch(`${apiBase.value}/api/action/toggle-wallpaper`, {
       method: 'POST',
@@ -625,14 +694,105 @@ async function toggleWallpaperMode() {
 async function updateWallpaperSaver() {
   await persistConfig();
   if (config.value.wallpaperEnabled) {
+    const saverId = config.value.wallpaperMode === 'per-monitor' ? 'per-monitor' : config.value.wallpaperSaver;
     await fetch(`${apiBase.value}/api/action/toggle-wallpaper`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         enabled: true,
-        saverId: config.value.wallpaperSaver
+        saverId
       })
     });
+  }
+}
+
+function setWallpaperMode(mode) {
+  config.value.wallpaperMode = mode;
+  if (mode === 'per-monitor') {
+    ensureUniqueMonitorWallpapers();
+  }
+  updateWallpaperSaver();
+}
+
+function getMonitorWallpaper(monName) {
+  if (!config.value.wallpaperPerMonitor) {
+    config.value.wallpaperPerMonitor = {};
+  }
+  return config.value.wallpaperPerMonitor[monName] || config.value.wallpaperSaver || 'flurry';
+}
+
+function getMonitorUsingSaver(saverId, currentMonName) {
+  if (!config.value.wallpaperPerMonitor) return null;
+  for (const [mon, id] of Object.entries(config.value.wallpaperPerMonitor)) {
+    if (mon !== currentMonName && id === saverId) {
+      return mon;
+    }
+  }
+  return null;
+}
+
+function isSaverAssignedToOther(saverId, currentMonName) {
+  return getMonitorUsingSaver(saverId, currentMonName) !== null;
+}
+
+async function setMonitorWallpaper(monName, saverId) {
+  if (!config.value.wallpaperPerMonitor) {
+    config.value.wallpaperPerMonitor = {};
+  }
+  // Clear any existing assignment on another monitor to guarantee strict uniqueness
+  for (const [m, id] of Object.entries(config.value.wallpaperPerMonitor)) {
+    if (m !== monName && id === saverId) {
+      delete config.value.wallpaperPerMonitor[m];
+    }
+  }
+  config.value.wallpaperPerMonitor[monName] = saverId;
+  config.value.wallpaperMode = 'per-monitor';
+  await updateWallpaperSaver();
+}
+
+async function randomizeUniqueWallpapers() {
+  if (!config.value.wallpaperPerMonitor) {
+    config.value.wallpaperPerMonitor = {};
+  }
+  const available = savers.value.slice();
+  for (let i = available.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+  const monList = monitors.value.length > 0 ? monitors.value : [{ name: 'default' }];
+  const newMap = {};
+  monList.forEach((mon, idx) => {
+    newMap[mon.name] = available[idx % available.length]?.id || 'flurry';
+  });
+  config.value.wallpaperPerMonitor = newMap;
+  config.value.wallpaperMode = 'per-monitor';
+  await updateWallpaperSaver();
+}
+
+function ensureUniqueMonitorWallpapers() {
+  if (!config.value.wallpaperPerMonitor) {
+    config.value.wallpaperPerMonitor = {};
+  }
+  const monList = monitors.value.length > 0 ? monitors.value : [{ name: 'default' }];
+  const used = new Set();
+  for (const mon of monList) {
+    const assigned = config.value.wallpaperPerMonitor[mon.name];
+    if (assigned && !used.has(assigned)) {
+      used.add(assigned);
+    } else {
+      delete config.value.wallpaperPerMonitor[mon.name];
+    }
+  }
+  for (const mon of monList) {
+    if (!config.value.wallpaperPerMonitor[mon.name]) {
+      const candidate = savers.value.find(s => !used.has(s.id));
+      if (candidate) {
+        config.value.wallpaperPerMonitor[mon.name] = candidate.id;
+        used.add(candidate.id);
+      } else {
+        config.value.wallpaperPerMonitor[mon.name] = 'flurry';
+      }
+    }
   }
 }
 
@@ -1058,5 +1218,131 @@ html, body, #app {
 .params-sidebar {
   overflow-y: auto;
   min-height: 0;
+}
+
+.wallpaper-tab-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mode-pills-row {
+  display: flex;
+  background: rgba(2, 6, 23, 0.6);
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  gap: 4px;
+}
+.mode-pill {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.mode-pill.active {
+  background: #0ea5e9;
+  color: #ffffff;
+}
+
+.per-monitor-wallpaper-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+.section-subbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.subbar-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.subbar-desc {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.monitors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+.monitor-card {
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-radius: 12px;
+  padding: 12px;
+}
+.monitor-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14), rgba(99, 102, 241, 0.14));
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+  text-align: center;
+}
+.mon-badge {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 800;
+  font-size: 14px;
+  color: #38bdf8;
+}
+.mon-res {
+  font-size: 11px;
+  color: #e2e8f0;
+  margin-top: 4px;
+}
+.mon-desc {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.mon-select-row {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mon-select-row label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+.mon-select-row select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #f8fafc;
+  font-size: 12px;
+  width: 100%;
+}
+.mon-select-row select option:disabled {
+  color: #64748b;
+  background: #020617;
 }
 </style>

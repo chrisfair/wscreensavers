@@ -37,6 +37,23 @@
             </option>
           </select>
         </div>
+
+        <div v-if="modelValue.wallpaperMode === 'per-monitor'" class="mon-select-row">
+          <label>Live Wallpaper (Unique):</label>
+          <select
+            :value="modelValue.wallpaperPerMonitor?.[mon.name] || modelValue.wallpaperSaver || 'flurry'"
+            @change="assignWallpaper(mon.name, $event.target.value)"
+          >
+            <option
+              v-for="s in savers"
+              :key="s.id"
+              :value="s.id"
+              :disabled="isWallpaperUsedByOther(s.id, mon.name)"
+            >
+              {{ s.name }} ({{ s.category }}){{ isWallpaperUsedByOther(s.id, mon.name) ? ' 🔒 (In use on ' + getWallpaperOtherMon(s.id, mon.name) + ')' : '' }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -66,6 +83,34 @@ function setMode(modeId) {
 function assignMonitorSaver(monName, saverId) {
   const map = { ...(props.modelValue.perMonitorSaver || {}), [monName]: saverId };
   const next = { ...props.modelValue, perMonitorSaver: map };
+  emit('update:modelValue', next);
+  emit('save', next);
+}
+
+function getWallpaperOtherMon(saverId, currentMonName) {
+  if (!props.modelValue.wallpaperPerMonitor) return null;
+  for (const [mon, id] of Object.entries(props.modelValue.wallpaperPerMonitor)) {
+    if (mon !== currentMonName && id === saverId) {
+      return mon;
+    }
+  }
+  return null;
+}
+
+function isWallpaperUsedByOther(saverId, currentMonName) {
+  return getWallpaperOtherMon(saverId, currentMonName) !== null;
+}
+
+function assignWallpaper(monName, saverId) {
+  const map = { ...(props.modelValue.wallpaperPerMonitor || {}) };
+  // Enforce strict uniqueness: remove from other monitors if assigned
+  for (const [m, id] of Object.entries(map)) {
+    if (m !== monName && id === saverId) {
+      delete map[m];
+    }
+  }
+  map[monName] = saverId;
+  const next = { ...props.modelValue, wallpaperPerMonitor: map, wallpaperMode: 'per-monitor' };
   emit('update:modelValue', next);
   emit('save', next);
 }
