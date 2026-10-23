@@ -242,17 +242,23 @@ make test
 
 ## 💖 Supporting the Project
 
-WScreenSavers is 100% free and open source software released under the **GNU General Public License v3.0**. There are no paywalls, telemetry, or locked features.
+WScreenSavers is 100% free and open source software released under the **GNU General Public License v3.0**.
+
+> [!IMPORTANT]
+> **Key Principles for Contributions:**
+> 1. **100% Non-Obligatory**: Supporting is strictly voluntary appreciation for the author's work.
+> 2. **Zero Locked Features**: Every single visualizer, PAM lock, multi-monitor configuration, live wallpaper, and CLI feature is completely unlocked and available to all users forever.
+> 3. **Single One-Time Charges ONLY (No Subscriptions)**: All Stripe payment links are **one-time charges**. You will **never** be enrolled in a recurring subscription or recurring billing. The labels below (e.g., monthly coffee, annual pass) are merely suggested contribution frequencies.
 
 If you enjoy using WScreenSavers on your Wayland desktop and would like to support ongoing maintenance, new visualizers, and multi-monitor compositor testing, contributions are warmly welcomed and deeply appreciated!
 
-| Level | Link | Notes |
-| :--- | :---: | :--- |
-| **Pawn** | [**$1 / month**](https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00) | Monthly coffee supporter |
-| **Knight** (Recommended) | [**$5 / year**](https://buy.stripe.com/cNidR2e262cEeiOdpCefC01) | Annual community supporter |
-| **Rook** | [**$10 one-time**](https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02) | Lifetime appreciation pass |
-| **Queen** | [**$35 one-time**](https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03) | Generous sponsor & feature booster |
-| **King** | [**$350 one-time**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | Major patron of Wayland open-source tooling |
+| Level | Link | Charge Type | Suggested Frequency / Notes |
+| :--- | :---: | :---: | :--- |
+| **Pawn** | [**$1**](https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00) | *Single One-Time* | Suggested as a monthly coffee supporter |
+| **Knight** (Recommended) | [**$5**](https://buy.stripe.com/cNidR2e262cEeiOdpCefC01) | *Single One-Time* | Suggested as an annual community supporter |
+| **Rook** | [**$10**](https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02) | *Single One-Time* | Lifetime appreciation pass |
+| **Queen** | [**$35**](https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03) | *Single One-Time* | Generous sponsor & feature booster |
+| **King** | [**$350**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | *Single One-Time* | Major patron of Wayland open-source tooling |
 
 *All contributions directly fund development hardware, compositor test matrices, and open source maintenance.*
 
