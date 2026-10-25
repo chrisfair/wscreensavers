@@ -1,5 +1,5 @@
 {
-  description = "WScreenSavers — Native Wayland screensaver and live desktop wallpaper suite";
+  description = "WScreenSavers - Native Wayland screensaver and live desktop wallpaper suite";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

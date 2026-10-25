@@ -34,7 +34,7 @@ chmod 644 "${DEB_DIR}/DEBIAN/control"
 # Build .deb
 if command -v dpkg-deb >/dev/null 2>&1; then
     dpkg-deb --build --root-owner-group "${DEB_DIR}" "${OUTPUT_DIR}/wscreensavers_${VERSION}_${ARCH}.deb"
-    echo "✔ Successfully generated: ${OUTPUT_DIR}/wscreensavers_${VERSION}_${ARCH}.deb"
+    echo "==> Successfully generated: ${OUTPUT_DIR}/wscreensavers_${VERSION}_${ARCH}.deb"
 else
     echo "ERROR: dpkg-deb is not installed on this system." >&2
     exit 1

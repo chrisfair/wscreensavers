@@ -44,4 +44,4 @@ fi
 
 echo "==> Building AppImage..."
 ARCH=x86_64 "${TOOL}" --appimage-extract-and-run "${APP_DIR}" "${OUTPUT_FILE}"
-echo "✔ Successfully generated: ${OUTPUT_FILE}"
+echo "==> Successfully generated: ${OUTPUT_FILE}"

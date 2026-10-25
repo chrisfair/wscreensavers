@@ -1,4 +1,4 @@
-# WScreenSavers — Noctalia Plugin (`christopherpfair/wscreensavers`)
+# WScreenSavers - Noctalia Plugin (`christopherpfair/wscreensavers`)
 
 Native Noctalia 5.0 (`plugin_api = 9`) bar widget and floating control panel for **WScreenSavers**.
 

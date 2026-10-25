@@ -36,7 +36,7 @@
             <polyline points="9 12 11 14 15 10" />
           </svg>
           <div>
-            <div class="banner-title">Author Machine Verified — Startup Prompt Disabled</div>
+            <div class="banner-title">Author Machine Verified - Startup Prompt Disabled</div>
             <p class="banner-desc">
               Authenticated via linked author ID
               <span class="mono-id">({{ status.authorId }})</span>.

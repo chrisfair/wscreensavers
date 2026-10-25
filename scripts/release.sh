@@ -65,7 +65,7 @@ sed -i "s/tag: v${CURRENT_VER}/tag: v${NEW_VER}/" packaging/flatpak/com.github.c
 # 8. packaging/snap/snapcraft.yaml
 sed -i "s/^version: .*/version: '${NEW_VER}'/" packaging/snap/snapcraft.yaml
 
-echo "✔ All 8 packaging manifests updated to v${NEW_VER}"
+echo "==> All 8 packaging manifests updated to v${NEW_VER}"
 
 echo "==> Committing version bump to main..."
 git add PKGBUILD flake.nix packaging/
@@ -87,7 +87,7 @@ if [ -z "${SUM}" ] || [ ${#SUM} -ne 64 ]; then
     echo "Error: Failed to fetch valid sha256 checksum from GitHub."
     exit 1
 fi
-echo "✔ LIVE SHA256: ${SUM}"
+echo "==> LIVE SHA256: ${SUM}"
 
 echo "==> Updating PKGBUILD and regenerating .SRCINFO..."
 sed -i "s/^sha256sums=.*/sha256sums=('${SUM}')/" PKGBUILD
@@ -134,7 +134,7 @@ echo "==> Cleaning up local build artifacts..."
 rm -f wscreensavers*${NEW_VER}*
 
 echo "=========================================================="
-echo "✔ Release v${NEW_VER} complete!"
+echo "==> Release v${NEW_VER} complete!"
 echo "  - GitHub Release: https://github.com/chrisfair/wscreensavers/releases/tag/v${NEW_VER}"
 echo "  - AUR Package:    https://aur.archlinux.org/packages/wscreensavers"
 echo "=========================================================="

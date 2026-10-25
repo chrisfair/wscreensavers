@@ -39,4 +39,4 @@ WScreenSavers includes **24 built-in WebGL2 and Canvas visualizers** with zero e
 
 In addition to these 23 native engines, WScreenSavers can run any of the **310+ classic XScreenSaver hacks** (`anemone`, `glknots`, `superquadrics`, `sierpinski3d`, etc.) via its built-in Wayland stream bridge.
 
-👉 **See the [XScreenSaver Packages Guide](xscreensaver-packages.md) to unlock all 330+ visualizers.**
+See the [XScreenSaver Packages Guide](xscreensaver-packages.md) to install all 330+ visualizers.

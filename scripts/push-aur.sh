@@ -67,7 +67,7 @@ echo "==> Verifying package integrity with makepkg..."
 if [ -n "$(git -C "${CLONE_DIR}" status --porcelain)" ]; then
     git -C "${CLONE_DIR}" commit -am "Update to v${VERSION}"
     git -C "${CLONE_DIR}" push origin master
-    echo "✔ Successfully updated AUR package to v${VERSION}"
+    echo "==> Successfully updated AUR package to v${VERSION}"
 else
-    echo "✔ AUR package is already up to date with v${VERSION}"
+    echo "==> AUR package is already up to date with v${VERSION}"
 fi

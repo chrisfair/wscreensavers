@@ -28,4 +28,4 @@ cp "${SCRIPT_DIR}/wscreensavers.spec" "${RPM_TOPDIR}/SPECS/"
 
 rpmbuild --define "_topdir ${RPM_TOPDIR}" -ba "${RPM_TOPDIR}/SPECS/wscreensavers.spec"
 cp "${RPM_TOPDIR}"/RPMS/*/*.rpm "${ROOT_DIR}/" || true
-echo "✔ RPM build complete."
+echo "==> RPM build complete."

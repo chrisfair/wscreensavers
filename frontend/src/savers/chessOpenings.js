@@ -1,4 +1,4 @@
-// Chess Openings Screensaver — True 3D Master Chess Opening Visualizer
+// Chess Openings Screensaver - True 3D Master Chess Opening Visualizer
 // Matches the visual aesthetics and 3D rendering of XScreenSaver's classic "endgame":
 // - Full 3D Staunton pieces (Pawn, Rook, Knight, Bishop, Queen, King)
 // - Specular-lit 3D checkered board with raised beveled wooden frame
@@ -360,7 +360,6 @@ function sqToWorld(f, r) {
   };
 }
 
-// --- Staunton 3D Geometry Factory ---
 function buildStauntonTemplates() {
   // Pawn
   const pawnPts = [

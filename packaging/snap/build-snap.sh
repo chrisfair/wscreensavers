@@ -18,4 +18,4 @@ fi
 
 echo "==> Building Snap package..."
 (cd "${SCRIPT_DIR}" && snapcraft)
-echo "✔ Snap build complete."
+echo "==> Snap build complete."

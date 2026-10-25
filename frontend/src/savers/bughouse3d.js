@@ -1,4 +1,4 @@
-// Apex 3D Chess Screensaver — bughouse-online.com Spatial Chess Arena
+// Apex 3D Chess Screensaver - bughouse-online.com Spatial Chess Arena
 // 8x8x5 3-dimensional chess arena from bughouse-online.com:
 // - 5 full 8x8 tiered boards (Levels A, B, C, D, E) comprising 320 coordinate cells
 // - 3D Staunton pieces + Royal Princesses and Princes
@@ -283,49 +283,31 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       const orbitSpeed = p.orbitSpeed !== undefined ? Number(p.orbitSpeed) : 0.6;
       const showHud = p.showHud !== undefined ? Boolean(p.showHud) : true;
 
-      // -------------------------------------------------------------
-      // Pure Diagonal Orbit & Smooth Zoom-In / Zoom-Out
-      // - Focal center is 100% locked at the screen center (0, 0, 0)
-      // - ZERO up-and-down movement (rock-solid camera elevation at y = 5.6)
-      // - Relies exclusively on smooth diagonal rotation and graceful zoom-in/out
-      // -------------------------------------------------------------
       animTime += dt * 0.24 * orbitSpeed;
-
-      // 1. Continuous smooth orbit pace (~55 seconds per full revolution)
       orbitAngle += dt * 0.115 * orbitSpeed;
 
-      // 2. Smooth zoom-in / zoom-out cycles (~26 seconds per cycle)
-      // Outward: ~25.8 (frames the entire 5-tier board & corner pillars cleanly)
-      // Inward:  ~16.8 (closer look at the active pieces)
       const targetRadius = 21.3 + Math.sin(animTime) * 4.5;
       currentCamRadius += (targetRadius - currentCamRadius) * Math.min(1.0, dt * 1.5);
 
-      // 3. ROCK-SOLID constant camera elevation: strictly 5.6, zero vertical movement
       camera.position.y = 5.6;
 
-      // 4. Smooth diagonal elliptical rotation
       const diagAngle = orbitAngle + Math.PI / 4;
       camera.position.x = Math.sin(diagAngle) * (currentCamRadius * 1.14);
       camera.position.z = Math.cos(diagAngle) * (currentCamRadius * 0.90);
 
-      // 5. Focal point locked permanently at the center point (0, 0, 0)
-      // Center of the screen never moves or shifts on any move!
       camera.lookAt(0, 0, 0);
       camera.up.set(0, 1, 0);
 
-      // Move Dispatch
       if (!activeMoveAnim && !isGameOver && now >= nextMoveTimer) {
         triggerNextEngineMove();
       } else if (isGameOver && now >= gameOverResetTimer) {
         resetGame();
       }
 
-      // Active Move Parabolic Flight & Graceful Easing
       if (activeMoveAnim) {
         const elapsed = now - activeMoveAnim.startTime;
         const t = Math.min(1.0, elapsed / activeMoveAnim.durationMs);
 
-        // Sine easeInOut for natural, organic momentum
         const ease = 0.5 - 0.5 * Math.cos(t * Math.PI);
         const start = activeMoveAnim.startPos;
         const target = activeMoveAnim.targetPos;
@@ -338,14 +320,12 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
         const arc = Math.sin(t * Math.PI) * arcPeak;
         activeMoveAnim.entry.mesh.position.y = start.y + (target.y - start.y) * ease + arc;
 
-        // Graceful forward tilt / lean in direction of flight
         const dx = target.x - start.x;
         const dz = target.z - start.z;
         const tiltFactor = Math.sin(t * Math.PI);
         activeMoveAnim.entry.mesh.rotation.z = -dx * tiltFactor * 0.07;
         activeMoveAnim.entry.mesh.rotation.x = dz * tiltFactor * 0.07;
 
-        // Gracefully shrink & dissolve captured piece
         if (activeMoveAnim.captured) {
           const fadeScale = Math.max(0.001, 1.0 - Math.pow(t, 1.6));
           activeMoveAnim.captured.mesh.scale.setScalar(fadeScale);
@@ -356,10 +336,8 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
         }
       }
 
-      // Render 3D Scene
       renderer.render(scene, camera);
 
-      // Render 2D Glassmorphic HUD Overlay (spotlighting bughouse-online.com)
       if (hudCtx && showHud) {
         renderHUD(hudCtx, hudCanvas.width, hudCanvas.height, game, lastMoveDesc, moveCount, moveHistoryLog, isGameOver);
       } else if (hudCtx) {
@@ -369,9 +347,6 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   };
 }
 
-// -------------------------------------------------------------
-// 3D Boards & Environment Construction
-// -------------------------------------------------------------
 function buildBoards(parentGroup) {
   const squareGeo = new THREE.BoxGeometry(0.96, 0.08, 0.96);
   const borderGeo = new THREE.BoxGeometry(8.5, 0.12, 8.5);
@@ -479,9 +454,6 @@ function buildBoards(parentGroup) {
   });
 }
 
-// -------------------------------------------------------------
-// Procedural Staunton & Royal Piece Meshes
-// -------------------------------------------------------------
 function createRealisticPieceGroup(char) {
   const group = new THREE.Group();
   const isWhite = char === char.toUpperCase();
@@ -716,9 +688,6 @@ function createRealisticPieceGroup(char) {
   return group;
 }
 
-// -------------------------------------------------------------
-// 2D Glassmorphic HUD & bughouse-online.com Spotlighting
-// -------------------------------------------------------------
 function renderHUD(ctx, width, height, game, lastMoveDesc, moveCount, history, isGameOver) {
   ctx.clearRect(0, 0, width, height);
 

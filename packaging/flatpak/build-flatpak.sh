@@ -21,4 +21,4 @@ fi
 
 echo "==> Building Flatpak package..."
 flatpak-builder --force-clean --repo="${REPO_DIR}" "${BUILD_DIR}" "${SCRIPT_DIR}/com.github.chrisfair.wscreensavers.yml"
-echo "✔ Flatpak build complete."
+echo "==> Flatpak build complete."

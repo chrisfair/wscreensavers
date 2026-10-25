@@ -193,7 +193,7 @@ func main() {
 	// Mode 3: Native Wails v2 Desktop Control Center
 	app := NewApp(cfgMgr, srv)
 	err = wails.Run(&options.App{
-		Title:     "WScreenSavers — Wayland Screensaver & Wallpaper Suite",
+		Title:     "WScreenSavers - Wayland Screensaver & Wallpaper Suite",
 		Width:     1400,
 		Height:    900,
 		MinWidth:  1024,

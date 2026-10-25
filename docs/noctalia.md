@@ -96,7 +96,7 @@ The floating panel (`christopherpfair/wscreensavers:controls`) offers comprehens
 * **Live Desktop Wallpaper**:
   - Layout Mode: `Same on All` or `Unique Per Screen`.
   - In **Unique Per Screen** mode, each detected monitor (`HDMI-A-1`, `DP-2`, etc.) is listed with its active wallpaper and a `Use Selected` button.
-  - `🎲 Randomize Unique Set`: Shuffles distinct wallpapers across all screens with zero repeats.
+  - `Randomize Unique Set`: Shuffles distinct wallpapers across all screens without repeats.
   - Background layer FPS cap slider (`15` to `60` FPS).
 * **Screensaver Catalog & Category Filter**:
   - Search by name or category.

@@ -1,8 +1,8 @@
-# Unlocking All 330+ XScreenSaver Visualizers
+# Installing Additional XScreenSaver Visualizers
 
-WScreenSavers ships with **23 built-in WebGL2/Canvas visualizers** that run out of the box with zero external dependencies.
+WScreenSavers includes 24 built-in WebGL2/Canvas visualizers that run without external dependencies.
 
-However, WScreenSavers also includes an **XScreenSaver Universal Bridge**. When you install your Linux distribution's standard XScreenSaver packages, WScreenSavers automatically discovers all **310+ classic and 3D OpenGL hacks** located in `/usr/lib/xscreensaver/` or `/usr/libexec/xscreensaver/`, parses their original XML option definitions, and seamlessly streams them into native Wayland layer-shell surfaces.
+It also includes an XScreenSaver XML bridge. When your distribution's standard XScreenSaver packages are installed, WScreenSavers scans `/usr/lib/xscreensaver/` and `/usr/libexec/xscreensaver/`, parses their XML option definitions, and streams them into native Wayland layer-shell surfaces.
 
 ---
 
