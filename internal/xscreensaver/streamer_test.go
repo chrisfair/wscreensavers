@@ -61,6 +61,16 @@ func TestNormalizeSize(t *testing.T) {
 func TestStopClientWithoutSession(t *testing.T) {
 	s := NewStreamer()
 	s.StopClient("DP-1", "c_missing") // must not panic or start anything
+	sess := s.sessionFor("DP-1")
+	ctx, release := sess.registerClientStream("c_1", t.Context())
+	if ctx == nil {
+		t.Fatal("expected non-nil stream context")
+	}
+	// Replace same client stream
+	_, release2 := sess.registerClientStream("c_1", t.Context())
+	release()
+	release2()
+	_, _ = findFallbackBinary("")
 	s.StopAll()
 }
 

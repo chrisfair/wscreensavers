@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <wayland-client.h>
 
 struct wayland_idle_state {
@@ -142,6 +143,9 @@ int wayland_idle_poll(wayland_idle_t *state, int timeout_ms) {
     int ret = poll(pfds, nfds, timeout_ms);
     if (ret < 0) {
         wl_display_cancel_read(state->display);
+        if (errno == EINTR) {
+            return 0;
+        }
         return -1;
     }
 

@@ -88,6 +88,17 @@ func TestParseXMLReaderAndBuildArgs(t *testing.T) {
 			t.Errorf("expected CLI args %q to contain %q", joined, sub)
 		}
 	}
+
+	// Verify rss-glx (<command arg="-r"/>) automatically appends -y 0 -M 0 for Xvfb compatibility
+	rssXML := `<screensaver name="biof" _label="BioF"><command arg="-r"/></screensaver>`
+	rssSaver, err := ParseXMLReader(strings.NewReader(rssXML), "/usr/lib/xscreensaver/biof")
+	if err != nil {
+		t.Fatalf("failed to parse rss-glx xml: %v", err)
+	}
+	rssArgs := strings.Join(BuildCommandArgs(*rssSaver, nil), " ")
+	if !strings.Contains(rssArgs, "-r -y 0 -M 0") {
+		t.Errorf("expected rss-glx args to include '-r -y 0 -M 0', got %q", rssArgs)
+	}
 }
 
 func TestDiscoverAndRunner(t *testing.T) {

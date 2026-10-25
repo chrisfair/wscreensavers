@@ -127,4 +127,23 @@ func TestSupportManager_PricingTiers(t *testing.T) {
 	if !life350 || dur350 != 0 || label350 != "$350 King (Super Thanks • Lifetime)" {
 		t.Fatalf("$350 tier mismatch: dur=%v, label=%s, life=%v", dur350, label350, life350)
 	}
+
+	for _, amt := range []int{1, 5, 10, 35, 350, 99} {
+		u := StripeURLForAmount(amt, "https://example.com/fallback")
+		if u == "" {
+			t.Errorf("expected non-empty StripeURLForAmount(%d)", amt)
+		}
+	}
+	if u := BuildCheckoutURL("https://buy.stripe.com/test", "ref_1"); u == "" {
+		t.Errorf("expected non-empty checkout url")
+	}
+	if u := BuildCheckoutURL("https://buy.stripe.com/test?foo=1", "ref_2"); u == "" {
+		t.Errorf("expected non-empty checkout url with existing query")
+	}
+	_ = DetectAuthor()
+
+	mgr, _ := NewManager(filepath.Join(t.TempDir(), "support.json"))
+	if err := mgr.SetStripeURL("https://buy.stripe.com/custom"); err != nil {
+		t.Errorf("SetStripeURL failed: %v", err)
+	}
 }

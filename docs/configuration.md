@@ -1,4 +1,4 @@
-# 🚀 Compositor & CLI Configuration Guide
+# Compositor & CLI Configuration Guide
 
 WScreenSavers runs on standard Wayland protocols (`zwlr_layer_shell_v1` and `ext-idle-notify-v1`) and integrates natively with Hyprland, Sway, River, Wayfire, and KDE.
 

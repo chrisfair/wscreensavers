@@ -13,15 +13,19 @@ func TestCtlCommands(t *testing.T) {
 		t.Fatalf("failed to create config manager: %v", err)
 	}
 
-	// 1. Test status
+	// 1. Test status & get
 	if err := Run(cfgMgr, []string{"status"}); err != nil {
 		t.Fatalf("expected status to succeed, got: %v", err)
+	}
+	if err := Run(cfgMgr, []string{"get"}); err != nil {
+		t.Fatalf("expected get to succeed, got: %v", err)
 	}
 
 	// 2. Test set commands
 	cases := [][]string{
 		{"set", "mode", "single"},
 		{"set", "selectedSaver", "boing"},
+		{"set", "saver", "flurry"},
 		{"set", "multiMonitorMode", "clone"},
 		{"set", "idleTimeoutMinutes", "20"},
 		{"set", "cycleTimeoutMinutes", "10"},
@@ -31,8 +35,12 @@ func TestCtlCommands(t *testing.T) {
 		{"set", "inhibitOnAudio", "false"},
 		{"set", "inhibitOnFullscreen", "false"},
 		{"set", "wallpaperSaver", "glmatrix"},
+		{"set", "wallpaperMode", "per-monitor"},
+		{"set", "wallpaperMode", "single"},
+		{"set", "wallpaperPerMonitor", "DP-1=flurry"},
 		{"set", "wallpaperFpsCap", "45"},
 		{"set", "xssMaxStreamDim", "1280"},
+		{"set", "dpmsOffMinutes", "15"},
 	}
 
 	for _, args := range cases {
@@ -42,16 +50,29 @@ func TestCtlCommands(t *testing.T) {
 	}
 
 	cfg := cfgMgr.Get()
-	if cfg.SelectedSaver != "boing" || cfg.IdleTimeoutMinutes != 20 || cfg.WallpaperFPSCap != 45 || cfg.XSSMaxStreamDim != 1280 {
+	if cfg.SelectedSaver != "flurry" || cfg.IdleTimeoutMinutes != 20 || cfg.WallpaperFPSCap != 45 || cfg.XSSMaxStreamDim != 1280 || cfg.DPMSOffMinutes != 15 {
 		t.Errorf("unexpected updated config values: %+v", cfg)
 	}
 
-	// 3. Test randomize (without launch)
+	// 3. Test pool commands
+	poolCases := [][]string{
+		{"pool", "toggle", "glmatrix"},
+		{"pool", "toggle", "glmatrix"},
+		{"pool", "none"},
+		{"pool", "all"},
+	}
+	for _, args := range poolCases {
+		if err := Run(cfgMgr, args); err != nil {
+			t.Errorf("expected ctl %v to succeed, got: %v", args, err)
+		}
+	}
+
+	// 4. Test randomize (without launch)
 	if err := Run(cfgMgr, []string{"randomize"}); err != nil {
 		t.Errorf("expected randomize to succeed, got: %v", err)
 	}
 
-	// 4. Test nag disable
+	// 5. Test nag disable & status
 	if err := Run(cfgMgr, []string{"nag", "off"}); err != nil {
 		t.Errorf("expected nag off to succeed, got: %v", err)
 	}
@@ -59,11 +80,20 @@ func TestCtlCommands(t *testing.T) {
 		t.Errorf("expected nag status to succeed, got: %v", err)
 	}
 
-	// 5. Test invalid key/command error handling
-	if err := Run(cfgMgr, []string{"set", "invalidKey", "123"}); err == nil {
-		t.Errorf("expected error on invalid set key")
+	// 6. Test invalid key/command error handling
+	errCases := [][]string{
+		{"set"},
+		{"set", "onlyOneArg"},
+		{"set", "invalidKey", "123"},
+		{"pool"},
+		{"pool", "toggle"},
+		{"pool", "unknownAction"},
+		{"nag", "invalidSub"},
+		{"unknownCommand"},
 	}
-	if err := Run(cfgMgr, []string{"unknownCommand"}); err == nil {
-		t.Errorf("expected error on unknown ctl command")
+	for _, args := range errCases {
+		if err := Run(cfgMgr, args); err == nil {
+			t.Errorf("expected error for ctl %v", args)
+		}
 	}
 }

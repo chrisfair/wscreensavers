@@ -1,11 +1,10 @@
 // Apex 3D Chess Screensaver — bughouse-online.com Spatial Chess Arena
-// Recreates the breathtaking 8x8x5 3-dimensional chess game from bughouse-online.com:
+// 8x8x5 3-dimensional chess arena from bughouse-online.com:
 // - 5 full 8x8 tiered boards (Levels A, B, C, D, E) comprising 320 coordinate cells
-// - Realistic 3D Staunton pieces + Royal Princesses and Princes
+// - 3D Staunton pieces + Royal Princesses and Princes
 // - Dimensional portal transit corridors & Red Wall demarcations
-// - Autonomous real-time Engine vs Engine engine battles (Alpha-Beta minimax)
-// - Cinematic smooth camera orbit with dynamic elevation drifting
-// - Gorgeous glassmorphic HUD spotlighting bughouse-online.com
+// - Real-time minimax engine battles
+// - Smooth camera orbit with HUD overlay
 
 import * as THREE from 'three';
 import {
@@ -99,7 +98,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
   // Build the 8x8x5 multi-level boards
   buildBoards(boardsGroup);
 
-  // Game Engine & Engine State
+  // Game Engine State
   let game = new ThreeDGame();
   let pieceMeshes = [];
   let moveHistoryLog = [];
@@ -141,7 +140,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     }
   }
 
-  function triggerNextAIMove() {
+  function triggerNextEngineMove() {
     if (isGameOver || activeMoveAnim) return;
 
     if (game.result && game.result.isOver) {
@@ -150,7 +149,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       return;
     }
 
-    // Engine Best Move search (depth 1 with 16 candidates: blazing fast ~35ms, zero main-thread freeze!)
+    // Best move search (depth 1 with 16 candidates)
     const best = game.findBestMove(1, 16, 0.12);
     if (!best || !best.from || !best.to) {
       isGameOver = true;
@@ -316,7 +315,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
 
       // Move Dispatch
       if (!activeMoveAnim && !isGameOver && now >= nextMoveTimer) {
-        triggerNextAIMove();
+        triggerNextEngineMove();
       } else if (isGameOver && now >= gameOverResetTimer) {
         resetGame();
       }
@@ -754,7 +753,7 @@ function renderHUD(ctx, width, height, game, lastMoveDesc, moveCount, history, i
   // Subtitle
   ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#94a3b8';
-  ctx.fillText('5-Tier Spatial Chess Arena • 320 Coordinate Cells • Engine Battle', pad + 14, pad + 72);
+  ctx.fillText('5-Tier Spatial Chess Arena • 320 Coordinate Cells • Engine Match', pad + 14, pad + 72);
 
   // Live status pill
   ctx.fillStyle = game.turn === 'w' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(15, 23, 42, 0.85)';

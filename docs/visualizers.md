@@ -1,4 +1,4 @@
-# 🎨 Native Visualizers Catalog
+# Native Visualizers Catalog
 
 WScreenSavers includes **24 built-in WebGL2 and Canvas visualizers** with zero external dependencies. Each visualizer runs smoothly at native display refresh rates (60–144Hz+) and features customizable parameters in the Control Center Studio.
 
@@ -8,7 +8,7 @@ WScreenSavers includes **24 built-in WebGL2 and Canvas visualizers** with zero e
 
 | Visualizer | Category | Engine | Description |
 | :--- | :--- | :--- | :--- |
-| **Apex 3D Chess** | Board Games & 3D | WebGL2 / Three.js | Spectacular 8x8x5 spatial 3D chess arena spotlighting **bughouse-online.com** with 5 multi-tiered glass boards (320 cells), 3D Staunton pieces, Royal Princesses and Princes, dimensional portal corridors, neon forcefields, and real-time automated engine matches. |
+| **Apex 3D Chess** | Board Games & 3D | WebGL2 / Three.js | 8x8x5 spatial 3D chess arena from **bughouse-online.com** with 5 multi-tiered glass boards (320 cells), 3D Staunton pieces, Royal Princesses and Princes, dimensional portal corridors, forcefields, and real-time engine battles. |
 | **Chess Openings (3D)** | Board Games | WebGL2 / Three.js | Grandmaster openings (Najdorf, Berlin, Queen's Gambit, King's Indian) with 3D Staunton pieces, specular board, parabolic lift arcs, and smooth camera orbit matching classic `endgame`. |
 | **GLMatrix** | Matrix & Cyber | WebGL2 | 3D Matrix katakana glyph digital rain with depth fog, volumetric glow, and camera drift. |
 | **Flurry** | 3D OpenGL Classics | WebGL2 | Luminous multi-stream particle smoke plumes swirling around oscillating gravitational attractors with additive blending. |

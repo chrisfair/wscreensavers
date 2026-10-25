@@ -27,6 +27,7 @@ import (
 	"wscreensavers/internal/config"
 	"wscreensavers/internal/ctl"
 	"wscreensavers/internal/display"
+	"wscreensavers/internal/idle"
 	"wscreensavers/internal/layershell"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/singleton"
@@ -76,16 +77,17 @@ func main() {
 		distFS = assets
 	}
 
-	// Overlay modes allow only one instance each, so a repeated hotkey press
-	// does not stack windows. The wait lets a process being replaced by
-	// `ctl launch` finish exiting first.
-	if *saverMode || *lockMode || *wallpaperMode {
+	// Overlay and daemon modes allow only one instance each, so a repeated hotkey
+	// press or duplicate autostart entry does not stack processes.
+	if *saverMode || *lockMode || *wallpaperMode || *daemonMode {
 		lockName := "saver"
 		switch {
 		case *lockMode:
 			lockName = "lock"
 		case *wallpaperMode:
 			lockName = "wallpaper"
+		case *daemonMode:
+			lockName = "daemon"
 		}
 
 		acquireFunc := singleton.Acquire
@@ -130,11 +132,35 @@ func main() {
 
 		// Temporarily disable any active background live wallpaper to free all GPU and compositor resources
 		if *saverMode || *lockMode {
+			_ = srv.SetDPMS(true)
 			layershell.StopMatchingWallpaperProcesses()
+		}
+
+		startedAt := time.Now()
+		var stopSeatWake func()
+		if *saverMode || *lockMode {
+			stopSeatWake = idle.StartSeatWakeListener(func() {
+				if *saverMode {
+					if time.Since(startedAt) > 900*time.Millisecond {
+						_ = srv.SetDPMS(true)
+						layershell.RequestQuit()
+					}
+				} else if *lockMode {
+					srv.RecordWake()
+					go func() { _ = srv.SetDPMS(true) }()
+				}
+			})
 		}
 
 		urls := buildMonitorURLs(baseURL, cfgMgr, srv, *saverIDFlag, *wallpaperMode, *lockMode)
 		layershell.RunLayerShellWindows(urls, *wallpaperMode, *lockMode)
+
+		if stopSeatWake != nil {
+			stopSeatWake()
+		}
+		if *saverMode || *lockMode {
+			_ = srv.SetDPMS(true)
+		}
 
 		// When screensaver or lock screen finishes and exits, resume live wallpaper if enabled in user configuration
 		if (*saverMode || *lockMode) && cfgMgr.Get().WallpaperEnabled {

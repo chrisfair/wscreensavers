@@ -38,6 +38,7 @@ type Server struct {
 	baseURL     string
 
 	currentSaver string // guarded by mu; saver most recently handed to the overlay
+	lastWakeMs   int64
 }
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
@@ -50,8 +51,16 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 		xssRunner:   xscreensaver.NewRunner(),
 		xssStreamer: xscreensaver.NewStreamer(),
 		frontendFS:  frontendFS,
+		lastWakeMs:  time.Now().UnixMilli(),
 	}
+	idleMon.OnResume(func() {
+		srv.mu.Lock()
+		srv.lastWakeMs = time.Now().UnixMilli()
+		srv.mu.Unlock()
+		layershell.WakeAllWindows()
+	})
 	srv.layerCtrl = layershell.NewProcessController(func() {
+		_ = srv.SetDPMS(true)
 		idleMon.SetScreensaverActive(false, false)
 		idleMon.RecordActivity()
 		srv.xssRunner.StopAll()
@@ -71,6 +80,22 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	})
 	srv.RefreshCatalog()
 	return srv
+}
+
+func (s *Server) RecordWake() int64 {
+	now := time.Now().UnixMilli()
+	s.mu.Lock()
+	s.lastWakeMs = now
+	s.mu.Unlock()
+	s.idleMon.RecordActivity()
+	layershell.WakeAllWindows()
+	return now
+}
+
+func (s *Server) LastWakeMs() int64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.lastWakeMs
 }
 
 func (s *Server) RefreshCatalog() []models.Screensaver {
@@ -164,6 +189,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/action/toggle-wallpaper", s.handleToggleWallpaper)
 	mux.HandleFunc("/api/action/dpms-off", s.handleDPMSOff)
 	mux.HandleFunc("/api/action/dpms-on", s.handleDPMSOn)
+	mux.HandleFunc("/api/action/wake", s.handleWake)
 	mux.HandleFunc("/api/support", s.handleSupportStatus)
 	mux.HandleFunc("/api/support/dismiss", s.handleSupportDismiss)
 	mux.HandleFunc("/api/support/record", s.handleSupportRecord)
@@ -254,12 +280,17 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	s.currentSaver = saverID
 	s.mu.Unlock()
 
+	_ = s.SetDPMS(true)
 	s.idleMon.SetScreensaverActive(true, locked)
 
 	// Stop live wallpaper so it doesn't render or stack under the fullscreen screensaver
 	s.layerCtrl.StopWallpaper()
 
-	return s.layerCtrl.StartSaverOverlay(s.baseURL, saverID, locked)
+	err := s.layerCtrl.StartSaverOverlay(s.baseURL, saverID, locked)
+	if err != nil {
+		s.idleMon.SetScreensaverActive(false, false)
+	}
+	return err
 }
 
 func (s *Server) StopScreensaver() {
@@ -329,6 +360,11 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 				continue
 			}
 			st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
+			if st.ScreensaverActive && !s.layerCtrl.IsSaverRunning() {
+				s.idleMon.SetScreensaverActive(false, false)
+				st.ScreensaverActive = false
+				st.Locked = false
+			}
 			if st.Inhibited {
 				s.idleMon.RecordActivity()
 				continue
@@ -341,7 +377,6 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 				_ = s.LaunchScreensaver("", false)
 			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled &&
 				int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
-				// In cycle mode keep the saver that is on screen rather than jumping to the next one.
 				_ = s.LaunchScreensaver(s.lockSaverID(cfg), true)
 			} else if st.ScreensaverActive && !st.Locked && cfg.Mode == "cycle" &&
 				cfg.CycleTimeoutMinutes > 0 &&
@@ -532,6 +567,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"username":        auth.CurrentUsername(),
 		"baseUrl":         s.baseURL,
 		"otherWallpapers": display.OtherWallpaperPrograms(),
+		"lastWakeMs":      s.LastWakeMs(),
 	})
 }
 
@@ -609,14 +645,20 @@ func (s *Server) handleToggleWallpaper(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.cfgMgr.Get())
 }
 
-// SetDPMS manages Wayland/display power management (Hyprland, Sway, wlr-randr).
+// SetDPMS manages Wayland/display power management (Hyprland, Sway, wlr-randr) across all monitors.
 func (s *Server) SetDPMS(on bool) error {
 	arg := "on"
 	if !on {
 		arg = "off"
 	}
+	mons := display.DetectMonitors()
 	if _, err := exec.LookPath("hyprctl"); err == nil {
 		_ = exec.Command("hyprctl", "dispatch", "dpms", arg).Run()
+		for _, m := range mons {
+			if m.Name != "" && m.Name != "default" {
+				_ = exec.Command("hyprctl", "dispatch", "dpms", arg, m.Name).Run()
+			}
+		}
 	}
 	if _, err := exec.LookPath("swaymsg"); err == nil {
 		_ = exec.Command("swaymsg", "output", "*", "dpms", arg).Run()
@@ -626,7 +668,11 @@ func (s *Server) SetDPMS(on bool) error {
 		if !on {
 			wlrArg = "--off"
 		}
-		_ = exec.Command("wlr-randr", wlrArg).Run()
+		for _, m := range mons {
+			if m.Name != "" && m.Name != "default" {
+				_ = exec.Command("wlr-randr", "--output", m.Name, wlrArg).Run()
+			}
+		}
 	}
 	return nil
 }
@@ -637,9 +683,15 @@ func (s *Server) handleDPMSOff(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDPMSOn(w http.ResponseWriter, r *http.Request) {
+	wakeMs := s.RecordWake()
 	_ = s.SetDPMS(true)
-	s.idleMon.RecordActivity()
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "dpms": "on"})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "dpms": "on", "lastWakeMs": wakeMs})
+}
+
+func (s *Server) handleWake(w http.ResponseWriter, r *http.Request) {
+	wakeMs := s.RecordWake()
+	go func() { _ = s.SetDPMS(true) }()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lastWakeMs": wakeMs})
 }
 
 func (s *Server) ensureSupportMgr() *support.Manager {

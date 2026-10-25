@@ -13,38 +13,35 @@
 </p>
 
 <p align="center">
-  <strong>The definitive native Wayland screensaver, PAM lock screen, and live desktop wallpaper suite.</strong><br />
-  Brings Jamie Zawinski's legendary 330+ <strong>XScreenSaver</strong> hacks and modern hardware-accelerated 3D WebGL visualizers to Wayland compositors (Hyprland, Sway, River, Wayfire, and KDE).
+  Wayland screensaver, PAM lock screen, and live wallpaper daemon.<br />
+  Runs 310+ classic <strong>XScreenSaver</strong> binaries and 24 built-in WebGL2 visualizers on Wayland compositors (Hyprland, Sway, River, Wayfire, and KDE).
 </p>
 
 ---
 
-## 🌟 Overview
+## Overview
 
-For years, Wayland compositors lacked a native, lightweight screensaver solution because classic XScreenSaver relied on X11 root-window hacks that do not work on Wayland.
+Classic XScreenSaver relies on X11 root-window drawing and X11 server grabs, which do not work on Wayland compositors. `wscreensavers` bridges that gap using standard Wayland protocols (`zwlr_layer_shell_v1` and `ext-idle-notify-v1`):
 
-**WScreenSavers** solves this cleanly using standard Wayland protocols (`zwlr_layer_shell_v1` and `ext-idle-notify-v1`):
-
-* **Dual-Engine Architecture**:
-  * **24 Native WebGL2 Visualizers**: Hand-crafted Apex 3D Chess (spotlighting bughouse-online.com), 3D Chess Openings, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and more.
-  * **Universal XScreenSaver Bridge**: Zero-overhead Wayland stream bridge for all **310+** original `/usr/lib/xscreensaver/*` binaries (`endgame`, `anemone`, `glknots`, `sierpinski3d`, etc.).
-* **Wayland Live Desktop Wallpapers**: Turn any visualizer into a 60 FPS animated desktop background with per-monitor unique assignments and auto-pause on lock.
-* **Glassmorphic PAM Screen Lock**: Native PAM password authentication overlay or seamless handoff to `hyprlock` / `swaylock`.
-* **Multi-Monitor Superpowers**: Run independent random visualizers per monitor, synchronized clones, or pin specific visualizers to specific screens.
-* **Smart Media & Game Inhibition**: Automatically inhibits blanking during audio/video playback (PipeWire/PulseAudio) or fullscreen games.
-* **Noctalia Desktop Shell Integration**: Official floating control deck, status bar widget, and IPC controls.
+- **24 Built-in WebGL2 Visualizers**: Includes Apex 3D Chess (`bughouse-online.com`), 3D Chess Openings, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and others.
+- **XScreenSaver Bridge**: Streams installed `/usr/lib/xscreensaver/*` and `rss-glx` binaries onto Wayland layer-shell surfaces (`endgame`, `anemone`, `glknots`, `sierpinski3d`, etc.).
+- **Live Wallpapers**: Renders any screensaver on the `zwlr_layer_shell_v1` background layer with configurable FPS caps, per-monitor assignments, and automatic pause when locked.
+- **PAM Screen Lock**: Built-in PAM authentication overlay or delegation to `hyprlock` / `swaylock`.
+- **Multi-Monitor Support**: Run independent random savers per output, cloned displays, or pin specific savers to specific monitors.
+- **Audio & Fullscreen Inhibition**: Pauses idle timers during PipeWire/PulseAudio playback or when a fullscreen window is active.
+- **Noctalia Plugin**: Includes a status bar widget, control panel, and `wscreensavers ctl` CLI interface.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
-| Studio Control Center | Noctalia Floating Deck |
+| Studio Control Center | Noctalia Control Panel |
 | :---: | :---: |
 | <img src="assets/screenshot-studio.png" width="420" style="border-radius: 8px;" /> | <img src="assets/screenshot-noctalia.png" width="420" style="border-radius: 8px;" /> |
 
 ---
 
-## ⚡ Quick Install
+## Quick Install
 
 ```bash
 # Arch Linux / Manjaro / CachyOS (AUR)
@@ -52,71 +49,56 @@ paru -S wscreensavers
 # or: yay -S wscreensavers
 ```
 
-Pre-built binaries are also available on [**GitHub Releases**](https://github.com/chrisfair/wscreensavers/releases) (`.AppImage`, `.deb`, `.pkg.tar.xz`, `.tar.gz`) and via Nix flakes (`nix run github:chrisfair/wscreensavers`).
+Pre-built packages (`.AppImage`, `.deb`, `.pkg.tar.xz`, `.tar.gz`) are available on [GitHub Releases](https://github.com/chrisfair/wscreensavers/releases), or via Nix flakes (`nix run github:chrisfair/wscreensavers`).
 
 ---
 
-## 📚 Documentation & Guides
-
-Everything you need to configure and customize WScreenSavers is detailed in dedicated guides:
+## Documentation
 
 | Guide | Description |
 | :--- | :--- |
-| 📦 [**Installation Guide**](docs/installation.md) | Package manager instructions, pre-built binary downloads, and source compilation. |
-| 🚀 [**Compositor & CLI Guide**](docs/configuration.md) | Setup for Hyprland, Sway, River, systemd service, and complete `wscreensavers ctl` command reference. |
-| 🎨 [**24 Native Visualizers**](docs/visualizers.md) | Full catalog of built-in WebGL2 & Canvas visualizers with descriptions. |
-| 🌐 [**Unlocking 330+ XScreenSavers**](docs/xscreensaver-packages.md) | How to install distro packages to unlock all 310+ classic visualizers (with guides for Arch, Debian/Ubuntu, Fedora, openSUSE, Slackware, NixOS, Alpine, and Gentoo). |
-| 🧩 [**Noctalia Integration**](docs/noctalia.md) | Installing and configuring the official Noctalia desktop shell plugin, status bar widget, and floating control deck. |
-| 🛠️ [**Development & Contributing**](docs/development.md) | Source build instructions, unit test execution, and release protocols. |
+| [Installation Guide](docs/installation.md) | Package manager instructions, binary downloads, and building from source. |
+| [Compositor & CLI Guide](docs/configuration.md) | Setup for Hyprland, Sway, River, systemd user service, and `wscreensavers ctl` commands. |
+| [Native Visualizers](docs/visualizers.md) | List of built-in WebGL2 and Canvas visualizers. |
+| [XScreenSaver Packages](docs/xscreensaver-packages.md) | Distro packages for installing the 310+ external XScreenSaver and `rss-glx` binaries. |
+| [Noctalia Integration](docs/noctalia.md) | Setting up the Noctalia shell plugin and widget. |
+| [Development](docs/development.md) | Building, testing, and packaging. |
 
 ---
 
-## 💖 Supporting the Project
+## Supporting the Project
 
-WScreenSavers is 100% free and open source software released under the **GNU General Public License v3.0**.
+WScreenSavers is free and open-source software released under the **GNU General Public License v3.0**.
 
-> [!IMPORTANT]
-> **Key Principles for Contributions:**
-> 1. **100% Non-Obligatory**: Supporting is strictly voluntary appreciation for the author's work.
-> 2. **Zero Locked Features**: Every single visualizer, PAM lock, multi-monitor configuration, live wallpaper, and CLI feature is completely unlocked and available to all users forever.
-> 3. **Single One-Time Charges ONLY (No Subscriptions)**: All Stripe payment links are **one-time charges**. You will **never** be enrolled in a recurring subscription or recurring billing. The labels below (e.g., monthly coffee, annual pass) are merely suggested contribution frequencies.
-> 4. **Billing & Merchant Name**: Your billing and Stripe checkout will indicate **`bughouse-online.com`** (Bughouse Online). This is the author's primary website and registered business account used for all independent open-source projects—please do not be surprised or put off when you see it! All contributions directly support WScreenSavers development and test hardware.
+All features are unlocked for everyone. If you find the project useful and want to support ongoing development, one-time contributions can be made via Stripe (processed under the author's primary site, `bughouse-online.com`):
 
-If you enjoy using WScreenSavers on your Wayland desktop and would like to support ongoing maintenance, new visualizers, and multi-monitor compositor testing, contributions are warmly welcomed and deeply appreciated!
-
-| Level | Link | Charge Type | Suggested Frequency / Notes |
+| Level | Link | Type | Notes |
 | :--- | :---: | :---: | :--- |
-| **Pawn** | [**$1**](https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00) | *Single One-Time* | Suggested as a monthly coffee supporter |
-| **Knight** (Recommended) | [**$5**](https://buy.stripe.com/cNidR2e262cEeiOdpCefC01) | *Single One-Time* | Suggested as an annual community supporter |
-| **Rook** | [**$10**](https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02) | *Single One-Time* | Lifetime appreciation pass |
-| **Queen** | [**$35**](https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03) | *Single One-Time* | Generous sponsor & feature booster |
-| **King** | [**$350**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | *Single One-Time* | Major patron of Wayland open-source tooling |
+| **Pawn** | [**$1**](https://buy.stripe.com/14A7sEgae18A5Mi3P2efC00) | One-time | Coffee contribution |
+| **Knight** | [**$5**](https://buy.stripe.com/cNidR2e262cEeiOdpCefC01) | One-time | Community supporter |
+| **Rook** | [**$10**](https://buy.stripe.com/bJe3cogae5oQdeKgBOefC02) | One-time | Supporter pass |
+| **Queen** | [**$35**](https://buy.stripe.com/aFa7sE2joeZqdeK99mefC03) | One-time | Project sponsor |
+| **King** | [**$350**](https://buy.stripe.com/6oUbIUf6a04w3Ea71eefC05) | One-time | Hardware & development patron |
 
-*All contributions directly fund development hardware, compositor test matrices, and open source maintenance. All charges are one-time only; billing will indicate bughouse-online.com.*
+### Disabling the Support Reminder
 
-### 🕊️ Disabling the Support Reminder Manually
+To disable the startup support reminder permanently without contributing:
 
-We believe in complete respect for user autonomy. All features are always 100% unlocked and available to everyone. If you prefer to permanently disable or silence the voluntary support reminder without contributing, you can do so in any of the following ways:
+```bash
+# Via CLI:
+wscreensavers ctl nag off
 
-- **Via CLI (Instant)**:
-  ```bash
-  wscreensavers ctl nag off
-  ```
-- **Via User Configuration (No root required, survives package upgrades)**:
-  ```bash
-  mkdir -p ~/.config/wscreensavers
-  echo '{"supported": true, "isLifetime": true}' > ~/.config/wscreensavers/support.json
-  ```
-- **Via Package Nag File (System-wide)**:
-  ```bash
-  sudo rm -f /usr/share/wscreensavers/nag
-  ```
-- **Via GUI**:
-  In the reminder dialog, simply click **"I've Supported"** (an honor system—no receipt or verification required) or click **"Maybe Later"** to dismiss for 24 hours.
+# Or via config file:
+mkdir -p ~/.config/wscreensavers
+echo '{"supported": true, "isLifetime": true}' > ~/.config/wscreensavers/support.json
+
+# Or system-wide:
+sudo rm -f /usr/share/wscreensavers/nag
+```
 
 ---
 
-## 📜 License
+## License
 
-WScreenSavers is open source licensed under the **GNU General Public License v3.0** ([`GPL-3.0-or-later`](LICENSE)).
-All original XScreenSaver hacks are copyrighted by Jamie Zawinski and their respective authors.
+Licensed under the **GNU General Public License v3.0** ([`GPL-3.0-or-later`](LICENSE)).
+Original XScreenSaver hacks are copyrighted by Jamie Zawinski and their respective authors.

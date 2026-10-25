@@ -1,4 +1,4 @@
-# 🛠️ Development & Contributing Guide
+# Development & Contributing Guide
 
 WScreenSavers is built with **Go** (for system daemons, Wayland protocols, PAM auth, and IPC) and **Vue 3 / Vite / Three.js** (for visualizers and the Control Center Studio GUI).
 
@@ -57,11 +57,10 @@ go test -v ./internal/config/...
 
 ---
 
-## 4. Release Protocol & Packaging
+## 4. Release Packaging
 
-WScreenSavers follows strict release protocols documented in the project's release skill:
-* Releases must verify live GitHub tarball SHA256 checksums before updating AUR `PKGBUILD` and `.SRCINFO`.
-* Automated release builder:
+* Releases verify live GitHub tarball SHA256 checksums before updating AUR `PKGBUILD` and `.SRCINFO`.
+* Build release artifacts:
   ```bash
   make release VERSION=X.Y.Z
   ```

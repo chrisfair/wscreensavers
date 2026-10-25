@@ -638,6 +638,8 @@ async function fetchInitialData() {
   await refreshTelemetry();
 }
 
+let lastSeenWakeMs = 0;
+
 async function refreshTelemetry() {
   try {
     const [blipsRes, feedRes, stRes] = await Promise.all([
@@ -651,6 +653,12 @@ async function refreshTelemetry() {
       const st = await stRes.json();
       daemonStatus.value = st.daemon || daemonStatus.value;
       otherWallpapers.value = st.otherWallpapers || [];
+      if (st.lastWakeMs) {
+        if (lastSeenWakeMs > 0 && st.lastWakeMs > lastSeenWakeMs && window.__wssWake) {
+          window.__wssWake();
+        }
+        lastSeenWakeMs = st.lastWakeMs;
+      }
     }
     if (isFullscreenSurface.value) {
       const cfgRes = await fetch(`${apiBase.value}/api/config`);

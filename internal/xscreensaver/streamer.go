@@ -336,7 +336,7 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	sess.activeSaver = saver.ID
 	sess.activeArgs = argsKey
 
-	go func(targetCmd *exec.Cmd) {
+	go func(targetCmd *exec.Cmd, failedBin string) {
 		_ = targetCmd.Wait()
 		sess.mu.Lock()
 		defer sess.mu.Unlock()
@@ -344,11 +344,39 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 			sess.hackCmd = nil
 			sess.activeSaver = ""
 			sess.activeArgs = ""
+			if len(sess.activeStreams) > 0 {
+				if fbBin, fbArgs := findFallbackBinary(failedBin); fbBin != "" {
+					fbCmd := exec.Command("nice", append([]string{"-n", "10", fbBin}, fbArgs...)...)
+					fbCmd.Env = append(os.Environ(), "DISPLAY="+sess.displayString())
+					fbCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
+					if err := fbCmd.Start(); err == nil {
+						sess.hackCmd = fbCmd
+						sess.activeSaver = "fallback"
+					}
+				}
+			}
 		}
-	}(cmd)
+	}(cmd, saver.BinaryPath)
 
-	time.Sleep(100 * time.Millisecond)
+	sess.mu.Unlock()
+	time.Sleep(120 * time.Millisecond)
+	sess.mu.Lock()
+	if sess.hackCmd == nil {
+		return fmt.Errorf("xscreensaver binary %s exited prematurely", saver.BinaryPath)
+	}
 	return nil
+}
+
+func findFallbackBinary(excludePath string) (string, []string) {
+	candidates := []string{"glmatrix", "flurry", "deco", " shadebobs", "cwaves", "greynetic"}
+	for _, name := range candidates {
+		name = strings.TrimSpace(name)
+		bin := findBinary(name)
+		if bin != "" && bin != excludePath {
+			return bin, []string{"-root"}
+		}
+	}
+	return "", nil
 }
 
 // registerClientStream records a viewer and returns its context plus a release

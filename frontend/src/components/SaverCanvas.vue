@@ -37,9 +37,10 @@ const canvasRef = ref(null);
 const imgRef = ref(null);
 const currentFps = ref(60);
 const streamVersion = ref(0);
+const streamErrorCount = ref(0);
 const clientId = 'c_' + Math.random().toString(36).slice(2, 10);
 
-const isExternalXSS = computed(() => (props.saverId || '').startsWith('xss_'));
+const isExternalXSS = computed(() => (props.saverId || '').startsWith('xss_') && streamErrorCount.value < 2);
 
 // Fullscreen overlay pages carry ?monitor=<name>; each monitor gets its own stream
 // session at its native resolution. The Control Center preview has no monitor.
@@ -155,10 +156,22 @@ function stopRemoteStream() {
 }
 
 function onStreamError() {
+  streamErrorCount.value++;
+  if (streamErrorCount.value >= 2) {
+    stopRemoteStream();
+    nextTick(() => {
+      initVisualizer();
+      if (!props.paused && !animId) {
+        lastFrameTime = performance.now();
+        animId = requestAnimationFrame(loop);
+      }
+    });
+    return;
+  }
   if (isExternalXSS.value) {
     setTimeout(() => {
       streamVersion.value++;
-    }, 1000);
+    }, 800);
   }
 }
 
@@ -186,6 +199,7 @@ watch(() => props.paused, (isPaused) => {
 });
 
 watch(() => props.saverId, async (newId, oldId) => {
+  streamErrorCount.value = 0;
   lastSaverIdForParams = newId;
   lastParamsJson = JSON.stringify(props.params || {});
   if (paramDebounceTimer) {

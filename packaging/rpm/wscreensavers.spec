@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.1
+Version:        1.1.2
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -50,6 +50,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Sun Oct 25 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.2-1
+- Release v1.1.2: fix multi-monitor wake synchronization, rss-glx Xvfb vsync/DPMS arguments, and Wayland idle poll EINTR handling
+
 * Fri Oct 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.0.28-1
 - Release v1.0.28 with Apex 3D Chess screensaver (bughouse3d), HUD watermark, and clean visualizer improvements
 

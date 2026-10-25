@@ -491,8 +491,8 @@ func BuiltinSavers() []models.Screensaver {
 			Author:      "Christopher Patrick Fair (bughouse-online.com)",
 			Year:        "2026",
 			AccentColor: "#38bdf8",
-			Tags:        []string{"Chess", "3D", "Bughouse", "Strategy", "WebGL", "Space", "OpenGL"},
-			Description: "Spectacular 8x8x5 spatial 3D chess arena from bughouse-online.com with five multi-level glass boards, 3D Staunton & Royal pieces, neon forcefields, dimensional portals, and automated engine matches.",
+			Tags:        []string{"Chess", "3D", "Bughouse", "Engine", "WebGL", "Space", "OpenGL"},
+			Description: "8x8x5 spatial 3D chess arena from bughouse-online.com with five multi-level glass boards, 3D Staunton & Royal pieces, forcefields, dimensional portals, and real-time engine battles.",
 			Installed:   true,
 			Params: []models.SaverParam{
 				{ID: "orbitSpeed", Label: "Camera Orbit Speed", Type: models.ParamRange, Default: 0.6, Min: 0.0, Max: 2.0, Step: 0.1, LowLabel: "Static", HighLabel: "Fast"},

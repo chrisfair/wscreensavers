@@ -26,16 +26,28 @@ type Monitor struct {
 	screensaverActive bool
 	wallpaperActive   bool
 	locked            bool
+	closed            bool
 	wlListener        *waylandIdleListener
+	onResumeCallbacks []func()
 }
 
 func NewMonitor() *Monitor {
 	m := &Monitor{
 		lastActivity: time.Now(),
 	}
+	m.connectWaylandListener()
+	return m
+}
 
-	// Connect to standard Wayland ext-idle-notify-v1 to track both keyboard and pointer events
-	m.wlListener = startWaylandIdleListener(1000, func() {
+func (m *Monitor) connectWaylandListener() {
+	m.mu.Lock()
+	if m.closed || m.wlListener != nil {
+		m.mu.Unlock()
+		return
+	}
+	m.mu.Unlock()
+
+	l := startWaylandIdleListener(1000, func() {
 		m.mu.Lock()
 		m.waylandIdle = true
 		if m.idleStartedAt.IsZero() {
@@ -47,26 +59,71 @@ func NewMonitor() *Monitor {
 		m.waylandIdle = false
 		m.lastActivity = time.Now()
 		m.idleStartedAt = time.Time{}
+		cbs := append([]func(){}, m.onResumeCallbacks...)
 		m.mu.Unlock()
+		for _, fn := range cbs {
+			if fn != nil {
+				fn()
+			}
+		}
 	})
 
-	if m.wlListener != nil {
+	if l != nil {
+		m.mu.Lock()
+		if m.closed {
+			m.mu.Unlock()
+			l.Stop()
+			return
+		}
+		m.wlListener = l
 		m.waylandActive = true
+		m.mu.Unlock()
 	}
+}
 
-	return m
+// OnResume registers a callback invoked whenever user activity resumes on the Wayland seat.
+func (m *Monitor) OnResume(fn func()) {
+	if fn == nil {
+		return
+	}
+	m.mu.Lock()
+	m.onResumeCallbacks = append(m.onResumeCallbacks, fn)
+	m.mu.Unlock()
+}
+
+// StartSeatWakeListener attaches a fast Wayland ext-idle-notify-v1 listener (250ms)
+// that fires onResume whenever any keyboard or pointer activity occurs on the seat.
+func StartSeatWakeListener(onResume func()) func() {
+	l := startWaylandIdleListener(250, func() {}, func() {
+		if onResume != nil {
+			onResume()
+		}
+	})
+	if l == nil {
+		return func() {}
+	}
+	return func() {
+		l.Stop()
+	}
 }
 
 func (m *Monitor) RecordActivity() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.lastActivity = time.Now()
 	m.waylandIdle = false
 	m.idleStartedAt = time.Time{}
+	cbs := append([]func(){}, m.onResumeCallbacks...)
+	m.mu.Unlock()
+	for _, fn := range cbs {
+		if fn != nil {
+			fn()
+		}
+	}
 }
 
 func (m *Monitor) Close() {
 	m.mu.Lock()
+	m.closed = true
 	l := m.wlListener
 	m.wlListener = nil
 	m.waylandActive = false
@@ -156,9 +213,8 @@ func (m *Monitor) IsFullscreenAppActive() bool {
 }
 
 func (m *Monitor) Status(inhibitAudio, inhibitFullscreen bool) models.DaemonStatus {
-	if !m.waylandActive {
-		m.PollCursorActivity()
-	}
+	m.connectWaylandListener()
+	m.PollCursorActivity()
 
 	m.mu.RLock()
 	var idleSec int

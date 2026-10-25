@@ -383,6 +383,17 @@ func BuildCommandArgs(saver models.Screensaver, values map[string]any) []string 
 		args = append(args, "-root")
 	}
 
+	isRSS := false
+	for _, a := range args {
+		if a == "-r" {
+			isRSS = true
+			break
+		}
+	}
+	if isRSS {
+		args = append(args, "-y", "0", "-M", "0")
+	}
+
 	if len(values) == 0 {
 		return args
 	}

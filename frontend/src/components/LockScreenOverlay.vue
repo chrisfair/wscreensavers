@@ -77,6 +77,8 @@ const isDark = ref(false);
 let clockTimer = null;
 let dimTimer = null;
 let darkTimer = null;
+let wakeChannel = null;
+let lastWakeNotifyMs = 0;
 let lastMouseX = -1;
 let lastMouseY = -1;
 
@@ -93,7 +95,7 @@ function focusInput() {
 }
 
 function onOverlayClick() {
-  handleUserActivity(false);
+  handleUserActivity(false, null, true);
 }
 
 function resetDimTimer(delayMs = 5000) {
@@ -135,6 +137,16 @@ function turnScreenDark() {
   }
 }
 
+function wakeLocalOnly() {
+  if (isDark.value) {
+    isDark.value = false;
+    emit('dark-change', false);
+  }
+  isDimmed.value = false;
+  resetDimTimer(props.locked && password.value ? 15000 : 5000);
+  resetDarkTimer();
+}
+
 function wakeFromDark() {
   if (!isDark.value) return;
   isDark.value = false;
@@ -144,16 +156,33 @@ function wakeFromDark() {
   }
 }
 
-function handleUserActivity(isKey = false, keyEvent = null) {
-  const wasDark = isDark.value;
-  if (wasDark) {
-    wakeFromDark();
-  }
+function broadcastWake(wasDark) {
+  try {
+    if (wakeChannel) {
+      wakeChannel.postMessage('wake');
+    }
+    localStorage.setItem('wscreensavers_wake_ts', String(Date.now()));
+  } catch (_) {}
 
-  // Wake up extras / login card immediately
-  isDimmed.value = false;
-  resetDimTimer(props.locked && password.value ? 15000 : 5000);
-  resetDarkTimer();
+  const now = Date.now();
+  if (props.apiBase && (wasDark || now - lastWakeNotifyMs > 300)) {
+    lastWakeNotifyMs = now;
+    const endpoint = wasDark ? '/api/action/dpms-on' : '/api/action/wake';
+    fetch(`${props.apiBase}${endpoint}`, { method: 'POST' }).catch(() => {});
+  }
+}
+
+function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
+  const wasDark = isDark.value;
+  wakeLocalOnly();
+  broadcastWake(wasDark);
+
+  if (!props.locked && !props.isWallpaper && (isKey || isClick)) {
+    if (props.apiBase) {
+      fetch(`${props.apiBase}/api/action/stop-saver`, { method: 'POST' }).catch(() => {});
+    }
+    return;
+  }
 
   if (props.locked) {
     const wasFocused = (passInput.value && document.activeElement === passInput.value);
@@ -203,7 +232,13 @@ function onWindowMouseMove(e) {
 }
 
 function onWindowMouseDown(e) {
-  handleUserActivity(false);
+  handleUserActivity(false, null, true);
+}
+
+function onStorageEvent(e) {
+  if (e.key === 'wscreensavers_wake_ts') {
+    wakeLocalOnly();
+  }
 }
 
 watch(() => props.dpmsMinutes, () => {
@@ -254,6 +289,15 @@ onMounted(() => {
   resetDimTimer(5000);
   resetDarkTimer();
 
+  window.__wssWake = wakeLocalOnly;
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      wakeChannel = new BroadcastChannel('wscreensavers_wake');
+      wakeChannel.onmessage = () => wakeLocalOnly();
+    }
+  } catch (_) {}
+
+  window.addEventListener('storage', onStorageEvent);
   window.addEventListener('keydown', onWindowKeyDown, true);
   window.addEventListener('mousemove', onWindowMouseMove, { passive: true });
   window.addEventListener('mousedown', onWindowMouseDown, true);
@@ -263,7 +307,15 @@ onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer);
   if (dimTimer) clearTimeout(dimTimer);
   if (darkTimer) clearTimeout(darkTimer);
+  if (wakeChannel) {
+    try { wakeChannel.close(); } catch (_) {}
+    wakeChannel = null;
+  }
+  if (window.__wssWake === wakeLocalOnly) {
+    delete window.__wssWake;
+  }
 
+  window.removeEventListener('storage', onStorageEvent);
   window.removeEventListener('keydown', onWindowKeyDown, true);
   window.removeEventListener('mousemove', onWindowMouseMove);
   window.removeEventListener('mousedown', onWindowMouseDown, true);

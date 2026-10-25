@@ -13,8 +13,14 @@ static GtkWidget *lock_windows[16];
 static int lock_window_count = 0;
 static GtkWidget *layer_windows[16];
 static int layer_window_count = 0;
+static GtkWidget *layer_webviews[16];
+static int layer_webview_count = 0;
 
 static void destroy_all_layer_windows(void) {
+    for (int i = 0; i < layer_webview_count; i++) {
+        layer_webviews[i] = NULL;
+    }
+    layer_webview_count = 0;
     for (int i = 0; i < layer_window_count; i++) {
         if (layer_windows[i] != NULL) {
             gtk_widget_destroy(layer_windows[i]);
@@ -26,6 +32,31 @@ static void destroy_all_layer_windows(void) {
     GdkDisplay *display = gdk_display_get_default();
     if (display != NULL) {
         gdk_display_flush(display);
+    }
+}
+
+static void notify_all_webviews_wake(void) {
+    for (int i = 0; i < layer_webview_count; i++) {
+        if (layer_webviews[i] != NULL) {
+            webkit_web_view_evaluate_javascript(
+                WEBKIT_WEB_VIEW(layer_webviews[i]),
+                "if(window.__wssWake)window.__wssWake();",
+                -1, NULL, NULL, NULL, NULL, NULL
+            );
+        }
+    }
+}
+
+static gboolean wake_idle_cb(gpointer data) {
+    if (gtk_loop_active) {
+        notify_all_webviews_wake();
+    }
+    return FALSE;
+}
+
+static void request_gtk_wake_all(void) {
+    if (gtk_loop_active) {
+        g_idle_add(wake_idle_cb, NULL);
     }
 }
 
@@ -69,6 +100,7 @@ static void on_window_map(GtkWidget *widget, gpointer user_data) {
 static gboolean on_lock_enter(GtkWidget *widget, GdkEventCrossing *event, gpointer user_data) {
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, GTK_WIDGET(user_data));
+    notify_all_webviews_wake();
     return FALSE;
 }
 
@@ -77,12 +109,14 @@ static gboolean on_lock_motion(GtkWidget *widget, GdkEventMotion *event, gpointe
     if (webview != NULL && !gtk_widget_has_focus(webview)) {
         gtk_widget_grab_focus(webview);
     }
+    notify_all_webviews_wake();
     return FALSE;
 }
 
 static gboolean on_lock_click(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, GTK_WIDGET(user_data));
+    notify_all_webviews_wake();
     return FALSE;
 }
 
@@ -91,6 +125,7 @@ static gboolean on_lock_key(GtkWidget *widget, GdkEventKey *event, gpointer user
     if (webview != NULL && !gtk_widget_has_focus(webview)) {
         gtk_widget_grab_focus(webview);
     }
+    notify_all_webviews_wake();
     return FALSE;
 }
 
@@ -118,6 +153,7 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
     gtk_init(NULL, NULL);
     lock_window_count = 0;
     layer_window_count = 0;
+    layer_webview_count = 0;
 
     GdkDisplay *display = gdk_display_get_default();
     int n_monitors = 1;
@@ -165,7 +201,7 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             } else {
                 gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
                 gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-                gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND);
+                gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
                 gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-saver");
             }
 
@@ -183,6 +219,9 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
         webkit_settings_set_hardware_acceleration_policy(settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_ALWAYS);
 
         GtkWidget *webview = webkit_web_view_new_with_settings(settings);
+        if (layer_webview_count < 16) {
+            layer_webviews[layer_webview_count++] = webview;
+        }
         GdkRGBA bg = {0.0, 0.0, 0.0, 1.0};
         webkit_web_view_set_background_color(WEBKIT_WEB_VIEW(webview), &bg);
 
@@ -198,6 +237,7 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             int *motion_counter = (int *)calloc(1, sizeof(int));
             gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
             gtk_widget_add_events(webview, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
+            g_signal_connect(window, "map", G_CALLBACK(on_window_map), webview);
             g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_dismiss), motion_counter);
             g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_dismiss), NULL);
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_dismiss), NULL);
@@ -219,7 +259,7 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
 
         g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
         gtk_widget_show_all(window);
-        if (is_locked) {
+        if (!is_wallpaper) {
             gtk_widget_grab_focus(webview);
         }
     }
@@ -246,6 +286,11 @@ import (
 // RequestQuit signals the GTK main loop to destroy all layer-shell windows and exit cleanly.
 func RequestQuit() {
 	C.request_gtk_quit()
+}
+
+// WakeAllWindows signals all active layer-shell webviews across all monitors to wake up immediately.
+func WakeAllWindows() {
+	C.request_gtk_wake_all()
 }
 
 // RunLayerShellWindows initializes GTK + gtk-layer-shell and creates borderless Wayland surfaces across all monitors.
@@ -283,6 +328,20 @@ func NewProcessController(onSaverExit func()) *ProcessController {
 	return &ProcessController{
 		onSaverExit: onSaverExit,
 	}
+}
+
+// IsSaverRunning checks whether a child screensaver/lock overlay or standalone overlay process is alive.
+func (p *ProcessController) IsSaverRunning() bool {
+	p.mu.Lock()
+	cmd := p.saverProc
+	p.mu.Unlock()
+	if cmd != nil && cmd.Process != nil {
+		if err := syscall.Kill(cmd.Process.Pid, 0); err == nil {
+			return true
+		}
+	}
+	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--(saver|lock)([[:space:]]|$)").Output()
+	return err == nil && len(strings.TrimSpace(string(out))) > 0
 }
 
 func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, locked bool) error {

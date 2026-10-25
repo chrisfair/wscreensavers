@@ -1,4 +1,4 @@
-# 📦 Installation Guide
+# Installation Guide
 
 WScreenSavers supports multiple installation methods across all major Linux distributions.
 
