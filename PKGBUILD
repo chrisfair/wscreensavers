@@ -17,7 +17,7 @@ makedepends=('go' 'nodejs' 'npm' 'pkgconf')
 provides=('wscreensavers')
 conflicts=('wscreensavers')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/chrisfair/$pkgname/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('54b00f436cdbe42bf35494ef1722492641112a062545ab5064868182cd112be2')
+sha256sums=('ae3d080881562114fe21dd7d931d20041497da8854f587728fe690b01c7ef7ae')
 
 build() {
   cd "${srcdir}/${pkgname}-${pkgver}"
