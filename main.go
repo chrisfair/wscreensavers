@@ -253,7 +253,7 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 	for idx, mon := range monitors {
 		chosenSaver := explicitSaverID
 		if isWallpaper {
-			isPerMon := cfg.WallpaperMode != "single" || explicitSaverID == "per-monitor" || (explicitSaverID == "" && len(cfg.WallpaperPerMonitor) > 0)
+			isPerMon := explicitSaverID == "per-monitor" || (explicitSaverID == "" && (cfg.WallpaperMode != "single" || len(cfg.WallpaperPerMonitor) > 0))
 			if isPerMon {
 				if assigned, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && assigned != "" && assigned != "random" && !usedWallpaperSavers[assigned] {
 					chosenSaver = assigned
@@ -262,7 +262,7 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 				}
 				usedWallpaperSavers[chosenSaver] = true
 			} else {
-				if chosenSaver == "" || chosenSaver == "random" {
+				if chosenSaver == "" || chosenSaver == "random" || chosenSaver == "per-monitor" {
 					chosenSaver = cfg.WallpaperSaver
 				}
 				if chosenSaver == "" || chosenSaver == "random" {

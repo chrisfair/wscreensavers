@@ -149,6 +149,29 @@ func (sess *session) displayString() string {
 	return fmt.Sprintf(":%d", sess.displayNum)
 }
 
+func xvfbEnv(disp string) []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "WAYLAND_DISPLAY=") ||
+			strings.HasPrefix(kv, "WAYLAND_SOCKET=") ||
+			strings.HasPrefix(kv, "DISPLAY=") ||
+			strings.HasPrefix(kv, "XDG_SESSION_TYPE=") ||
+			strings.HasPrefix(kv, "GDK_BACKEND=") ||
+			strings.HasPrefix(kv, "LP_NUM_THREADS=") ||
+			strings.HasPrefix(kv, "GALLIUM_THREAD=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env,
+		"DISPLAY="+disp,
+		"XDG_SESSION_TYPE=x11",
+		"GDK_BACKEND=x11",
+		"LP_NUM_THREADS=1",
+		"GALLIUM_THREAD=0",
+	)
+}
+
 func (sess *session) clearRootWindow() {
 	cDisp := C.CString(sess.displayString())
 	defer C.free(unsafe.Pointer(cDisp))
@@ -188,7 +211,7 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 	disp := sess.displayString()
 	geom := fmt.Sprintf("%dx%dx24", width, height)
 	cmd := exec.Command("nice", "-n", "19", "Xvfb", disp, "-screen", "0", geom, "-nolisten", "tcp", "+extension", "GLX")
-	cmd.Env = append(os.Environ(), "LP_NUM_THREADS=1", "GALLIUM_THREAD=0")
+	cmd.Env = xvfbEnv(disp)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start Xvfb on %s: %w", disp, err)
@@ -324,9 +347,7 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	sess.clearRootWindow()
 
 	cmd := exec.Command("nice", append([]string{"-n", "19", saver.BinaryPath}, args...)...)
-	env := os.Environ()
-	env = append(env, "DISPLAY="+sess.displayString(), "LP_NUM_THREADS=1", "GALLIUM_THREAD=0")
-	cmd.Env = env
+	cmd.Env = xvfbEnv(sess.displayString())
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 
 	if err := cmd.Start(); err != nil {
@@ -348,7 +369,7 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 			if len(sess.activeStreams) > 0 {
 				if fbBin, fbArgs := findFallbackBinary(failedBin); fbBin != "" {
 					fbCmd := exec.Command("nice", append([]string{"-n", "19", fbBin}, fbArgs...)...)
-					fbCmd.Env = append(os.Environ(), "DISPLAY="+sess.displayString(), "LP_NUM_THREADS=1", "GALLIUM_THREAD=0")
+					fbCmd.Env = xvfbEnv(sess.displayString())
 					fbCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 					if err := fbCmd.Start(); err == nil {
 						sess.hackCmd = fbCmd

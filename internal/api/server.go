@@ -220,11 +220,18 @@ func (s *Server) PickUniqueRandomSaver(exclude map[string]bool) string {
 			pool = append(pool, sv.ID)
 		}
 	}
+	var nativeAvailable []string
 	var available []string
 	for _, id := range pool {
-		if !exclude[id] && id != "xshadertoy" {
+		if !exclude[id] && id != "xshadertoy" && id != "xss_xshadertoy" {
 			available = append(available, id)
+			if !strings.HasPrefix(id, "xss_") {
+				nativeAvailable = append(nativeAvailable, id)
+			}
 		}
+	}
+	if len(nativeAvailable) > 0 {
+		return nativeAvailable[rand.Intn(len(nativeAvailable))]
 	}
 	if len(available) == 0 {
 		return s.PickRandomSaver()

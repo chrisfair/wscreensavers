@@ -9,6 +9,7 @@ package layershell
 #include <stdlib.h>
 
 static int gtk_loop_active = 0;
+static int layer_is_wallpaper = 0;
 static GtkWidget *lock_windows[16];
 static int lock_window_count = 0;
 static GtkWidget *layer_windows[16];
@@ -16,6 +17,19 @@ static int layer_window_count = 0;
 static GtkWidget *layer_webviews[16];
 static int layer_webview_count = 0;
 static int active_monitor_idx = 0;
+
+static void apply_wallpaper_pass_through(GtkWidget *widget, gpointer user_data) {
+    (void)user_data;
+    if (widget == NULL) return;
+    cairo_region_t *empty = cairo_region_create();
+    gtk_widget_input_shape_combine_region(widget, empty);
+    GdkWindow *gdk_win = gtk_widget_get_window(widget);
+    if (gdk_win != NULL) {
+        gdk_window_input_shape_combine_region(gdk_win, empty, 0, 0);
+        gdk_window_set_pass_through(gdk_win, TRUE);
+    }
+    cairo_region_destroy(empty);
+}
 
 static void destroy_all_layer_windows(void) {
     for (int i = 0; i < layer_webview_count; i++) {
@@ -64,7 +78,7 @@ static void on_layer_window_destroy(GtkWidget *widget, gpointer user_data) {
 static gint64 last_wake_eval_us = 0;
 
 static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
-    if (!gtk_layer_is_supported()) return;
+    if (layer_is_wallpaper || !gtk_layer_is_supported()) return;
     int target_idx = -1;
     for (int i = 0; i < layer_window_count; i++) {
         if (layer_windows[i] != NULL && layer_windows[i] == target_win) {
@@ -95,6 +109,7 @@ static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
 }
 
 static void notify_all_webviews_wake(void) {
+    if (layer_is_wallpaper) return;
     gint64 now = g_get_monotonic_time();
     if (now - last_wake_eval_us < 500000) {
         return;
@@ -112,7 +127,8 @@ static void notify_all_webviews_wake(void) {
 }
 
 static gboolean wake_idle_cb(gpointer data) {
-    if (gtk_loop_active) {
+    (void)data;
+    if (gtk_loop_active && !layer_is_wallpaper) {
         if (layer_window_count > 0) {
             int idx = active_monitor_idx;
             if (idx < 0 || idx >= layer_window_count) {
@@ -132,7 +148,7 @@ static gboolean wake_idle_cb(gpointer data) {
 }
 
 static void request_gtk_wake_all(void) {
-    if (gtk_loop_active) {
+    if (gtk_loop_active && !layer_is_wallpaper) {
         g_idle_add(wake_idle_cb, NULL);
     }
 }
@@ -215,6 +231,7 @@ static gboolean on_button_dismiss(GtkWidget *widget, GdkEventButton *event, gpoi
 
 static void launch_layer_windows(const char **urls, int url_count, int is_wallpaper, int is_locked) {
     gtk_init(NULL, NULL);
+    layer_is_wallpaper = is_wallpaper ? 1 : 0;
     lock_window_count = 0;
     layer_window_count = 0;
     layer_webview_count = 0;
@@ -307,7 +324,16 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
 
         gtk_container_add(GTK_CONTAINER(window), webview);
 
-        if (!is_wallpaper && !is_locked) {
+        if (is_wallpaper) {
+            gtk_window_set_accept_focus(GTK_WINDOW(window), FALSE);
+            gtk_window_set_focus_on_map(GTK_WINDOW(window), FALSE);
+            gtk_widget_set_can_focus(window, FALSE);
+            gtk_widget_set_can_focus(webview, FALSE);
+            g_signal_connect(window, "realize", G_CALLBACK(apply_wallpaper_pass_through), NULL);
+            g_signal_connect(window, "map", G_CALLBACK(apply_wallpaper_pass_through), NULL);
+            g_signal_connect(webview, "realize", G_CALLBACK(apply_wallpaper_pass_through), NULL);
+            g_signal_connect(webview, "map", G_CALLBACK(apply_wallpaper_pass_through), NULL);
+        } else if (!is_locked) {
             int *motion_counter = (int *)calloc(1, sizeof(int));
             gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
             gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
@@ -335,7 +361,10 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
         g_signal_connect(window, "delete-event", G_CALLBACK(on_window_delete_event), NULL);
         g_signal_connect(window, "destroy", G_CALLBACK(on_layer_window_destroy), NULL);
         gtk_widget_show_all(window);
-        if (!is_wallpaper && i == primary_idx) {
+        if (is_wallpaper) {
+            apply_wallpaper_pass_through(window, NULL);
+            apply_wallpaper_pass_through(webview, NULL);
+        } else if (i == primary_idx) {
             gtk_widget_grab_focus(webview);
         }
     }

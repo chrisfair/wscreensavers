@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 	"wscreensavers/internal/catalog"
@@ -106,9 +107,11 @@ func (m *Manager) loadLocked() error {
 	}
 	if loaded.WallpaperPerMonitor == nil {
 		loaded.WallpaperPerMonitor = make(map[string]string)
-	} else {
-		loaded.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(loaded.WallpaperPerMonitor)
 	}
+	if loaded.PreferNativeOverX11 {
+		normalizeNativeSaverIDs(&loaded)
+	}
+	loaded.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(loaded.WallpaperPerMonitor)
 	if loaded.SaverParams == nil {
 		loaded.SaverParams = make(map[string]map[string]any)
 	}
@@ -166,6 +169,30 @@ func (m *Manager) Get() models.AppConfig {
 	return m.cfg
 }
 
+func normalizeNativeSaverIDs(cfg *models.AppConfig) {
+	builtins := make(map[string]string)
+	for _, s := range catalog.BuiltinScreensavers() {
+		builtins[strings.ToLower(s.ID)] = s.ID
+	}
+	norm := func(id string) string {
+		if strings.HasPrefix(strings.ToLower(id), "xss_") {
+			base := strings.ToLower(strings.TrimPrefix(id, "xss_"))
+			if nativeID, ok := builtins[base]; ok {
+				return nativeID
+			}
+		}
+		return id
+	}
+	cfg.SelectedSaver = norm(cfg.SelectedSaver)
+	cfg.WallpaperSaver = norm(cfg.WallpaperSaver)
+	for k, v := range cfg.PerMonitorSaver {
+		cfg.PerMonitorSaver[k] = norm(v)
+	}
+	for k, v := range cfg.WallpaperPerMonitor {
+		cfg.WallpaperPerMonitor[k] = norm(v)
+	}
+}
+
 // SanitizeWallpaperPerMonitor ensures that no two monitor outputs share the same saver ID.
 // If a duplicate is encountered, earlier assignments keep their value and the duplicate is cleared,
 // guaranteeing that each monitor is assigned a strictly unique screensaver.
@@ -208,9 +235,11 @@ func (m *Manager) Update(next models.AppConfig) error {
 	}
 	if next.WallpaperPerMonitor == nil {
 		next.WallpaperPerMonitor = make(map[string]string)
-	} else {
-		next.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(next.WallpaperPerMonitor)
 	}
+	if next.PreferNativeOverX11 {
+		normalizeNativeSaverIDs(&next)
+	}
+	next.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(next.WallpaperPerMonitor)
 	if next.SaverParams == nil {
 		next.SaverParams = m.cfg.SaverParams
 	}

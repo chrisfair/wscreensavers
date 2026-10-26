@@ -181,34 +181,6 @@ func printStatus(cfgMgr *config.Manager) error {
 // Run executes a CLI control subcommand for the Noctalia plugin or shell scripts.
 func Run(cfgMgr *config.Manager, args []string) error {
 	if len(args) == 0 || args[0] == "status" || args[0] == "get" {
-		cfg := cfgMgr.Get()
-		if cfg.WallpaperEnabled && !isWallpaperProcessRunning() {
-			// Auto-persist on reboot/login: user enabled live wallpaper, but process is not running.
-			saverID := cfg.WallpaperSaver
-			if cfg.WallpaperMode == "per-monitor" {
-				saverID = "per-monitor"
-			} else {
-				if saverID == "" {
-					saverID = cfg.SelectedSaver
-				}
-				if saverID == "random" || saverID == "" {
-					pool := cfg.EnabledSavers
-					if len(pool) == 0 {
-						for _, s := range allSavers() {
-							pool = append(pool, s.ID)
-						}
-					}
-					saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
-				}
-			}
-			if !tryDaemonPost("/api/action/toggle-wallpaper", map[string]any{"enabled": true, "saverId": saverID}) {
-				if saverID == "per-monitor" {
-					_ = spawnDetached("--wallpaper")
-				} else {
-					_ = spawnDetached("--wallpaper", "--saver-id", saverID)
-				}
-			}
-		}
 		return printStatus(cfgMgr)
 	}
 
@@ -459,14 +431,12 @@ func Run(cfgMgr *config.Manager, args []string) error {
 
 		if action == "shuffle" {
 			mons := display.DetectMonitors()
-			pool := cfg.EnabledSavers
-			if len(pool) == 0 {
-				for _, s := range allSavers() {
-					pool = append(pool, s.ID)
-				}
+			var nativePool []string
+			for _, s := range catalog.BuiltinScreensavers() {
+				nativePool = append(nativePool, s.ID)
 			}
-			rPool := make([]string, len(pool))
-			copy(rPool, pool)
+			rPool := make([]string, len(nativePool))
+			copy(rPool, nativePool)
 			rand.Shuffle(len(rPool), func(i, j int) { rPool[i], rPool[j] = rPool[j], rPool[i] })
 			if cfg.WallpaperPerMonitor == nil {
 				cfg.WallpaperPerMonitor = make(map[string]string)
@@ -494,6 +464,11 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			saverID = args[2]
 			cfg.WallpaperSaver = saverID
 			cfg.SelectedSaver = saverID
+			if saverID != "per-monitor" {
+				cfg.WallpaperMode = "single"
+			}
+		} else if cfg.WallpaperMode == "per-monitor" {
+			saverID = "per-monitor"
 		}
 
 		running := isWallpaperProcessRunning()
