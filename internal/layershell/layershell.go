@@ -281,9 +281,15 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             gtk_window_fullscreen(GTK_WINDOW(window));
         }
 
+        WebKitWebContext *web_ctx = webkit_web_context_get_default();
+        if (web_ctx != NULL) {
+            webkit_web_context_set_cache_model(web_ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
+        }
+
         WebKitSettings *settings = webkit_settings_new();
         webkit_settings_set_enable_webgl(settings, TRUE);
-        webkit_settings_set_enable_webaudio(settings, TRUE);
+        webkit_settings_set_enable_webaudio(settings, FALSE);
+        webkit_settings_set_enable_page_cache(settings, FALSE);
         webkit_settings_set_hardware_acceleration_policy(settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_ALWAYS);
 
         GtkWidget *webview = webkit_web_view_new_with_settings(settings);
@@ -462,6 +468,9 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	if !locked {
+		_ = syscall.Setpriority(syscall.PRIO_PROCESS, cmd.Process.Pid, 10)
+	}
 
 	done := make(chan struct{})
 	p.mu.Lock()
@@ -556,12 +565,13 @@ func stopProcessesMatchingPattern(pattern string) {
 		}
 		pid, err := strconv.Atoi(line)
 		if err == nil && pid > 0 && pid != currentPID {
+			_ = syscall.Kill(-pid, syscall.SIGTERM)
 			_ = syscall.Kill(pid, syscall.SIGTERM)
 			killed = append(killed, pid)
 		}
 	}
 	if len(killed) > 0 {
-		deadline := time.Now().Add(250 * time.Millisecond)
+		deadline := time.Now().Add(350 * time.Millisecond)
 		for time.Now().Before(deadline) {
 			alive := false
 			for _, pid := range killed {
@@ -571,9 +581,13 @@ func stopProcessesMatchingPattern(pattern string) {
 				}
 			}
 			if !alive {
-				break
+				return
 			}
 			time.Sleep(15 * time.Millisecond)
+		}
+		for _, pid := range killed {
+			_ = syscall.Kill(-pid, syscall.SIGKILL)
+			_ = syscall.Kill(pid, syscall.SIGKILL)
 		}
 	}
 }
@@ -587,6 +601,10 @@ func StopMatchingSaverProcesses() {
 }
 
 func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error {
+	if p.IsSaverRunning() || p.IsLockRunning() {
+		return nil
+	}
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -608,6 +626,7 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	_ = syscall.Setpriority(syscall.PRIO_PROCESS, cmd.Process.Pid, 19)
 
 	done := make(chan struct{})
 	p.wallpaperProc = cmd
@@ -659,39 +678,7 @@ func (p *ProcessController) stopWallpaperLocked() {
 // StopMatchingWallpaperProcesses terminates all running wscreensavers --wallpaper processes
 // across the system and waits for them to exit so GPU and compositor resources are fully freed.
 func StopMatchingWallpaperProcesses() {
-	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--wallpaper(\\s|$)").Output()
-	if err != nil {
-		return
-	}
-	currentPID := os.Getpid()
-	var killed []int
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		pid, err := strconv.Atoi(line)
-		if err == nil && pid > 0 && pid != currentPID {
-			_ = syscall.Kill(pid, syscall.SIGTERM)
-			killed = append(killed, pid)
-		}
-	}
-	if len(killed) > 0 {
-		deadline := time.Now().Add(250 * time.Millisecond)
-		for time.Now().Before(deadline) {
-			alive := false
-			for _, pid := range killed {
-				if err := syscall.Kill(pid, 0); err == nil {
-					alive = true
-					break
-				}
-			}
-			if !alive {
-				break
-			}
-			time.Sleep(15 * time.Millisecond)
-		}
-	}
+	stopProcessesMatchingPattern("wscreensavers.*--wallpaper([[:space:]]|$)")
 }
 
 func (p *ProcessController) StopAll() {

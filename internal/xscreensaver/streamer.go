@@ -78,7 +78,7 @@ type clientStream struct {
 
 // idleStopDelay is how long a session may sit with no viewers before its hack and
 // Xvfb are shut down. It is long enough for a viewer to reload and reconnect.
-const idleStopDelay = 5 * time.Second
+const idleStopDelay = 1500 * time.Millisecond
 
 func NewStreamer() *Streamer {
 	return &Streamer{
@@ -187,8 +187,8 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 
 	disp := sess.displayString()
 	geom := fmt.Sprintf("%dx%dx24", width, height)
-	cmd := exec.Command("Xvfb", disp, "-screen", "0", geom, "-nolisten", "tcp", "+extension", "GLX")
-	cmd.Env = append(os.Environ(), "LP_NUM_THREADS=2")
+	cmd := exec.Command("nice", "-n", "19", "Xvfb", disp, "-screen", "0", geom, "-nolisten", "tcp", "+extension", "GLX")
+	cmd.Env = append(os.Environ(), "LP_NUM_THREADS=1", "GALLIUM_THREAD=0")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start Xvfb on %s: %w", disp, err)
@@ -323,9 +323,9 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	sess.stopHackLocked()
 	sess.clearRootWindow()
 
-	cmd := exec.Command("nice", append([]string{"-n", "10", saver.BinaryPath}, args...)...)
+	cmd := exec.Command("nice", append([]string{"-n", "19", saver.BinaryPath}, args...)...)
 	env := os.Environ()
-	env = append(env, "DISPLAY="+sess.displayString(), "LP_NUM_THREADS=2")
+	env = append(env, "DISPLAY="+sess.displayString(), "LP_NUM_THREADS=1", "GALLIUM_THREAD=0")
 	cmd.Env = env
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 
@@ -347,8 +347,8 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 			sess.activeArgs = ""
 			if len(sess.activeStreams) > 0 {
 				if fbBin, fbArgs := findFallbackBinary(failedBin); fbBin != "" {
-					fbCmd := exec.Command("nice", append([]string{"-n", "10", fbBin}, fbArgs...)...)
-					fbCmd.Env = append(os.Environ(), "DISPLAY="+sess.displayString())
+					fbCmd := exec.Command("nice", append([]string{"-n", "19", fbBin}, fbArgs...)...)
+					fbCmd.Env = append(os.Environ(), "DISPLAY="+sess.displayString(), "LP_NUM_THREADS=1", "GALLIUM_THREAD=0")
 					fbCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 					if err := fbCmd.Start(); err == nil {
 						sess.hackCmd = fbCmd
@@ -459,8 +459,10 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 		return
 	}
 
-	if fps <= 0 || fps > 60 {
-		fps = 30
+	if fps <= 0 {
+		fps = 15
+	} else if fps > 24 {
+		fps = 24
 	}
 
 	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=ffmpeg")
@@ -470,9 +472,9 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 	disp := fmt.Sprintf("%s.0", sess.displayString())
 	size := fmt.Sprintf("%dx%d", width, height)
 	rate := fmt.Sprintf("%d", fps)
-	// Run at low priority so the hack and encoder never starve the UI.
+	// Run at lowest priority with a single thread so the hack and encoder never starve the UI.
 	ffCmd := exec.CommandContext(streamCtx,
-		"nice", "-n", "10", "ffmpeg",
+		"nice", "-n", "19", "ffmpeg",
 		"-loglevel", "error",
 		"-f", "x11grab",
 		"-draw_mouse", "0",
@@ -480,9 +482,9 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 		"-video_size", size,
 		"-i", disp,
 		"-pix_fmt", "yuvj420p",
-		"-threads", "4",
+		"-threads", "1",
 		"-f", "mpjpeg",
-		"-q:v", "6",
+		"-q:v", "7",
 		"-",
 	)
 	ffCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

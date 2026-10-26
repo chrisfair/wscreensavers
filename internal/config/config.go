@@ -44,11 +44,11 @@ func DefaultConfig() models.AppConfig {
 		InhibitOnFullscreen:   true,
 		MultiMonitorMode:      "independent",
 		PerMonitorSaver:       make(map[string]string),
-		WallpaperMode:         "single",
+		WallpaperMode:         "per-monitor",
 		WallpaperEnabled:      false,
 		WallpaperSaver:        "flurry",
 		WallpaperPerMonitor:   make(map[string]string),
-		WallpaperFPSCap:       30,
+		WallpaperFPSCap:       24,
 		EnabledSavers:         enabled,
 		SaverParams:           presetParams,
 		DPMSOffMinutes:        30,
@@ -102,7 +102,7 @@ func (m *Manager) loadLocked() error {
 		loaded.PerMonitorSaver = make(map[string]string)
 	}
 	if loaded.WallpaperMode == "" {
-		loaded.WallpaperMode = "single"
+		loaded.WallpaperMode = "per-monitor"
 	}
 	if loaded.WallpaperPerMonitor == nil {
 		loaded.WallpaperPerMonitor = make(map[string]string)

@@ -42,13 +42,14 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
     powerPreference: 'high-performance'
   });
   renderer.setSize(w, h, false);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(1);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   // 2D Glassmorphic HUD Overlay Canvas
   let hudCanvas = null;
   let hudCtx = null;
+  let lastHudKey = '';
   const parent = canvas.parentElement;
   if (parent) {
     hudCanvas = document.createElement('canvas');
@@ -265,6 +266,7 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
       if (hudCanvas) {
         hudCanvas.width = newW;
         hudCanvas.height = newH;
+        lastHudKey = '';
       }
     },
 
@@ -338,10 +340,16 @@ export function createBughouse3D(canvas, getParams, getTelemetry) {
 
       renderer.render(scene, camera);
 
-      if (hudCtx && showHud) {
-        renderHUD(hudCtx, hudCanvas.width, hudCanvas.height, game, lastMoveDesc, moveCount, moveHistoryLog, isGameOver);
-      } else if (hudCtx) {
-        hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+      if (hudCtx) {
+        const nextHudKey = `${showHud ? 1 : 0}:${moveCount}:${game.turn}:${isGameOver ? 1 : 0}:${hudCanvas.width}x${hudCanvas.height}`;
+        if (nextHudKey !== lastHudKey) {
+          lastHudKey = nextHudKey;
+          if (showHud) {
+            renderHUD(hudCtx, hudCanvas.width, hudCanvas.height, game, lastMoveDesc, moveCount, moveHistoryLog, isGameOver);
+          } else {
+            hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+          }
+        }
       }
     }
   };

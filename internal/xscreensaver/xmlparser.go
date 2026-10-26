@@ -391,7 +391,19 @@ func BuildCommandArgs(saver models.Screensaver, values map[string]any) []string 
 		}
 	}
 	if isRSS {
-		args = append(args, "-y", "0", "-M", "0")
+		args = append(args, "-y", "0", "-M", "0", "-x", "18")
+		if strings.HasSuffix(saver.BinaryPath, "/skyrocket") || saver.ID == "xss_skyrocket" {
+			if values == nil {
+				args = append(args, "-s", "0", "-S", "0")
+			} else {
+				if _, ok := values["smoke"]; !ok {
+					args = append(args, "-s", "0")
+				}
+				if _, ok := values["explosionsmoke"]; !ok {
+					args = append(args, "-S", "0")
+				}
+			}
+		}
 	}
 
 	if len(values) == 0 {

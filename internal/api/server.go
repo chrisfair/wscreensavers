@@ -41,6 +41,7 @@ type Server struct {
 
 	currentSaver string // guarded by mu; saver most recently handed to the overlay
 	lastWakeMs   int64
+	lastResumeMs int64
 }
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
@@ -66,22 +67,70 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 		idleMon.SetScreensaverActive(false, false)
 		idleMon.RecordActivity()
 		srv.xssRunner.StopAll()
-		// Resume wallpaper if enabled in config
-		cfg := srv.cfgMgr.Get()
-		if cfg.WallpaperEnabled {
-			if cfg.WallpaperMode == "per-monitor" {
-				_ = srv.layerCtrl.StartWallpaper(srv.baseURL, "")
-			} else {
-				wpSaver := cfg.WallpaperSaver
-				if wpSaver == "random" || wpSaver == "" {
-					wpSaver = srv.PickRandomSaver()
-				}
-				_ = srv.layerCtrl.StartWallpaper(srv.baseURL, wpSaver)
-			}
-		}
+		srv.ResumeWallpaperAfterOverlay()
 	})
 	srv.RefreshCatalog()
 	return srv
+}
+
+// StartConfiguredWallpaper launches the live wallpaper process according to the
+// saved configuration (per-monitor unique savers or single saver) if no screensaver
+// or lock overlay is currently running.
+func (s *Server) StartConfiguredWallpaper() error {
+	if s.layerCtrl.IsSaverRunning() || s.layerCtrl.IsLockRunning() {
+		return nil
+	}
+	cfg := s.cfgMgr.Get()
+	if !cfg.WallpaperEnabled {
+		return nil
+	}
+	s.idleMon.SetWallpaperActive(true)
+	if cfg.WallpaperMode != "single" {
+		return s.layerCtrl.StartWallpaper(s.baseURL, "per-monitor")
+	}
+	wpSaver := cfg.WallpaperSaver
+	if wpSaver == "random" || wpSaver == "" {
+		wpSaver = s.PickRandomSaver()
+	}
+	return s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
+}
+
+// SuspendWallpaperForOverlay stops any active live wallpaper and Xvfb streams without
+// altering the user's saved WallpaperEnabled preference, freeing all GPU/compositor
+// resources while the screensaver or lock screen is active.
+func (s *Server) SuspendWallpaperForOverlay() {
+	s.idleMon.SetWallpaperActive(false)
+	s.layerCtrl.StopWallpaper()
+	s.xssRunner.StopAll()
+	s.xssStreamer.StopAll()
+}
+
+// ResumeWallpaperAfterOverlay waits briefly for the exiting --saver or --lock process
+// to vanish from the process table and then restores the configured live wallpaper.
+func (s *Server) ResumeWallpaperAfterOverlay() {
+	if !s.isPrimary {
+		return
+	}
+	cfg := s.cfgMgr.Get()
+	if !cfg.WallpaperEnabled {
+		return
+	}
+	now := time.Now().UnixMilli()
+	s.mu.Lock()
+	if now-s.lastResumeMs < 450 {
+		s.mu.Unlock()
+		return
+	}
+	s.lastResumeMs = now
+	s.mu.Unlock()
+
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		if s.layerCtrl.IsSaverRunning() || s.layerCtrl.IsLockRunning() {
+			return
+		}
+		_ = s.StartConfiguredWallpaper()
+	}()
 }
 
 func (s *Server) RecordWake() int64 {
@@ -198,6 +247,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/action/unlock", s.handleUnlock)
 	mux.HandleFunc("/api/action/stop-saver", s.handleStopSaver)
 	mux.HandleFunc("/api/action/toggle-wallpaper", s.handleToggleWallpaper)
+	mux.HandleFunc("/api/action/suspend-wallpaper", s.handleSuspendWallpaper)
+	mux.HandleFunc("/api/action/overlay-exited", s.handleOverlayExited)
 	mux.HandleFunc("/api/action/dpms-off", s.handleDPMSOff)
 	mux.HandleFunc("/api/action/dpms-on", s.handleDPMSOn)
 	mux.HandleFunc("/api/action/wake", s.handleWake)
@@ -300,8 +351,8 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	_ = s.SetDPMS(true)
 	s.idleMon.SetScreensaverActive(true, locked)
 
-	// Stop live wallpaper so it doesn't render or stack under the fullscreen screensaver
-	s.layerCtrl.StopWallpaper()
+	// Stop live wallpaper and any active Xvfb streams so they don't render or stack under the fullscreen screensaver
+	s.SuspendWallpaperForOverlay()
 
 	err := s.layerCtrl.StartSaverOverlay(s.baseURL, saverID, locked)
 	if err != nil {
@@ -321,24 +372,15 @@ func (s *Server) StopScreensaver() {
 	// Only resume wallpaper directly if this is the primary daemon server;
 	// embedded --saver / --lock servers exit and notify the primary daemon on return.
 	if s.isPrimary {
-		cfg := s.cfgMgr.Get()
-		if cfg.WallpaperEnabled {
-			if cfg.WallpaperMode == "per-monitor" {
-				_ = s.layerCtrl.StartWallpaper(s.baseURL, "")
-			} else {
-				wpSaver := cfg.WallpaperSaver
-				if wpSaver == "random" || wpSaver == "" {
-					wpSaver = s.PickRandomSaver()
-				}
-				_ = s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
-			}
-		}
+		s.ResumeWallpaperAfterOverlay()
 	}
 }
 
 func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
 	cfg := s.cfgMgr.Get()
-	if saverID != "" && saverID != "per-monitor" {
+	if saverID == "per-monitor" {
+		cfg.WallpaperMode = "per-monitor"
+	} else if saverID != "" {
 		cfg.WallpaperSaver = saverID
 	}
 	if cfg.WallpaperSaver == "" {
@@ -348,18 +390,12 @@ func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
 	_ = s.cfgMgr.Update(cfg)
 
 	if enabled {
-		s.idleMon.SetWallpaperActive(true)
-		if cfg.WallpaperMode == "per-monitor" {
-			return s.layerCtrl.StartWallpaper(s.baseURL, "")
-		}
-		actualSaver := cfg.WallpaperSaver
-		if actualSaver == "random" {
-			actualSaver = s.PickRandomSaver()
-		}
-		return s.layerCtrl.StartWallpaper(s.baseURL, actualSaver)
+		return s.StartConfiguredWallpaper()
 	}
 	s.idleMon.SetWallpaperActive(false)
 	s.layerCtrl.StopWallpaper()
+	s.xssRunner.StopAll()
+	s.xssStreamer.StopAll()
 	return nil
 }
 
@@ -597,6 +633,14 @@ func (s *Server) handleMonitors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("light") == "1" {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"version":    version.Version,
+			"daemon":     s.idleMon.StatusLight(),
+			"lastWakeMs": s.LastWakeMs(),
+		})
+		return
+	}
 	cfg := s.cfgMgr.Get()
 	st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -683,27 +727,25 @@ func (s *Server) handleToggleWallpaper(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.cfgMgr.Get())
 }
 
-// SetDPMS wakes Wayland display power management across all monitors when on is true.
-// Screen blanking while locked or idle uses the layer-shell black curtain and pauses rendering
-// so Wayland wl_output globals and gtk-layer-shell keyboard focus are never unmapped.
+func (s *Server) handleSuspendWallpaper(w http.ResponseWriter, r *http.Request) {
+	s.SuspendWallpaperForOverlay()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleOverlayExited(w http.ResponseWriter, r *http.Request) {
+	wakeMs := s.RecordWake()
+	_ = s.SetDPMS(true)
+	s.idleMon.SetScreensaverActive(false, false)
+	s.ResumeWallpaperAfterOverlay()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lastWakeMs": wakeMs})
+}
+
+// SetDPMS is intentionally a software-only no-op: screen blanking while locked
+// or idle uses the layer-shell black curtain and pauses canvas rendering so
+// Wayland wl_output globals, DRM/KMS CRTCs, and gtk-layer-shell keyboard focus
+// are never unmapped or toggled via compositor IPC.
 func (s *Server) SetDPMS(on bool) error {
-	if !on {
-		return nil
-	}
-	mons := display.DetectMonitors()
-	if _, err := exec.LookPath("hyprctl"); err == nil {
-		_ = exec.Command("hyprctl", "dispatch", "dpms", "on").Run()
-		for _, m := range mons {
-			if m.Name != "" && m.Name != "default" {
-				_ = exec.Command("hyprctl", "dispatch", "dpms", "on", m.Name).Run()
-			}
-		}
-		return nil
-	}
-	if _, err := exec.LookPath("swaymsg"); err == nil {
-		_ = exec.Command("swaymsg", "output", "*", "dpms", "on").Run()
-		return nil
-	}
+	_ = on
 	return nil
 }
 

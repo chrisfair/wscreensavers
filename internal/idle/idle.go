@@ -212,10 +212,7 @@ func (m *Monitor) IsFullscreenAppActive() bool {
 	return win.Fullscreen > 0
 }
 
-func (m *Monitor) Status(inhibitAudio, inhibitFullscreen bool) models.DaemonStatus {
-	m.connectWaylandListener()
-	m.PollCursorActivity()
-
+func (m *Monitor) StatusLight() models.DaemonStatus {
 	m.mu.RLock()
 	var idleSec int
 	if m.waylandActive {
@@ -235,6 +232,26 @@ func (m *Monitor) Status(inhibitAudio, inhibitFullscreen bool) models.DaemonStat
 	locked := m.locked
 	m.mu.RUnlock()
 
+	return models.DaemonStatus{
+		Running:           true,
+		IdleSeconds:       idleSec,
+		ScreensaverActive: saverActive,
+		WallpaperActive:   wpActive,
+		Locked:            locked,
+	}
+}
+
+func (m *Monitor) Status(inhibitAudio, inhibitFullscreen bool) models.DaemonStatus {
+	m.connectWaylandListener()
+	m.mu.RLock()
+	wlActive := m.waylandActive
+	m.mu.RUnlock()
+	if !wlActive {
+		m.PollCursorActivity()
+	}
+
+	st := m.StatusLight()
+
 	var reasons []string
 	if inhibitAudio && m.IsAudioPlaying() {
 		reasons = append(reasons, "Media Audio Active (PipeWire/ALSA)")
@@ -242,16 +259,10 @@ func (m *Monitor) Status(inhibitAudio, inhibitFullscreen bool) models.DaemonStat
 	if inhibitFullscreen && m.IsFullscreenAppActive() {
 		reasons = append(reasons, "Fullscreen Window Active")
 	}
+	st.Inhibited = len(reasons) > 0
+	st.InhibitReason = strings.Join(reasons, ", ")
 
-	return models.DaemonStatus{
-		Running:           true,
-		IdleSeconds:       idleSec,
-		Inhibited:         len(reasons) > 0,
-		InhibitReason:     strings.Join(reasons, ", "),
-		ScreensaverActive: saverActive,
-		WallpaperActive:   wpActive,
-		Locked:            locked,
-	}
+	return st
 }
 
 // ScanSystemBlips gathers live processes and ARP/network peers for the Sonar and Phosphor screensavers.

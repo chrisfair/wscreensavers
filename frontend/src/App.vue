@@ -5,9 +5,10 @@
       :saver-id="activeSaverId"
       :params="activeSaverParams"
       :telemetry="telemetry"
-      :fps-cap="isWallpaperSurface ? (config.wallpaperFpsCap || 30) : 60"
+      :fps-cap="isWallpaperSurface ? Math.min(config.wallpaperFpsCap || 15, 20) : 30"
       :show-fps="false"
       :paused="isScreenDark"
+      :is-wallpaper="isWallpaperSurface"
       :api-base="apiBase"
     />
     <LockScreenOverlay
@@ -315,8 +316,9 @@
               :saver-id="selectedSaver.id"
               :params="currentSaverParams"
               :telemetry="telemetry"
-              :fps-cap="60"
+              :fps-cap="config.wallpaperEnabled ? 15 : 24"
               :show-fps="true"
+              :paused="isPreviewPaused"
               :api-base="apiBase"
             />
             <div class="preview-overlay-bar">
@@ -668,7 +670,7 @@ const username = ref('user');
 const showSupportModal = ref(false);
 const showAboutModal = ref(false);
 const isSupporter = ref(false);
-const appVersion = ref('1.1.6');
+const appVersion = ref('1.1.7');
 const openMenu = ref(null);
 
 const themeOptions = {
@@ -888,29 +890,79 @@ async function fetchInitialData() {
 }
 
 let lastSeenWakeMs = 0;
+let pollTickCount = 0;
+const isDocumentHidden = ref(typeof document !== 'undefined' ? document.hidden : false);
+const isWindowFocused = ref(typeof document !== 'undefined' && typeof document.hasFocus === 'function' ? document.hasFocus() : true);
+
+const isPreviewPaused = computed(() => {
+  return Boolean(!isWindowFocused.value || isDocumentHidden.value || daemonStatus.value.screensaverActive || daemonStatus.value.locked);
+});
+
+const needsLiveTelemetry = computed(() => {
+  const id = isFullscreenSurface.value ? activeSaverId.value : selectedSaver.value.id;
+  return id === 'sonar' || id === 'phosphor' || id === 'starwars';
+});
+
+function onVisibilityChange() {
+  isDocumentHidden.value = Boolean(document.hidden);
+}
+
+function onWindowFocus() {
+  isWindowFocused.value = true;
+}
+
+function onWindowBlur() {
+  isWindowFocused.value = false;
+}
 
 async function refreshTelemetry() {
+  pollTickCount++;
   try {
-    const [blipsRes, feedRes, stRes] = await Promise.all([
-      fetch(`${apiBase.value}/api/telemetry/blips`),
-      fetch(`${apiBase.value}/api/telemetry/feed`),
-      fetch(`${apiBase.value}/api/status`)
-    ]);
-    if (blipsRes.ok) telemetry.value.blips = await blipsRes.json();
-    if (feedRes.ok) telemetry.value.feed = await feedRes.json();
-    if (stRes.ok) {
-      const st = await stRes.json();
-      daemonStatus.value = st.daemon || daemonStatus.value;
-      otherWallpapers.value = st.otherWallpapers || [];
-      if (st.version) appVersion.value = st.version;
-      if (st.lastWakeMs) {
-        if (lastSeenWakeMs > 0 && st.lastWakeMs > lastSeenWakeMs && window.__wssWake) {
-          window.__wssWake();
+    if (isScreenDark.value) {
+      if (!isWallpaperSurface.value) {
+        const stRes = await fetch(`${apiBase.value}/api/status?light=1`);
+        if (stRes.ok) {
+          const st = await stRes.json();
+          if (st.lastWakeMs) {
+            if (lastSeenWakeMs > 0 && st.lastWakeMs > lastSeenWakeMs && window.__wssWake) {
+              window.__wssWake();
+            }
+            lastSeenWakeMs = st.lastWakeMs;
+          }
         }
-        lastSeenWakeMs = st.lastWakeMs;
+      }
+      return;
+    }
+
+    if (needsLiveTelemetry.value && (!isDocumentHidden.value || isFullscreenSurface.value)) {
+      const [blipsRes, feedRes] = await Promise.all([
+        fetch(`${apiBase.value}/api/telemetry/blips`),
+        fetch(`${apiBase.value}/api/telemetry/feed`)
+      ]);
+      if (blipsRes.ok) telemetry.value.blips = await blipsRes.json();
+      if (feedRes.ok) telemetry.value.feed = await feedRes.json();
+    }
+
+    if (!isWallpaperSurface.value) {
+      const statusUrl = isFullscreenSurface.value
+        ? `${apiBase.value}/api/status?light=1`
+        : `${apiBase.value}/api/status`;
+      const stRes = await fetch(statusUrl);
+      if (stRes.ok) {
+        const st = await stRes.json();
+        daemonStatus.value = st.daemon || daemonStatus.value;
+        if (st.otherWallpapers) otherWallpapers.value = st.otherWallpapers;
+        if (st.version) appVersion.value = st.version;
+        if (st.lastWakeMs) {
+          if (lastSeenWakeMs > 0 && st.lastWakeMs > lastSeenWakeMs && window.__wssWake) {
+            window.__wssWake();
+          }
+          lastSeenWakeMs = st.lastWakeMs;
+        }
       }
     }
-    if (isFullscreenSurface.value) {
+
+    if (isFullscreenSurface.value && pollTickCount % 5 === 0) {
       const cfgRes = await fetch(`${apiBase.value}/api/config`);
       if (cfgRes.ok) config.value = await cfgRes.json();
     }
@@ -992,9 +1044,14 @@ async function launchWaylandOverlay(locked) {
 async function toggleWallpaperMode() {
   const nextState = !config.value.wallpaperEnabled;
   config.value.wallpaperEnabled = nextState;
-  const saverId = config.value.wallpaperMode === 'per-monitor'
+  if (nextState && monitors.value.length > 1 && config.value.wallpaperMode !== 'single') {
+    config.value.wallpaperMode = 'per-monitor';
+    ensureUniqueMonitorWallpapers();
+    await persistConfig();
+  }
+  const saverId = config.value.wallpaperMode !== 'single'
     ? 'per-monitor'
-    : (config.value.selectedSaver || config.value.wallpaperSaver || 'flurry');
+    : (config.value.wallpaperSaver || 'flurry');
   try {
     const res = await fetch(`${apiBase.value}/api/action/toggle-wallpaper`, {
       method: 'POST',
@@ -1131,12 +1188,18 @@ function exitInWindowFullscreen() {
 
 let pollTimer = null;
 onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('focus', onWindowFocus);
+  window.addEventListener('blur', onWindowBlur);
   applyTheme(currentTheme.value);
   fetchInitialData();
   pollTimer = setInterval(refreshTelemetry, 3000);
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  window.removeEventListener('focus', onWindowFocus);
+  window.removeEventListener('blur', onWindowBlur);
   if (pollTimer) clearInterval(pollTimer);
 });
 </script>

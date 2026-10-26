@@ -29,6 +29,7 @@ const props = defineProps({
   fpsCap: { type: Number, default: 60 },
   showFps: { type: Boolean, default: false },
   paused: { type: Boolean, default: false },
+  isWallpaper: { type: Boolean, default: false },
   apiBase: { type: String, default: '' }
 });
 
@@ -51,7 +52,6 @@ const monitorName = new URLSearchParams(window.location.search).get('monitor') |
 const mounted = ref(false);
 
 function sizeQuery() {
-  const dpr = window.devicePixelRatio || 1;
   let w = window.innerWidth;
   let h = window.innerHeight;
   if (!monitorName && containerRef.value) {
@@ -59,7 +59,15 @@ function sizeQuery() {
     w = rect.width;
     h = rect.height;
   }
-  return `&w=${Math.round(w * dpr)}&h=${Math.round(h * dpr)}`;
+  w = Math.round(w);
+  h = Math.round(h);
+  const maxLong = props.isWallpaper ? 960 : 1280;
+  const longEdge = Math.max(w, h);
+  if (longEdge > maxLong) {
+    w = Math.round((w * maxLong) / longEdge);
+    h = Math.round((h * maxLong) / longEdge);
+  }
+  return `&w=${w}&h=${h}`;
 }
 
 function monitorQuery() {
@@ -70,10 +78,13 @@ function monitorQuery() {
 const streamUrl = computed(() => {
   if (!isExternalXSS.value || !mounted.value || props.paused) return '';
   const base = props.apiBase || '';
-  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&client=${clientId}&v=${streamVersion.value}${monitorQuery()}&fps=${Math.min(props.fpsCap > 0 ? props.fpsCap : 30, 30)}`;
+  const maxStreamFps = props.isWallpaper ? 15 : 24;
+  const fps = Math.min(props.fpsCap > 0 ? props.fpsCap : maxStreamFps, maxStreamFps);
+  return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&client=${clientId}&v=${streamVersion.value}${monitorQuery()}&fps=${fps}`;
 });
 
 let animId = null;
+let fpsTimerId = null;
 let instance = null;
 let resizeObserver = null;
 let lastFrameTime = 0;
@@ -83,13 +94,37 @@ let paramDebounceTimer = null;
 let lastSaverIdForParams = props.saverId;
 let lastParamsJson = JSON.stringify(props.params || {});
 
+function clearLoopHandles() {
+  if (fpsTimerId) {
+    clearTimeout(fpsTimerId);
+    fpsTimerId = null;
+  }
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
+}
+
+function startLoopIfNeeded() {
+  if (props.paused || isExternalXSS.value || animId || fpsTimerId) return;
+  lastFrameTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
 function syncSize() {
   const wrap = containerRef.value;
   const cvs = canvasRef.value;
   if (!wrap || !cvs) return;
   const rect = wrap.getBoundingClientRect();
-  const w = Math.max(300, Math.floor(rect.width));
-  const h = Math.max(200, Math.floor(rect.height));
+  let w = Math.max(300, Math.floor(rect.width));
+  let h = Math.max(200, Math.floor(rect.height));
+  // Cap internal canvas resolution so multi-monitor WebKit2GTK wl_shm transfers never saturate the Wayland compositor
+  const maxLong = props.isWallpaper ? 960 : 1280;
+  const longEdge = Math.max(w, h);
+  if (longEdge > maxLong) {
+    w = Math.max(300, Math.floor((w * maxLong) / longEdge));
+    h = Math.max(200, Math.floor((h * maxLong) / longEdge));
+  }
   if (cvs.width !== w || cvs.height !== h) {
     cvs.width = w;
     cvs.height = h;
@@ -119,17 +154,15 @@ function initVisualizer() {
 }
 
 function loop(timestamp) {
-  if (props.paused) {
-    animId = null;
+  animId = null;
+  if (props.paused || isExternalXSS.value) {
     return;
   }
-  animId = requestAnimationFrame(loop);
-  if (isExternalXSS.value) return;
 
-  const cap = props.fpsCap > 0 ? props.fpsCap : 60;
+  const maxAllowed = props.isWallpaper ? 20 : 30;
+  const cap = Math.min(props.fpsCap > 0 ? props.fpsCap : maxAllowed, maxAllowed);
   const minInterval = 1000 / cap;
   const elapsedMs = timestamp - lastFrameTime;
-  if (elapsedMs < minInterval * 0.9) return;
 
   const dt = Math.min(0.08, Math.max(0.004, elapsedMs / 1000));
   lastFrameTime = timestamp;
@@ -148,6 +181,15 @@ function loop(timestamp) {
       console.warn('Screensaver render exception:', e);
     }
   }
+
+  const renderDur = performance.now() - timestamp;
+  const delayMs = Math.max(8, Math.floor(minInterval - renderDur - 2));
+  fpsTimerId = setTimeout(() => {
+    fpsTimerId = null;
+    if (!props.paused && !isExternalXSS.value) {
+      animId = requestAnimationFrame(loop);
+    }
+  }, delayMs);
 }
 
 function stopRemoteStream() {
@@ -161,10 +203,7 @@ function onStreamError() {
     stopRemoteStream();
     nextTick(() => {
       initVisualizer();
-      if (!props.paused && !animId) {
-        lastFrameTime = performance.now();
-        animId = requestAnimationFrame(loop);
-      }
+      startLoopIfNeeded();
     });
     return;
   }
@@ -177,22 +216,17 @@ function onStreamError() {
 
 function onContextLost(e) {
   e.preventDefault();
-  if (animId) {
-    cancelAnimationFrame(animId);
-    animId = null;
-  }
+  clearLoopHandles();
 }
 
 function onContextRestored() {
   initVisualizer();
-  lastFrameTime = performance.now();
-  if (!props.paused && !animId) {
-    animId = requestAnimationFrame(loop);
-  }
+  startLoopIfNeeded();
 }
 
 watch(() => props.paused, (isPaused) => {
   if (isPaused) {
+    clearLoopHandles();
     if (isExternalXSS.value) {
       if (imgRef.value) imgRef.value.src = '';
       stopRemoteStream();
@@ -200,9 +234,8 @@ watch(() => props.paused, (isPaused) => {
   } else {
     if (isExternalXSS.value) {
       streamVersion.value++;
-    } else if (!animId) {
-      lastFrameTime = performance.now();
-      animId = requestAnimationFrame(loop);
+    } else {
+      startLoopIfNeeded();
     }
   }
 });
@@ -221,6 +254,7 @@ watch(() => props.saverId, async (newId, oldId) => {
   }
   await nextTick();
   initVisualizer();
+  startLoopIfNeeded();
 });
 
 watch(() => props.params, (newParams) => {
@@ -253,10 +287,11 @@ onMounted(() => {
   }
   lastFrameTime = performance.now();
   fpsLastCheck = lastFrameTime;
-  animId = requestAnimationFrame(loop);
+  startLoopIfNeeded();
 });
 
 onBeforeUnmount(() => {
+  clearLoopHandles();
   if (instance && typeof instance.destroy === 'function') {
     try { instance.destroy(); } catch (e) {}
     instance = null;
@@ -264,11 +299,13 @@ onBeforeUnmount(() => {
   if (imgRef.value) {
     imgRef.value.src = '';
   }
+  if (isExternalXSS.value) {
+    stopRemoteStream();
+  }
   if (canvasRef.value) {
     canvasRef.value.removeEventListener('webglcontextlost', onContextLost);
     canvasRef.value.removeEventListener('webglcontextrestored', onContextRestored);
   }
-  if (animId) cancelAnimationFrame(animId);
   if (resizeObserver) resizeObserver.disconnect();
   if (paramDebounceTimer) clearTimeout(paramDebounceTimer);
 });

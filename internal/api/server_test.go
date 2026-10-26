@@ -157,8 +157,8 @@ func TestAPIServerEndpoints(t *testing.T) {
 	delCfgResp, _ := http.DefaultClient.Do(delCfgReq)
 	delCfgResp.Body.Close()
 
-	// 4. GET /api/monitors, /api/status, /api/telemetry/blips, /api/telemetry/feed
-	for _, ep := range []string{"/api/monitors", "/api/status", "/api/telemetry/blips", "/api/telemetry/feed"} {
+	// 4. GET /api/monitors, /api/status, /api/status?light=1, /api/telemetry/blips, /api/telemetry/feed
+	for _, ep := range []string{"/api/monitors", "/api/status", "/api/status?light=1", "/api/telemetry/blips", "/api/telemetry/feed"} {
 		res, err := http.Get(baseURL + ep)
 		if err != nil {
 			t.Fatal(err)
@@ -169,8 +169,8 @@ func TestAPIServerEndpoints(t *testing.T) {
 		}
 	}
 
-	// 5. Wake, DPMS, and XSS-stream endpoints
-	for _, ep := range []string{"/api/action/wake", "/api/action/dpms-on", "/api/action/dpms-off"} {
+	// 5. Wake, DPMS, suspend-wallpaper, overlay-exited, and XSS-stream endpoints
+	for _, ep := range []string{"/api/action/wake", "/api/action/dpms-on", "/api/action/dpms-off", "/api/action/suspend-wallpaper", "/api/action/overlay-exited"} {
 		res, err := http.Post(baseURL+ep, "application/json", nil)
 		if err != nil {
 			t.Fatal(err)

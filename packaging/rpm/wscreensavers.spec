@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.6
+Version:        1.1.7
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -50,6 +50,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Mon Oct 26 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.7-1
+- Release v1.1.7: throttle WebKit animation loops and Xvfb/ffmpeg threads, auto-pause unfocused preview, and avoid compositor DPMS races
+
 * Mon Oct 26 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.6-1
 - Release v1.1.6: add CLI/API/GUI version reporting and desktop application menu header bar
 

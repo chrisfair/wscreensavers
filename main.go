@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"embed"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -137,10 +136,12 @@ func main() {
 
 		// Overlays and wallpapers are stopped with SIGTERM; cleanly tear down
 		// GTK layer-shell surfaces and unmap Wayland windows before process exit.
+		var terminatedBySignal atomic.Bool
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		go func() {
 			<-sigCh
+			terminatedBySignal.Store(true)
 			srv.ShutdownEmbedded()
 			layershell.RequestQuit()
 			time.Sleep(150 * time.Millisecond)
@@ -153,6 +154,7 @@ func main() {
 				layershell.StopMatchingSaverOnlyProcesses()
 			}
 			_ = srv.SetDPMS(true)
+			notifyDaemonSuspendWallpaper(daemonURL)
 			layershell.StopMatchingWallpaperProcesses()
 		}
 
@@ -183,21 +185,9 @@ func main() {
 		if stopSeatWake != nil {
 			stopSeatWake()
 		}
-		if *saverMode || *lockMode {
+		if (*saverMode || *lockMode) && !terminatedBySignal.Load() {
 			_ = srv.SetDPMS(true)
-			notifyURL := daemonURL
-			if notifyURL == "" {
-				notifyURL = "http://127.0.0.1:8642"
-			}
-			client := &http.Client{Timeout: 400 * time.Millisecond}
-			if resp, err := client.Post(notifyURL+"/api/action/wake", "application/json", nil); err == nil {
-				_ = resp.Body.Close()
-			}
-		}
-
-		// When screensaver or lock screen finishes and exits, resume live wallpaper if enabled in user configuration
-		if (*saverMode || *lockMode) && cfgMgr.Get().WallpaperEnabled {
-			resumeWallpaper()
+			notifyDaemonOverlayExited(daemonURL, cfgMgr.Get().WallpaperEnabled)
 		}
 		return
 	}
@@ -263,7 +253,7 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 	for idx, mon := range monitors {
 		chosenSaver := explicitSaverID
 		if isWallpaper {
-			isPerMon := cfg.WallpaperMode == "per-monitor" || (explicitSaverID == "" && len(cfg.WallpaperPerMonitor) > 0)
+			isPerMon := cfg.WallpaperMode != "single" || explicitSaverID == "per-monitor" || (explicitSaverID == "" && len(cfg.WallpaperPerMonitor) > 0)
 			if isPerMon {
 				if assigned, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && assigned != "" && assigned != "random" && !usedWallpaperSavers[assigned] {
 					chosenSaver = assigned
@@ -343,12 +333,32 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 	return urls
 }
 
-func resumeWallpaper() {
-	reqBody := map[string]any{"enabled": true, "saverId": "per-monitor"}
-	data, _ := json.Marshal(reqBody)
-	resp, err := http.Post("http://127.0.0.1:8642/api/action/toggle-wallpaper", "application/json", bytes.NewReader(data))
-	if err == nil && resp.StatusCode == http.StatusOK {
+func resolveDaemonURL(daemonURL string) string {
+	if daemonURL != "" {
+		return daemonURL
+	}
+	return "http://127.0.0.1:8642"
+}
+
+func notifyDaemonSuspendWallpaper(daemonURL string) {
+	client := &http.Client{Timeout: 350 * time.Millisecond}
+	resp, err := client.Post(resolveDaemonURL(daemonURL)+"/api/action/suspend-wallpaper", "application/json", nil)
+	if err == nil {
 		_ = resp.Body.Close()
+	}
+}
+
+func notifyDaemonOverlayExited(daemonURL string, wallpaperEnabled bool) {
+	client := &http.Client{Timeout: 400 * time.Millisecond}
+	resp, err := client.Post(resolveDaemonURL(daemonURL)+"/api/action/overlay-exited", "application/json", nil)
+	if err == nil {
+		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return
+		}
+	}
+	// Fallback if primary daemon is not running: spawn --wallpaper directly if enabled
+	if !wallpaperEnabled {
 		return
 	}
 	exe, err := os.Executable()
@@ -358,5 +368,7 @@ func resumeWallpaper() {
 	cmd := exec.Command(exe, "--wallpaper")
 	cmd.Env = os.Environ()
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	_ = cmd.Start()
+	if err := cmd.Start(); err == nil && cmd.Process != nil {
+		_ = syscall.Setpriority(syscall.PRIO_PROCESS, cmd.Process.Pid, 19)
+	}
 }
