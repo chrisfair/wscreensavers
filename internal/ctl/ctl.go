@@ -18,6 +18,7 @@ import (
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/support"
+	"wscreensavers/internal/version"
 	"wscreensavers/internal/xscreensaver"
 )
 
@@ -31,6 +32,7 @@ type CompactSaver struct {
 }
 
 type StatusPayload struct {
+	Version          string                 `json:"version"`
 	Config           models.AppConfig       `json:"config"`
 	SelectedName     string                 `json:"selectedName"`
 	WallpaperName    string                 `json:"wallpaperName"`
@@ -155,6 +157,7 @@ func buildStatus(cfgMgr *config.Manager) StatusPayload {
 	}
 
 	return StatusPayload{
+		Version:          version.Version,
 		Config:           cfg,
 		SelectedName:     selName,
 		WallpaperName:    wpName,
@@ -213,6 +216,10 @@ func Run(cfgMgr *config.Manager, args []string) error {
 	cfg := cfgMgr.Get()
 
 	switch sub {
+	case "version", "--version", "-v":
+		fmt.Printf("wscreensavers v%s\n", version.Version)
+		return nil
+
 	case "set":
 		if len(args) < 3 {
 			return fmt.Errorf("usage: wscreensavers ctl set <key> <value>")

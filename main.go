@@ -31,6 +31,7 @@ import (
 	"wscreensavers/internal/layershell"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/singleton"
+	"wscreensavers/internal/version"
 )
 
 //go:embed all:frontend/dist
@@ -47,6 +48,14 @@ func init() {
 }
 
 func main() {
+	if len(os.Args) >= 2 {
+		switch os.Args[1] {
+		case "-v", "--version", "-version", "version":
+			fmt.Printf("wscreensavers v%s\n", version.Version)
+			return
+		}
+	}
+
 	cfgMgr, err := config.NewManager("")
 	if err != nil {
 		log.Fatalf("Failed to initialize config manager: %v", err)
@@ -61,6 +70,8 @@ func main() {
 	}
 
 	var (
+		versionFlag   = flag.Bool("version", false, "Print wscreensavers version and exit")
+		shortVerFlag  = flag.Bool("v", false, "Print wscreensavers version and exit")
 		saverMode     = flag.Bool("saver", false, "Launch fullscreen Wayland screensaver overlay across all monitors")
 		lockMode      = flag.Bool("lock", false, "Launch fullscreen locked Wayland screensaver overlay across all monitors")
 		wallpaperMode = flag.Bool("wallpaper", false, "Launch Wayland background layer-shell live wallpaper across all monitors")
@@ -71,6 +82,11 @@ func main() {
 		listenAddr    = flag.String("addr", "127.0.0.1:8642", "HTTP API listen address")
 	)
 	flag.Parse()
+
+	if *versionFlag || *shortVerFlag {
+		fmt.Printf("wscreensavers v%s\n", version.Version)
+		return
+	}
 
 	distFS, err := fs.Sub(assets, "frontend/dist")
 	if err != nil {

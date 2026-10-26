@@ -13,9 +13,14 @@ func TestCtlCommands(t *testing.T) {
 		t.Fatalf("failed to create config manager: %v", err)
 	}
 
-	// 1. Test status & get
+	// 1. Test status, version & get
 	if err := Run(cfgMgr, []string{"status"}); err != nil {
 		t.Fatalf("expected status to succeed, got: %v", err)
+	}
+	for _, vArg := range []string{"version", "--version", "-v"} {
+		if err := Run(cfgMgr, []string{vArg}); err != nil {
+			t.Fatalf("expected %s to succeed, got: %v", vArg, err)
+		}
 	}
 	if err := Run(cfgMgr, []string{"get"}); err != nil {
 		t.Fatalf("expected get to succeed, got: %v", err)

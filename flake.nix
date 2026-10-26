@@ -14,7 +14,7 @@
       {
         packages.default = pkgs.stdenv.mkDerivation {
           pname = "wscreensavers";
-          version = "1.1.5";
+          version = "1.1.6";
           src = ./.;
 
           nativeBuildInputs = with pkgs; [

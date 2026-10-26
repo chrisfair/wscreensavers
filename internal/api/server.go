@@ -21,6 +21,7 @@ import (
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/support"
+	"wscreensavers/internal/version"
 	"wscreensavers/internal/xscreensaver"
 )
 
@@ -599,6 +600,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	cfg := s.cfgMgr.Get()
 	st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
 	writeJSON(w, http.StatusOK, map[string]any{
+		"version":         version.Version,
 		"daemon":          st,
 		"username":        auth.CurrentUsername(),
 		"baseUrl":         s.baseURL,

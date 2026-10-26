@@ -31,7 +31,192 @@
   </div>
 
   <!-- Mode B: WScreenSavers Desktop Control Center -->
-  <div v-else class="app-shell">
+  <div v-else class="app-shell" @click="closeMenus">
+    <!-- Standard Application Menu Header Bar -->
+    <nav class="app-menubar" @click.stop>
+      <div class="menubar-left">
+        <!-- Actions Menu -->
+        <div class="menu-item" :class="{ open: openMenu === 'actions' }">
+          <button
+            class="menu-trigger"
+            type="button"
+            @click="toggleMenu('actions')"
+            @mouseenter="hoverMenu('actions')"
+          >
+            Actions
+          </button>
+          <div v-if="openMenu === 'actions'" class="menu-dropdown">
+            <button class="menu-entry" type="button" @click="runMenuAction(() => { inWindowFullscreen = true })">
+              <span>Preview Fullscreen</span>
+              <span class="menu-kbd">ESC to exit</span>
+            </button>
+            <button class="menu-entry" type="button" @click="runMenuAction(() => launchWaylandOverlay(false))">
+              <span>Activate Screensaver on Wayland</span>
+            </button>
+            <button class="menu-entry" type="button" @click="runMenuAction(() => launchWaylandOverlay(true))">
+              <span>Lock Screen Now</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-entry" type="button" @click="runMenuAction(toggleWallpaperMode)">
+              <span class="menu-check">{{ config.wallpaperEnabled ? '✓' : '' }}</span>
+              <span>{{ config.wallpaperEnabled ? 'Disable Live Desktop Wallpaper' : 'Enable Live Desktop Wallpaper' }}</span>
+            </button>
+            <button class="menu-entry" type="button" @click="runMenuAction(randomizeUniqueWallpapers)">
+              <span class="menu-check"></span>
+              <span>Randomize Per-Monitor Wallpapers</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-entry" type="button" @click="runMenuAction(fetchInitialData)">
+              <span class="menu-check"></span>
+              <span>Refresh Telemetry &amp; Catalog</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Settings Menu -->
+        <div class="menu-item" :class="{ open: openMenu === 'settings' }">
+          <button
+            class="menu-trigger"
+            type="button"
+            @click="toggleMenu('settings')"
+            @mouseenter="hoverMenu('settings')"
+          >
+            Settings
+          </button>
+          <div v-if="openMenu === 'settings'" class="menu-dropdown menu-dropdown-wide">
+            <div class="menu-section-label">Configuration Panels</div>
+            <button class="menu-entry" type="button" @click="runMenuAction(() => { activeTab = 'daemon' })">
+              <span class="menu-check">{{ activeTab === 'daemon' ? '•' : '' }}</span>
+              <span>Idle Daemon &amp; Lock Security</span>
+            </button>
+            <button class="menu-entry" type="button" @click="runMenuAction(() => { activeTab = 'monitors' })">
+              <span class="menu-check">{{ activeTab === 'monitors' ? '•' : '' }}</span>
+              <span>Multi-Monitor Topology ({{ monitors.length }})</span>
+            </button>
+            <button class="menu-entry" type="button" @click="runMenuAction(() => { activeTab = 'wallpaper' })">
+              <span class="menu-check">{{ activeTab === 'wallpaper' ? '•' : '' }}</span>
+              <span>Live Desktop Wallpaper</span>
+            </button>
+            <div class="menu-divider"></div>
+            <div class="menu-section-label">Quick Preferences</div>
+            <button class="menu-entry" type="button" @click="toggleBoolConfig('lockEnabled')">
+              <span class="menu-check">{{ config.lockEnabled ? '✓' : '' }}</span>
+              <span>Require PAM Password on Lock</span>
+            </button>
+            <button class="menu-entry" type="button" @click="toggleBoolConfig('showClockOnSaver')">
+              <span class="menu-check">{{ config.showClockOnSaver ? '✓' : '' }}</span>
+              <span>Show Floating Clock HUD</span>
+            </button>
+            <button class="menu-entry" type="button" @click="toggleBoolConfig('inhibitOnAudio')">
+              <span class="menu-check">{{ config.inhibitOnAudio ? '✓' : '' }}</span>
+              <span>Inhibit When Audio is Playing</span>
+            </button>
+            <button class="menu-entry" type="button" @click="toggleBoolConfig('inhibitOnFullscreen')">
+              <span class="menu-check">{{ config.inhibitOnFullscreen ? '✓' : '' }}</span>
+              <span>Inhibit When Fullscreen App Active</span>
+            </button>
+            <div class="menu-divider"></div>
+            <div class="menu-section-label">Activation Mode</div>
+            <button
+              v-for="m in activationModes"
+              :key="m.id"
+              class="menu-entry"
+              type="button"
+              @click="setActivationMode(m.id)"
+            >
+              <span class="menu-check">{{ config.mode === m.id ? '•' : '' }}</span>
+              <span>{{ m.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Appearance Menu -->
+        <div class="menu-item" :class="{ open: openMenu === 'appearance' }">
+          <button
+            class="menu-trigger"
+            type="button"
+            @click="toggleMenu('appearance')"
+            @mouseenter="hoverMenu('appearance')"
+          >
+            Appearance
+          </button>
+          <div v-if="openMenu === 'appearance'" class="menu-dropdown">
+            <button class="menu-entry" type="button" @click="runMenuAction(toggleLightDark)">
+              <span class="menu-check">{{ isCurrentThemeLight ? '🌙' : '☀️' }}</span>
+              <span>{{ isCurrentThemeLight ? 'Switch to Dark Mode' : 'Switch to Light Mode' }}</span>
+            </button>
+            <div class="menu-divider"></div>
+            <div class="menu-section-label">Dark Themes</div>
+            <button
+              v-for="t in themeOptions.dark"
+              :key="t.id"
+              class="menu-entry"
+              type="button"
+              @click="runMenuAction(() => applyTheme(t.id))"
+            >
+              <span class="menu-check">{{ currentTheme === t.id ? '✓' : '' }}</span>
+              <span>{{ t.label }}</span>
+            </button>
+            <div class="menu-divider"></div>
+            <div class="menu-section-label">Light Themes</div>
+            <button
+              v-for="t in themeOptions.light"
+              :key="t.id"
+              class="menu-entry"
+              type="button"
+              @click="runMenuAction(() => applyTheme(t.id))"
+            >
+              <span class="menu-check">{{ currentTheme === t.id ? '✓' : '' }}</span>
+              <span>{{ t.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Help Menu -->
+        <div class="menu-item" :class="{ open: openMenu === 'help' }">
+          <button
+            class="menu-trigger"
+            type="button"
+            @click="toggleMenu('help')"
+            @mouseenter="hoverMenu('help')"
+          >
+            Help
+          </button>
+          <div v-if="openMenu === 'help'" class="menu-dropdown">
+            <button class="menu-entry" type="button" @click="runMenuAction(() => { showSupportModal = true })">
+              <span class="menu-check">{{ isSupporter ? '♥' : '' }}</span>
+              <span>{{ isSupporter ? 'Supporter Status' : 'Voluntary Author Support...' }}</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-entry" type="button" @click="runMenuAction(() => { showAboutModal = true })">
+              <span class="menu-check"></span>
+              <span>About WScreenSavers (v{{ appVersion }})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="menubar-right">
+        <button
+          v-if="config.wallpaperEnabled"
+          class="menubar-status-chip wallpaper-active"
+          type="button"
+          @click="activeTab = 'wallpaper'"
+          title="Live Desktop Wallpaper is running — click to configure"
+        >
+          Live Wallpaper Active
+        </button>
+        <button
+          class="menubar-version"
+          type="button"
+          @click="showAboutModal = true"
+          title="About WScreenSavers"
+        >
+          v{{ appVersion }}
+        </button>
+      </div>
+    </nav>
+
     <!-- Top Header Bar -->
     <header class="top-bar">
       <div class="brand">
@@ -43,7 +228,12 @@
           </svg>
         </div>
         <div>
-          <h1>WScreenSavers</h1>
+          <div class="brand-title-row">
+            <h1>WScreenSavers</h1>
+            <button class="version-badge" type="button" @click="showAboutModal = true" title="View version &amp; build info">
+              v{{ appVersion }}
+            </button>
+          </div>
           <span class="subtitle">Native Wayland XScreenSaver Suite &bull; Layer-Shell &bull; PAM Lock</span>
         </div>
       </div>
@@ -57,45 +247,6 @@
 
       <!-- Primary Actions -->
       <div class="action-buttons">
-        <!-- Theme Switcher & Light/Dark Mode Toggle -->
-        <div class="theme-switcher">
-          <button
-            class="btn-theme-toggle"
-            :title="isCurrentThemeLight ? 'Switch to Dark Mode (🌙)' : 'Switch to Light Mode (☀️)'"
-            @click="toggleLightDark"
-            type="button"
-          >
-            {{ isCurrentThemeLight ? '🌙' : '☀️' }}
-          </button>
-          <select
-            class="theme-select"
-            v-model="currentTheme"
-            @change="applyTheme(currentTheme)"
-            title="Theme Selection"
-          >
-            <optgroup label="Dark Themes">
-              <option value="midnight">🌙 Noctalia Midnight</option>
-              <option value="catppuccin-mocha">🐱 Catppuccin Mocha</option>
-              <option value="tokyo-night">🌃 Tokyo Night</option>
-              <option value="nord">❄️ Nord</option>
-              <option value="solarized-dark">🌒 Solarized Dark</option>
-            </optgroup>
-            <optgroup label="Light Themes">
-              <option value="studio-light">💡 Studio Light</option>
-              <option value="catppuccin-latte">☕ Catppuccin Latte</option>
-              <option value="solarized-light">🌅 Solarized Light</option>
-            </optgroup>
-          </select>
-        </div>
-
-        <button
-          class="btn btn-wallpaper"
-          :class="{ active: config.wallpaperEnabled }"
-          @click="toggleWallpaperMode"
-          title="Render selected screensaver on the Wayland desktop background layer"
-        >
-          {{ config.wallpaperEnabled ? 'Stop Live Wallpaper' : 'Set as Live Wallpaper' }}
-        </button>
         <button class="btn btn-secondary" @click="inWindowFullscreen = true">
           Preview Fullscreen
         </button>
@@ -104,17 +255,6 @@
         </button>
         <button class="btn btn-lock" @click="launchWaylandOverlay(true)">
           Lock Screen
-        </button>
-        <button
-          class="btn btn-support"
-          :class="{ supported: isSupporter }"
-          @click="showSupportModal = true"
-          title="Voluntary Author Support"
-        >
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px;">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          {{ isSupporter ? 'Supporter' : 'Support' }}
         </button>
       </div>
     </header>
@@ -445,6 +585,59 @@
       @close="showSupportModal = false"
       @updated="isSupporter = true"
     />
+
+    <!-- About WScreenSavers Modal -->
+    <div v-if="showAboutModal" class="about-modal-backdrop" @click.self="showAboutModal = false">
+      <div class="about-modal-card">
+        <div class="about-header">
+          <div class="brand-logo">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          </div>
+          <div>
+            <h3>WScreenSavers</h3>
+            <span class="about-version-pill">Version v{{ appVersion }}</span>
+          </div>
+        </div>
+
+        <p class="about-desc">
+          Native Wayland screensaver, PAM lock screen, and live desktop wallpaper suite built on
+          <code>zwlr_layer_shell_v1</code>, WebGL/GLSL shaders, and authentic XScreenSaver OpenGL hacks.
+        </p>
+
+        <div class="about-meta-grid">
+          <div class="about-meta-row">
+            <span class="about-meta-label">Release Version</span>
+            <span class="about-meta-val">v{{ appVersion }}</span>
+          </div>
+          <div class="about-meta-row">
+            <span class="about-meta-label">Screensaver Catalog</span>
+            <span class="about-meta-val">{{ savers.length }} modules loaded</span>
+          </div>
+          <div class="about-meta-row">
+            <span class="about-meta-label">Wayland Outputs</span>
+            <span class="about-meta-val">{{ monitors.length || 1 }} detected</span>
+          </div>
+          <div class="about-meta-row">
+            <span class="about-meta-label">CLI Version Check</span>
+            <code class="about-code">wscreensavers --version</code>
+          </div>
+          <div class="about-meta-row">
+            <span class="about-meta-label">Daemon Status Check</span>
+            <code class="about-code">wscreensavers ctl status</code>
+          </div>
+        </div>
+
+        <div class="about-actions">
+          <button class="btn btn-secondary" type="button" @click="showAboutModal = false">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -473,7 +666,62 @@ const selectedCategory = ref('All');
 const activeTab = ref('daemon');
 const username = ref('user');
 const showSupportModal = ref(false);
+const showAboutModal = ref(false);
 const isSupporter = ref(false);
+const appVersion = ref('1.1.6');
+const openMenu = ref(null);
+
+const themeOptions = {
+  dark: [
+    { id: 'midnight', label: 'Noctalia Midnight' },
+    { id: 'catppuccin-mocha', label: 'Catppuccin Mocha' },
+    { id: 'tokyo-night', label: 'Tokyo Night' },
+    { id: 'nord', label: 'Nord' },
+    { id: 'solarized-dark', label: 'Solarized Dark' }
+  ],
+  light: [
+    { id: 'studio-light', label: 'Studio Light' },
+    { id: 'catppuccin-latte', label: 'Catppuccin Latte' },
+    { id: 'solarized-light', label: 'Solarized Light' }
+  ]
+};
+
+const activationModes = [
+  { id: 'random', label: 'Random Screensaver from Pool' },
+  { id: 'single', label: 'Single Selected Screensaver' },
+  { id: 'cycle', label: 'Cycle Through Pool' },
+  { id: 'disabled', label: 'Disabled (Manual Only)' }
+];
+
+function toggleMenu(name) {
+  openMenu.value = openMenu.value === name ? null : name;
+}
+
+function hoverMenu(name) {
+  if (openMenu.value !== null) {
+    openMenu.value = name;
+  }
+}
+
+function closeMenus() {
+  openMenu.value = null;
+}
+
+function runMenuAction(fn) {
+  openMenu.value = null;
+  if (typeof fn === 'function') fn();
+}
+
+function toggleBoolConfig(key) {
+  config.value[key] = !config.value[key];
+  persistConfig();
+}
+
+function setActivationMode(mode) {
+  config.value.mode = mode;
+  openMenu.value = null;
+  persistConfig();
+}
 
 const darkThemes = ['midnight', 'catppuccin-mocha', 'tokyo-night', 'nord', 'solarized-dark'];
 const lightThemes = ['studio-light', 'catppuccin-latte', 'solarized-light'];
@@ -613,6 +861,7 @@ async function fetchInitialData() {
       daemonStatus.value = st.daemon || daemonStatus.value;
       otherWallpapers.value = st.otherWallpapers || [];
       username.value = st.username || username.value;
+      if (st.version) appVersion.value = st.version;
     }
     if (!isFullscreenSurface.value) {
       let supp = null;
@@ -653,6 +902,7 @@ async function refreshTelemetry() {
       const st = await stRes.json();
       daemonStatus.value = st.daemon || daemonStatus.value;
       otherWallpapers.value = st.otherWallpapers || [];
+      if (st.version) appVersion.value = st.version;
       if (st.lastWakeMs) {
         if (lastSeenWakeMs > 0 && st.lastWakeMs > lastSeenWakeMs && window.__wssWake) {
           window.__wssWake();
@@ -1171,6 +1421,141 @@ html, body, #app {
   color: var(--text-main);
 }
 
+/* Standard Desktop Application Menu Header Bar */
+.app-menubar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 14px;
+  background: var(--bg-card-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  z-index: 60;
+  flex-shrink: 0;
+}
+.menubar-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.menubar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.menu-item {
+  position: relative;
+}
+.menu-trigger {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.menu-trigger:hover,
+.menu-item.open .menu-trigger {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 245px;
+  background: var(--bg-dropdown-item);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.menu-dropdown-wide {
+  min-width: 280px;
+}
+.menu-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 5px 10px 3px;
+}
+.menu-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menu-entry:hover {
+  background: var(--bg-card-hover);
+  color: var(--accent);
+}
+.menu-check {
+  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.menu-kbd {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: "JetBrains Mono", monospace;
+}
+.menu-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 6px;
+}
+.menubar-status-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  cursor: pointer;
+}
+.menubar-version {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menubar-version:hover {
+  border-color: var(--border-focus);
+  color: var(--text-main);
+}
+
 .top-bar {
   display: flex;
   align-items: center;
@@ -1196,6 +1581,11 @@ html, body, #app {
   color: #fff;
   box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
 }
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .brand h1 {
   margin: 0;
   font-size: 17px;
@@ -1203,9 +1593,108 @@ html, body, #app {
   letter-spacing: -0.02em;
   color: var(--text-main);
 }
+.version-badge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-card-subtle);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.version-badge:hover {
+  border-color: var(--border-focus);
+  background: var(--bg-card-hover);
+}
 .subtitle {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* About Modal */
+.about-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+}
+.about-modal-card {
+  width: 440px;
+  max-width: 92vw;
+  background: var(--bg-dropdown-item);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color: var(--text-main);
+}
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.about-header h3 {
+  margin: 0 0 3px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.about-version-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.about-desc {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.about-meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+.about-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.about-meta-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.about-meta-val {
+  color: var(--text-main);
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+}
+.about-code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent);
+}
+.about-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .daemon-pill {
