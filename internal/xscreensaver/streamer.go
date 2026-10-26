@@ -188,6 +188,7 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 	disp := sess.displayString()
 	geom := fmt.Sprintf("%dx%dx24", width, height)
 	cmd := exec.Command("Xvfb", disp, "-screen", "0", geom, "-nolisten", "tcp", "+extension", "GLX")
+	cmd.Env = append(os.Environ(), "LP_NUM_THREADS=2")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start Xvfb on %s: %w", disp, err)
@@ -324,7 +325,7 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 
 	cmd := exec.Command("nice", append([]string{"-n", "10", saver.BinaryPath}, args...)...)
 	env := os.Environ()
-	env = append(env, "DISPLAY="+sess.displayString())
+	env = append(env, "DISPLAY="+sess.displayString(), "LP_NUM_THREADS=2")
 	cmd.Env = env
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 

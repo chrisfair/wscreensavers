@@ -252,6 +252,7 @@ func TestLockSaverIDAndIdleLoopStop(t *testing.T) {
 	}
 	srv := NewServer(cfgMgr, nil)
 	defer srv.Shutdown()
+	srv.ShutdownEmbedded()
 	srv.currentSaver = "flurry"
 
 	cfg := cfgMgr.Get()

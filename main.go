@@ -117,7 +117,7 @@ func main() {
 			}
 			baseURL = startedURL
 		}
-		defer srv.Shutdown()
+		defer srv.ShutdownEmbedded()
 
 		// Overlays and wallpapers are stopped with SIGTERM; cleanly tear down
 		// GTK layer-shell surfaces and unmap Wayland windows before process exit.
@@ -125,7 +125,7 @@ func main() {
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		go func() {
 			<-sigCh
-			srv.Shutdown()
+			srv.ShutdownEmbedded()
 			layershell.RequestQuit()
 			time.Sleep(150 * time.Millisecond)
 			os.Exit(0)
@@ -133,6 +133,9 @@ func main() {
 
 		// Temporarily disable any active background live wallpaper to free all GPU and compositor resources
 		if *saverMode || *lockMode {
+			if *lockMode {
+				layershell.StopMatchingSaverOnlyProcesses()
+			}
 			_ = srv.SetDPMS(true)
 			layershell.StopMatchingWallpaperProcesses()
 		}
@@ -148,7 +151,12 @@ func main() {
 					}
 				} else if *lockMode {
 					srv.RecordWake()
-					go func() { _ = srv.SetDPMS(true) }()
+					go func() {
+						_ = srv.SetDPMS(true)
+						layershell.WakeAllWindows()
+						time.Sleep(350 * time.Millisecond)
+						layershell.WakeAllWindows()
+					}()
 				}
 			})
 		}
@@ -161,11 +169,13 @@ func main() {
 		}
 		if *saverMode || *lockMode {
 			_ = srv.SetDPMS(true)
-			if daemonURL != "" {
-				client := &http.Client{Timeout: 400 * time.Millisecond}
-				if resp, err := client.Post(daemonURL+"/api/action/wake", "application/json", nil); err == nil {
-					_ = resp.Body.Close()
-				}
+			notifyURL := daemonURL
+			if notifyURL == "" {
+				notifyURL = "http://127.0.0.1:8642"
+			}
+			client := &http.Client{Timeout: 400 * time.Millisecond}
+			if resp, err := client.Post(notifyURL+"/api/action/wake", "application/json", nil); err == nil {
+				_ = resp.Body.Close()
 			}
 		}
 

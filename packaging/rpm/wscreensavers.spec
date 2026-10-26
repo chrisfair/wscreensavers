@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.4
+Version:        1.1.5
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -50,6 +50,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Mon Oct 26 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.5-1
+- Release v1.1.5: preserve lock overlay across DPMS screen-off, prevent cross-monitor password input echo, and cap Xvfb llvmpipe threads
+
 * Sun Oct 25 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.2-1
 - Release v1.1.2: fix multi-monitor wake synchronization, rss-glx Xvfb vsync/DPMS arguments, and Wayland idle poll EINTR handling
 

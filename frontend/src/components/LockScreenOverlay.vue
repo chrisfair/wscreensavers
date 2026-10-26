@@ -31,6 +31,7 @@
             placeholder="Enter system password..."
             :disabled="verifying"
             autofocus
+            @input="onPasswordInput"
             @keydown.stop="onInputKeyDown"
           />
           <button type="submit" class="pam-btn" :disabled="verifying || !password">
@@ -79,7 +80,6 @@ let dimTimer = null;
 let darkTimer = null;
 let wakeChannel = null;
 let lastWakeNotifyMs = 0;
-let isSyncingPassword = false;
 let lastMouseX = -1;
 let lastMouseY = -1;
 
@@ -90,7 +90,7 @@ function updateClock() {
 }
 
 function focusInput() {
-  if (props.locked && passInput.value) {
+  if (props.locked && passInput.value && document.activeElement !== passInput.value) {
     passInput.value.focus();
   }
 }
@@ -148,7 +148,6 @@ function wakeLocalOnly() {
   resetDarkTimer();
   if (props.locked) {
     focusInput();
-    setTimeout(focusInput, 30);
   }
 }
 
@@ -170,7 +169,7 @@ function broadcastWake(wasDark) {
   } catch (_) {}
 
   const now = Date.now();
-  if (props.apiBase && (wasDark || now - lastWakeNotifyMs > 300)) {
+  if (props.apiBase && (wasDark || now - lastWakeNotifyMs > 2000)) {
     lastWakeNotifyMs = now;
     const endpoint = wasDark ? '/api/action/dpms-on' : '/api/action/wake';
     fetch(`${props.apiBase}${endpoint}`, { method: 'POST' }).catch(() => {});
@@ -179,6 +178,7 @@ function broadcastWake(wasDark) {
 
 function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
   const wasDark = isDark.value;
+  const wasFocused = Boolean(passInput.value && document.activeElement === passInput.value);
   wakeLocalOnly();
   broadcastWake(wasDark);
 
@@ -190,18 +190,20 @@ function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
   }
 
   if (props.locked) {
-    const wasFocused = (passInput.value && document.activeElement === passInput.value);
     focusInput();
     if (isKey && keyEvent && !wasFocused) {
       if (keyEvent.key.length === 1 && !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.metaKey) {
         keyEvent.preventDefault();
         password.value += keyEvent.key;
+        broadcastPasswordToPassiveMonitors();
       } else if (keyEvent.key === 'Backspace') {
         keyEvent.preventDefault();
         password.value = password.value.slice(0, -1);
+        broadcastPasswordToPassiveMonitors();
       } else if (keyEvent.key === 'Escape') {
         keyEvent.preventDefault();
         password.value = '';
+        broadcastPasswordToPassiveMonitors();
       } else if (keyEvent.key === 'Enter') {
         keyEvent.preventDefault();
         submitUnlock();
@@ -210,21 +212,33 @@ function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
   }
 }
 
-watch(password, (newVal) => {
-  if (isSyncingPassword) return;
+function broadcastPasswordToPassiveMonitors() {
   try {
     if (wakeChannel) {
-      wakeChannel.postMessage({ type: 'pwd', value: newVal });
+      wakeChannel.postMessage({ type: 'pwd', value: password.value });
     }
-    localStorage.setItem('wscreensavers_pwd_sync', JSON.stringify({ v: newVal, ts: Date.now() }));
   } catch (_) {}
-});
+}
+
+function onPasswordInput() {
+  broadcastPasswordToPassiveMonitors();
+}
 
 function onInputKeyDown(e) {
-  handleUserActivity(false);
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    password.value = '';
+    broadcastPasswordToPassiveMonitors();
+  }
+  const wasDark = isDark.value;
+  wakeLocalOnly();
+  broadcastWake(wasDark);
 }
 
 function onWindowKeyDown(e) {
+  if (passInput.value && e.target === passInput.value) {
+    return;
+  }
   if (e.key === 'Tab') {
     e.preventDefault();
     focusInput();
@@ -258,16 +272,6 @@ function onWindowMouseDown(e) {
 function onStorageEvent(e) {
   if (e.key === 'wscreensavers_wake_ts') {
     wakeLocalOnly();
-  } else if (e.key === 'wscreensavers_pwd_sync' && e.newValue) {
-    try {
-      const parsed = JSON.parse(e.newValue);
-      if (typeof parsed.v === 'string' && parsed.v !== password.value) {
-        isSyncingPassword = true;
-        password.value = parsed.v;
-        isSyncingPassword = false;
-      }
-      wakeLocalOnly();
-    } catch (_) {}
   }
 }
 
@@ -321,13 +325,14 @@ onMounted(() => {
 
   window.__wssWake = wakeLocalOnly;
   try {
+    localStorage.removeItem('wscreensavers_pwd_sync');
     if (typeof BroadcastChannel !== 'undefined') {
       wakeChannel = new BroadcastChannel('wscreensavers_wake');
       wakeChannel.onmessage = (ev) => {
         if (ev && ev.data && ev.data.type === 'pwd' && typeof ev.data.value === 'string') {
-          isSyncingPassword = true;
-          password.value = ev.data.value;
-          isSyncingPassword = false;
+          if (!passInput.value || document.activeElement !== passInput.value) {
+            password.value = ev.data.value;
+          }
         }
         wakeLocalOnly();
       };
@@ -335,7 +340,7 @@ onMounted(() => {
   } catch (_) {}
 
   window.addEventListener('storage', onStorageEvent);
-  window.addEventListener('keydown', onWindowKeyDown, true);
+  window.addEventListener('keydown', onWindowKeyDown);
   window.addEventListener('mousemove', onWindowMouseMove, { passive: true });
   window.addEventListener('mousedown', onWindowMouseDown, true);
 });
@@ -353,7 +358,7 @@ onBeforeUnmount(() => {
   }
 
   window.removeEventListener('storage', onStorageEvent);
-  window.removeEventListener('keydown', onWindowKeyDown, true);
+  window.removeEventListener('keydown', onWindowKeyDown);
   window.removeEventListener('mousemove', onWindowMouseMove);
   window.removeEventListener('mousedown', onWindowMouseDown, true);
 

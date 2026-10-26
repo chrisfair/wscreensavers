@@ -24,8 +24,9 @@ static void destroy_all_layer_windows(void) {
     layer_webview_count = 0;
     for (int i = 0; i < layer_window_count; i++) {
         if (layer_windows[i] != NULL) {
-            gtk_widget_destroy(layer_windows[i]);
+            GtkWidget *w = layer_windows[i];
             layer_windows[i] = NULL;
+            gtk_widget_destroy(w);
         }
     }
     layer_window_count = 0;
@@ -36,32 +37,69 @@ static void destroy_all_layer_windows(void) {
     }
 }
 
+static gboolean on_window_delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+    (void)widget;
+    (void)event;
+    (void)user_data;
+    return TRUE;
+}
+
+static void on_layer_window_destroy(GtkWidget *widget, gpointer user_data) {
+    (void)user_data;
+    for (int i = 0; i < layer_window_count; i++) {
+        if (layer_windows[i] == widget) {
+            layer_windows[i] = NULL;
+            if (i < layer_webview_count) {
+                layer_webviews[i] = NULL;
+            }
+        }
+    }
+    for (int i = 0; i < lock_window_count; i++) {
+        if (lock_windows[i] == widget) {
+            lock_windows[i] = NULL;
+        }
+    }
+}
+
+static gint64 last_wake_eval_us = 0;
+
 static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
     if (!gtk_layer_is_supported()) return;
+    int target_idx = -1;
     for (int i = 0; i < layer_window_count; i++) {
-        if (layer_windows[i] != NULL) {
-            if (layer_windows[i] == target_win) {
-                active_monitor_idx = i;
-            } else {
+        if (layer_windows[i] != NULL && layer_windows[i] == target_win) {
+            target_idx = i;
+            break;
+        }
+    }
+    if (target_idx != -1 && target_idx != active_monitor_idx) {
+        active_monitor_idx = target_idx;
+        for (int i = 0; i < layer_window_count; i++) {
+            if (layer_windows[i] != NULL && i != target_idx) {
                 gtk_layer_set_keyboard_mode(
                     GTK_WINDOW(layer_windows[i]),
                     GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
                 );
             }
         }
+        if (target_win != NULL) {
+            gtk_layer_set_keyboard_mode(
+                GTK_WINDOW(target_win),
+                GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
+            );
+        }
     }
-    if (target_win != NULL) {
-        gtk_layer_set_keyboard_mode(
-            GTK_WINDOW(target_win),
-            GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
-        );
-    }
-    if (webview != NULL) {
+    if (webview != NULL && !gtk_widget_has_focus(webview)) {
         gtk_widget_grab_focus(webview);
     }
 }
 
 static void notify_all_webviews_wake(void) {
+    gint64 now = g_get_monotonic_time();
+    if (now - last_wake_eval_us < 500000) {
+        return;
+    }
+    last_wake_eval_us = now;
     for (int i = 0; i < layer_webview_count; i++) {
         if (layer_webviews[i] != NULL) {
             webkit_web_view_evaluate_javascript(
@@ -79,6 +117,12 @@ static gboolean wake_idle_cb(gpointer data) {
             int idx = active_monitor_idx;
             if (idx < 0 || idx >= layer_window_count) {
                 idx = 0;
+            }
+            if (gtk_layer_is_supported() && layer_windows[idx] != NULL) {
+                gtk_layer_set_keyboard_mode(
+                    GTK_WINDOW(layer_windows[idx]),
+                    GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
+                );
             }
             focus_lock_window(layer_windows[idx], layer_webviews[idx]);
         }
@@ -282,7 +326,8 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             g_signal_connect(window, "key-press-event", G_CALLBACK(on_lock_key), webview);
         }
 
-        g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+        g_signal_connect(window, "delete-event", G_CALLBACK(on_window_delete_event), NULL);
+        g_signal_connect(window, "destroy", G_CALLBACK(on_layer_window_destroy), NULL);
         gtk_widget_show_all(window);
         if (!is_wallpaper && i == primary_idx) {
             gtk_widget_grab_focus(webview);
@@ -348,6 +393,7 @@ type ProcessController struct {
 	mu            sync.Mutex
 	saverProc     *exec.Cmd
 	saverDone     chan struct{}
+	saverLocked   bool
 	wallpaperProc *exec.Cmd
 	wallpaperDone chan struct{}
 	onSaverExit   func()
@@ -357,6 +403,21 @@ func NewProcessController(onSaverExit func()) *ProcessController {
 	return &ProcessController{
 		onSaverExit: onSaverExit,
 	}
+}
+
+// IsLockRunning checks whether a child or standalone lock overlay process is alive.
+func (p *ProcessController) IsLockRunning() bool {
+	p.mu.Lock()
+	cmd := p.saverProc
+	locked := p.saverLocked
+	p.mu.Unlock()
+	if locked && cmd != nil && cmd.Process != nil {
+		if err := syscall.Kill(cmd.Process.Pid, 0); err == nil {
+			return true
+		}
+	}
+	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--lock([[:space:]]|$)").Output()
+	return err == nil && len(strings.TrimSpace(string(out))) > 0
 }
 
 // IsSaverRunning checks whether a child screensaver/lock overlay or standalone overlay process is alive.
@@ -374,7 +435,11 @@ func (p *ProcessController) IsSaverRunning() bool {
 }
 
 func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, locked bool) error {
-	p.StopSaverOverlay()
+	// Never terminate or replace an already-active lock screen process.
+	if p.IsLockRunning() {
+		return nil
+	}
+	p.stopSaverOnly()
 	p.StopWallpaper()
 
 	exe, err := os.Executable()
@@ -402,6 +467,7 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 	p.mu.Lock()
 	p.saverProc = cmd
 	p.saverDone = done
+	p.saverLocked = locked
 	p.mu.Unlock()
 
 	go func() {
@@ -412,6 +478,7 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 		if exitedOnItsOwn {
 			p.saverProc = nil
 			p.saverDone = nil
+			p.saverLocked = false
 		}
 		p.mu.Unlock()
 		// A process we replaced or stopped must not mark the screensaver inactive.
@@ -423,6 +490,33 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 	return nil
 }
 
+func (p *ProcessController) stopSaverOnly() {
+	p.mu.Lock()
+	cmd := p.saverProc
+	done := p.saverDone
+	locked := p.saverLocked
+	if !locked {
+		p.saverProc = nil
+		p.saverDone = nil
+		p.saverLocked = false
+	}
+	p.mu.Unlock()
+
+	if !locked && cmd != nil && cmd.Process != nil && done != nil {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+		select {
+		case <-done:
+		case <-time.After(500 * time.Millisecond):
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			select {
+			case <-done:
+			case <-time.After(500 * time.Millisecond):
+			}
+		}
+	}
+	StopMatchingSaverOnlyProcesses()
+}
+
 func (p *ProcessController) StopSaverOverlay() {
 	C.request_gtk_quit()
 	p.mu.Lock()
@@ -430,6 +524,7 @@ func (p *ProcessController) StopSaverOverlay() {
 	done := p.saverDone
 	p.saverProc = nil
 	p.saverDone = nil
+	p.saverLocked = false
 	p.mu.Unlock()
 
 	if cmd != nil && cmd.Process != nil && done != nil {
@@ -447,12 +542,13 @@ func (p *ProcessController) StopSaverOverlay() {
 	StopMatchingSaverProcesses()
 }
 
-func StopMatchingSaverProcesses() {
-	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--(saver|lock)([[:space:]]|$)").Output()
+func stopProcessesMatchingPattern(pattern string) {
+	out, err := exec.Command("pgrep", "-f", pattern).Output()
 	if err != nil {
 		return
 	}
 	currentPID := os.Getpid()
+	var killed []int
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -461,8 +557,33 @@ func StopMatchingSaverProcesses() {
 		pid, err := strconv.Atoi(line)
 		if err == nil && pid > 0 && pid != currentPID {
 			_ = syscall.Kill(pid, syscall.SIGTERM)
+			killed = append(killed, pid)
 		}
 	}
+	if len(killed) > 0 {
+		deadline := time.Now().Add(250 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			alive := false
+			for _, pid := range killed {
+				if err := syscall.Kill(pid, 0); err == nil {
+					alive = true
+					break
+				}
+			}
+			if !alive {
+				break
+			}
+			time.Sleep(15 * time.Millisecond)
+		}
+	}
+}
+
+func StopMatchingSaverOnlyProcesses() {
+	stopProcessesMatchingPattern("wscreensavers.*--saver([[:space:]]|$)")
+}
+
+func StopMatchingSaverProcesses() {
+	stopProcessesMatchingPattern("wscreensavers.*--(saver|lock)([[:space:]]|$)")
 }
 
 func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error {

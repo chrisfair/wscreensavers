@@ -36,6 +36,7 @@ type Server struct {
 	frontendFS  fs.FS
 	listenAddr  string
 	baseURL     string
+	isPrimary   bool
 
 	currentSaver string // guarded by mu; saver most recently handed to the overlay
 	lastWakeMs   int64
@@ -138,11 +139,20 @@ func (s *Server) FindSaver(id string) (models.Screensaver, bool) {
 // saver has been shown once; the round state persists across processes.
 func (s *Server) PickRandomSaver() string {
 	cfg := s.cfgMgr.Get()
-	pool := cfg.EnabledSavers
-	if len(pool) == 0 {
+	rawPool := cfg.EnabledSavers
+	if len(rawPool) == 0 {
 		for _, sv := range s.GetSavers() {
-			pool = append(pool, sv.ID)
+			rawPool = append(rawPool, sv.ID)
 		}
+	}
+	var pool []string
+	for _, id := range rawPool {
+		if id != "xshadertoy" {
+			pool = append(pool, id)
+		}
+	}
+	if len(pool) == 0 {
+		pool = rawPool
 	}
 	if len(pool) == 0 {
 		return "glmatrix"
@@ -162,7 +172,7 @@ func (s *Server) PickUniqueRandomSaver(exclude map[string]bool) string {
 	}
 	var available []string
 	for _, id := range pool {
-		if !exclude[id] {
+		if !exclude[id] && id != "xshadertoy" {
 			available = append(available, id)
 		}
 	}
@@ -215,6 +225,7 @@ func (s *Server) StartHTTP(preferredAddr string) (string, error) {
 	// If preferredAddr was in use by another instance, StartEmbeddedHTTP bound to a fallback port
 	// (s.listenAddr != preferredAddr), meaning another wscreensavers instance is already running.
 	if s.listenAddr == preferredAddr {
+		s.isPrimary = true
 		cfg := s.cfgMgr.Get()
 		if cfg.WallpaperEnabled {
 			go func() {
@@ -263,6 +274,11 @@ func (s *Server) BaseURL() string {
 }
 
 func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
+	if s.layerCtrl.IsLockRunning() {
+		s.idleMon.SetScreensaverActive(true, true)
+		return nil
+	}
+
 	cfg := s.cfgMgr.Get()
 	if saverID == "" || saverID == "random" {
 		if cfg.Mode == "random" || cfg.Mode == "cycle" || saverID == "random" {
@@ -296,21 +312,25 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 func (s *Server) StopScreensaver() {
 	_ = s.SetDPMS(true)
 	s.xssRunner.StopAll()
+	s.xssStreamer.StopAll()
 	s.layerCtrl.StopSaverOverlay()
 	s.idleMon.SetScreensaverActive(false, false)
 	s.idleMon.RecordActivity()
 
-	// Resume wallpaper if enabled in config
-	cfg := s.cfgMgr.Get()
-	if cfg.WallpaperEnabled {
-		if cfg.WallpaperMode == "per-monitor" {
-			_ = s.layerCtrl.StartWallpaper(s.baseURL, "")
-		} else {
-			wpSaver := cfg.WallpaperSaver
-			if wpSaver == "random" || wpSaver == "" {
-				wpSaver = s.PickRandomSaver()
+	// Only resume wallpaper directly if this is the primary daemon server;
+	// embedded --saver / --lock servers exit and notify the primary daemon on return.
+	if s.isPrimary {
+		cfg := s.cfgMgr.Get()
+		if cfg.WallpaperEnabled {
+			if cfg.WallpaperMode == "per-monitor" {
+				_ = s.layerCtrl.StartWallpaper(s.baseURL, "")
+			} else {
+				wpSaver := cfg.WallpaperSaver
+				if wpSaver == "random" || wpSaver == "" {
+					wpSaver = s.PickRandomSaver()
+				}
+				_ = s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
 			}
-			_ = s.layerCtrl.StartWallpaper(s.baseURL, wpSaver)
 		}
 	}
 }
@@ -360,12 +380,23 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 				continue
 			}
 			st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
-			if st.ScreensaverActive && !s.layerCtrl.IsSaverRunning() {
+			lockRunning := s.layerCtrl.IsLockRunning()
+			saverRunning := lockRunning || s.layerCtrl.IsSaverRunning()
+			if lockRunning && (!st.ScreensaverActive || !st.Locked) {
+				s.idleMon.SetScreensaverActive(true, true)
+				st.ScreensaverActive = true
+				st.Locked = true
+			} else if saverRunning && !st.ScreensaverActive {
+				s.idleMon.SetScreensaverActive(true, false)
+				st.ScreensaverActive = true
+			} else if st.ScreensaverActive && !saverRunning {
 				s.idleMon.SetScreensaverActive(false, false)
+				s.idleMon.RecordActivity()
 				st.ScreensaverActive = false
 				st.Locked = false
+				st.IdleSeconds = 0
 			}
-			if st.Inhibited {
+			if st.Inhibited && !st.Locked {
 				s.idleMon.RecordActivity()
 				continue
 			}
@@ -422,6 +453,11 @@ func (s *Server) lockSaverID(cfg models.AppConfig) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.currentSaver
+}
+
+func (s *Server) ShutdownEmbedded() {
+	s.xssRunner.StopAll()
+	s.xssStreamer.StopAll()
 }
 
 func (s *Server) Shutdown() {
@@ -677,12 +713,12 @@ func (s *Server) handleDPMSOff(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDPMSOn(w http.ResponseWriter, r *http.Request) {
 	wakeMs := s.RecordWake()
 	_ = s.SetDPMS(true)
+	layershell.WakeAllWindows()
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "dpms": "on", "lastWakeMs": wakeMs})
 }
 
 func (s *Server) handleWake(w http.ResponseWriter, r *http.Request) {
 	wakeMs := s.RecordWake()
-	go func() { _ = s.SetDPMS(true) }()
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lastWakeMs": wakeMs})
 }
 

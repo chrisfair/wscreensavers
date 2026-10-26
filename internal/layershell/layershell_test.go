@@ -17,11 +17,15 @@ func TestProcessControllerLifecycle(t *testing.T) {
 	WakeAllWindows()
 
 	// Stop calls when no child process is active must be safe no-ops
+	ctrl.stopSaverOnly()
 	ctrl.StopSaverOverlay()
 	ctrl.StopWallpaper()
 	ctrl.StopAll()
+	StopMatchingSaverOnlyProcesses()
+	StopMatchingSaverProcesses()
 	StopMatchingWallpaperProcesses()
 
+	_ = ctrl.IsLockRunning()
 	_ = ctrl.IsSaverRunning()
 	if exited {
 		t.Errorf("onSaverExit should not fire when no process was started")
