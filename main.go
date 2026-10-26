@@ -108,8 +108,9 @@ func main() {
 
 	// Mode 1: Child or standalone Wayland Layer-Shell Overlay / Wallpaper
 	if *saverMode || *lockMode || *wallpaperMode {
-		baseURL := *serverURLFlag
-		if baseURL == "" {
+		daemonURL := *serverURLFlag
+		baseURL := daemonURL
+		if baseURL == "" || *saverMode || *lockMode {
 			startedURL, err := srv.StartEmbeddedHTTP("127.0.0.1:0")
 			if err != nil {
 				log.Fatalf("Failed to start embedded asset server: %v", err)
@@ -160,6 +161,12 @@ func main() {
 		}
 		if *saverMode || *lockMode {
 			_ = srv.SetDPMS(true)
+			if daemonURL != "" {
+				client := &http.Client{Timeout: 400 * time.Millisecond}
+				if resp, err := client.Post(daemonURL+"/api/action/wake", "application/json", nil); err == nil {
+					_ = resp.Body.Close()
+				}
+			}
 		}
 
 		// When screensaver or lock screen finishes and exits, resume live wallpaper if enabled in user configuration

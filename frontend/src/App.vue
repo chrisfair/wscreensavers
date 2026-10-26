@@ -868,6 +868,9 @@ function ensureUniqueMonitorWallpapers() {
 function handleUnlocked() {
   isLockedSurface.value = false;
   inWindowFullscreen.value = false;
+  if (apiBase.value) {
+    fetch(`${apiBase.value}/api/action/stop-saver`, { method: 'POST' }).catch(() => {});
+  }
 }
 
 function exitInWindowFullscreen() {

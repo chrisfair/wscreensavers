@@ -68,7 +68,7 @@ function monitorQuery() {
 }
 
 const streamUrl = computed(() => {
-  if (!isExternalXSS.value || !mounted.value) return '';
+  if (!isExternalXSS.value || !mounted.value || props.paused) return '';
   const base = props.apiBase || '';
   return `${base}/api/xss-stream?saver=${encodeURIComponent(props.saverId)}&client=${clientId}&v=${streamVersion.value}${monitorQuery()}&fps=${Math.min(props.fpsCap > 0 ? props.fpsCap : 30, 30)}`;
 });
@@ -192,9 +192,18 @@ function onContextRestored() {
 }
 
 watch(() => props.paused, (isPaused) => {
-  if (!isPaused && !animId && !isExternalXSS.value) {
-    lastFrameTime = performance.now();
-    animId = requestAnimationFrame(loop);
+  if (isPaused) {
+    if (isExternalXSS.value) {
+      if (imgRef.value) imgRef.value.src = '';
+      stopRemoteStream();
+    }
+  } else {
+    if (isExternalXSS.value) {
+      streamVersion.value++;
+    } else if (!animId) {
+      lastFrameTime = performance.now();
+      animId = requestAnimationFrame(loop);
+    }
   }
 });
 

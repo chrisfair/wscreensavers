@@ -15,6 +15,7 @@ static GtkWidget *layer_windows[16];
 static int layer_window_count = 0;
 static GtkWidget *layer_webviews[16];
 static int layer_webview_count = 0;
+static int active_monitor_idx = 0;
 
 static void destroy_all_layer_windows(void) {
     for (int i = 0; i < layer_webview_count; i++) {
@@ -35,6 +36,31 @@ static void destroy_all_layer_windows(void) {
     }
 }
 
+static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
+    if (!gtk_layer_is_supported()) return;
+    for (int i = 0; i < layer_window_count; i++) {
+        if (layer_windows[i] != NULL) {
+            if (layer_windows[i] == target_win) {
+                active_monitor_idx = i;
+            } else {
+                gtk_layer_set_keyboard_mode(
+                    GTK_WINDOW(layer_windows[i]),
+                    GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+                );
+            }
+        }
+    }
+    if (target_win != NULL) {
+        gtk_layer_set_keyboard_mode(
+            GTK_WINDOW(target_win),
+            GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
+        );
+    }
+    if (webview != NULL) {
+        gtk_widget_grab_focus(webview);
+    }
+}
+
 static void notify_all_webviews_wake(void) {
     for (int i = 0; i < layer_webview_count; i++) {
         if (layer_webviews[i] != NULL) {
@@ -49,6 +75,13 @@ static void notify_all_webviews_wake(void) {
 
 static gboolean wake_idle_cb(gpointer data) {
     if (gtk_loop_active) {
+        if (layer_window_count > 0) {
+            int idx = active_monitor_idx;
+            if (idx < 0 || idx >= layer_window_count) {
+                idx = 0;
+            }
+            focus_lock_window(layer_windows[idx], layer_webviews[idx]);
+        }
         notify_all_webviews_wake();
     }
     return FALSE;
@@ -75,21 +108,6 @@ static void request_gtk_quit(void) {
     }
 }
 
-static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
-    if (!gtk_layer_is_supported()) return;
-    for (int i = 0; i < lock_window_count; i++) {
-        if (lock_windows[i] != NULL) {
-            gtk_layer_set_keyboard_mode(
-                GTK_WINDOW(lock_windows[i]),
-                GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
-            );
-        }
-    }
-    if (webview != NULL) {
-        gtk_widget_grab_focus(webview);
-    }
-}
-
 static void on_window_map(GtkWidget *widget, gpointer user_data) {
     GtkWidget *webview = GTK_WIDGET(user_data);
     if (webview != NULL) {
@@ -106,7 +124,10 @@ static gboolean on_lock_enter(GtkWidget *widget, GdkEventCrossing *event, gpoint
 
 static gboolean on_lock_motion(GtkWidget *widget, GdkEventMotion *event, gpointer user_data) {
     GtkWidget *webview = GTK_WIDGET(user_data);
-    if (webview != NULL && !gtk_widget_has_focus(webview)) {
+    GtkWidget *win = gtk_widget_get_toplevel(widget);
+    if (win != NULL && layer_windows[active_monitor_idx] != win) {
+        focus_lock_window(win, webview);
+    } else if (webview != NULL && !gtk_widget_has_focus(webview)) {
         gtk_widget_grab_focus(webview);
     }
     notify_all_webviews_wake();
@@ -122,9 +143,8 @@ static gboolean on_lock_click(GtkWidget *widget, GdkEventButton *event, gpointer
 
 static gboolean on_lock_key(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
     GtkWidget *webview = GTK_WIDGET(user_data);
-    if (webview != NULL && !gtk_widget_has_focus(webview)) {
-        gtk_widget_grab_focus(webview);
-    }
+    GtkWidget *win = gtk_widget_get_toplevel(widget);
+    focus_lock_window(win, webview);
     notify_all_webviews_wake();
     return FALSE;
 }
@@ -165,6 +185,10 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
     }
 
     int primary_idx = n_monitors / 2;
+    if (primary_idx >= n_monitors) {
+        primary_idx = 0;
+    }
+    active_monitor_idx = primary_idx;
 
     for (int i = 0; i < n_monitors; i++) {
         GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -193,16 +217,16 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
                 gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
                 gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_NONE);
                 gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-wallpaper");
-            } else if (is_locked) {
-                gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
-                gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-                gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
-                gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-lock");
             } else {
                 gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
                 gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-                gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
-                gtk_layer_set_namespace(GTK_WINDOW(window), "wscreensavers-saver");
+                gtk_layer_set_keyboard_mode(
+                    GTK_WINDOW(window),
+                    (i == primary_idx)
+                        ? GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
+                        : GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+                );
+                gtk_layer_set_namespace(GTK_WINDOW(window), is_locked ? "wscreensavers-lock" : "wscreensavers-saver");
             }
 
             gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_TOP, TRUE);
@@ -235,9 +259,11 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
 
         if (!is_wallpaper && !is_locked) {
             int *motion_counter = (int *)calloc(1, sizeof(int));
-            gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
-            gtk_widget_add_events(webview, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
+            gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
+            gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
             g_signal_connect(window, "map", G_CALLBACK(on_window_map), webview);
+            g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
+            g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_dismiss), motion_counter);
             g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_dismiss), NULL);
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_dismiss), NULL);
@@ -254,14 +280,17 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_lock_click), webview);
             g_signal_connect(webview, "button-press-event", G_CALLBACK(on_lock_click), webview);
             g_signal_connect(window, "key-press-event", G_CALLBACK(on_lock_key), webview);
-            g_signal_connect(webview, "key-press-event", G_CALLBACK(on_lock_key), webview);
         }
 
         g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
         gtk_widget_show_all(window);
-        if (!is_wallpaper) {
+        if (!is_wallpaper && i == primary_idx) {
             gtk_widget_grab_focus(webview);
         }
+    }
+
+    if (!is_wallpaper && layer_window_count > 0) {
+        focus_lock_window(layer_windows[primary_idx], layer_webviews[primary_idx]);
     }
 
     gtk_loop_active = 1;
@@ -413,6 +442,25 @@ func (p *ProcessController) StopSaverOverlay() {
 			case <-done:
 			case <-time.After(500 * time.Millisecond):
 			}
+		}
+	}
+	StopMatchingSaverProcesses()
+}
+
+func StopMatchingSaverProcesses() {
+	out, err := exec.Command("pgrep", "-f", "wscreensavers.*--(saver|lock)([[:space:]]|$)").Output()
+	if err != nil {
+		return
+	}
+	currentPID := os.Getpid()
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		pid, err := strconv.Atoi(line)
+		if err == nil && pid > 0 && pid != currentPID {
+			_ = syscall.Kill(pid, syscall.SIGTERM)
 		}
 	}
 }

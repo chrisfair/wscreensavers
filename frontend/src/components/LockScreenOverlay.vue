@@ -79,6 +79,7 @@ let dimTimer = null;
 let darkTimer = null;
 let wakeChannel = null;
 let lastWakeNotifyMs = 0;
+let isSyncingPassword = false;
 let lastMouseX = -1;
 let lastMouseY = -1;
 
@@ -145,6 +146,10 @@ function wakeLocalOnly() {
   isDimmed.value = false;
   resetDimTimer(props.locked && password.value ? 15000 : 5000);
   resetDarkTimer();
+  if (props.locked) {
+    focusInput();
+    setTimeout(focusInput, 30);
+  }
 }
 
 function wakeFromDark() {
@@ -159,7 +164,7 @@ function wakeFromDark() {
 function broadcastWake(wasDark) {
   try {
     if (wakeChannel) {
-      wakeChannel.postMessage('wake');
+      wakeChannel.postMessage({ type: 'wake' });
     }
     localStorage.setItem('wscreensavers_wake_ts', String(Date.now()));
   } catch (_) {}
@@ -187,18 +192,33 @@ function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
   if (props.locked) {
     const wasFocused = (passInput.value && document.activeElement === passInput.value);
     focusInput();
-    // If a key was pressed and focus wasn't already in the input, capture the character
     if (isKey && keyEvent && !wasFocused) {
       if (keyEvent.key.length === 1 && !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.metaKey) {
+        keyEvent.preventDefault();
         password.value += keyEvent.key;
       } else if (keyEvent.key === 'Backspace') {
+        keyEvent.preventDefault();
         password.value = password.value.slice(0, -1);
+      } else if (keyEvent.key === 'Escape') {
+        keyEvent.preventDefault();
+        password.value = '';
       } else if (keyEvent.key === 'Enter') {
+        keyEvent.preventDefault();
         submitUnlock();
       }
     }
   }
 }
+
+watch(password, (newVal) => {
+  if (isSyncingPassword) return;
+  try {
+    if (wakeChannel) {
+      wakeChannel.postMessage({ type: 'pwd', value: newVal });
+    }
+    localStorage.setItem('wscreensavers_pwd_sync', JSON.stringify({ v: newVal, ts: Date.now() }));
+  } catch (_) {}
+});
 
 function onInputKeyDown(e) {
   handleUserActivity(false);
@@ -238,6 +258,16 @@ function onWindowMouseDown(e) {
 function onStorageEvent(e) {
   if (e.key === 'wscreensavers_wake_ts') {
     wakeLocalOnly();
+  } else if (e.key === 'wscreensavers_pwd_sync' && e.newValue) {
+    try {
+      const parsed = JSON.parse(e.newValue);
+      if (typeof parsed.v === 'string' && parsed.v !== password.value) {
+        isSyncingPassword = true;
+        password.value = parsed.v;
+        isSyncingPassword = false;
+      }
+      wakeLocalOnly();
+    } catch (_) {}
   }
 }
 
@@ -293,7 +323,14 @@ onMounted(() => {
   try {
     if (typeof BroadcastChannel !== 'undefined') {
       wakeChannel = new BroadcastChannel('wscreensavers_wake');
-      wakeChannel.onmessage = () => wakeLocalOnly();
+      wakeChannel.onmessage = (ev) => {
+        if (ev && ev.data && ev.data.type === 'pwd' && typeof ev.data.value === 'string') {
+          isSyncingPassword = true;
+          password.value = ev.data.value;
+          isSyncingPassword = false;
+        }
+        wakeLocalOnly();
+      };
     }
   } catch (_) {}
 

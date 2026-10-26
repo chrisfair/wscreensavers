@@ -9,6 +9,7 @@ package idle
 import "C"
 import (
 	"sync"
+	"time"
 )
 
 type waylandIdleListener struct {
@@ -44,13 +45,41 @@ func startWaylandIdleListener(timeoutMs int, onIdle func(), onResume func()) *wa
 			case <-l.stopCh:
 				return
 			default:
-				ev := C.wayland_idle_poll(l.state, 500)
+				l.mu.Lock()
+				st := l.state
+				stopped := l.stopped
+				l.mu.Unlock()
+				if stopped {
+					return
+				}
+				if st == nil {
+					time.Sleep(500 * time.Millisecond)
+					l.mu.Lock()
+					if l.stopped {
+						l.mu.Unlock()
+						return
+					}
+					l.state = C.wayland_idle_init(C.int(timeoutMs))
+					st = l.state
+					l.mu.Unlock()
+					if st == nil {
+						continue
+					}
+				}
+				ev := C.wayland_idle_poll(st, 500)
 				if ev == 1 {
 					onIdle()
 				} else if ev == 2 {
 					onResume()
-				} else if ev < 0 {
+				} else if ev == -2 {
 					return
+				} else if ev < 0 {
+					l.mu.Lock()
+					if l.state == st && st != nil {
+						C.wayland_idle_free(st)
+						l.state = nil
+					}
+					l.mu.Unlock()
 				}
 			}
 		}

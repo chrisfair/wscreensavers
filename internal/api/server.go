@@ -645,34 +645,26 @@ func (s *Server) handleToggleWallpaper(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.cfgMgr.Get())
 }
 
-// SetDPMS manages Wayland/display power management (Hyprland, Sway, wlr-randr) across all monitors.
+// SetDPMS wakes Wayland display power management across all monitors when on is true.
+// Screen blanking while locked or idle uses the layer-shell black curtain and pauses rendering
+// so Wayland wl_output globals and gtk-layer-shell keyboard focus are never unmapped.
 func (s *Server) SetDPMS(on bool) error {
-	arg := "on"
 	if !on {
-		arg = "off"
+		return nil
 	}
 	mons := display.DetectMonitors()
 	if _, err := exec.LookPath("hyprctl"); err == nil {
-		_ = exec.Command("hyprctl", "dispatch", "dpms", arg).Run()
+		_ = exec.Command("hyprctl", "dispatch", "dpms", "on").Run()
 		for _, m := range mons {
 			if m.Name != "" && m.Name != "default" {
-				_ = exec.Command("hyprctl", "dispatch", "dpms", arg, m.Name).Run()
+				_ = exec.Command("hyprctl", "dispatch", "dpms", "on", m.Name).Run()
 			}
 		}
+		return nil
 	}
 	if _, err := exec.LookPath("swaymsg"); err == nil {
-		_ = exec.Command("swaymsg", "output", "*", "dpms", arg).Run()
-	}
-	if _, err := exec.LookPath("wlr-randr"); err == nil {
-		wlrArg := "--on"
-		if !on {
-			wlrArg = "--off"
-		}
-		for _, m := range mons {
-			if m.Name != "" && m.Name != "default" {
-				_ = exec.Command("wlr-randr", "--output", m.Name, wlrArg).Run()
-			}
-		}
+		_ = exec.Command("swaymsg", "output", "*", "dpms", "on").Run()
+		return nil
 	}
 	return nil
 }

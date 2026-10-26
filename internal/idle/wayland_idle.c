@@ -122,7 +122,7 @@ int wayland_idle_poll(wayland_idle_t *state, int timeout_ms) {
         }
     }
 
-    if (wl_display_flush(state->display) < 0) {
+    if (wl_display_flush(state->display) < 0 && errno != EAGAIN && errno != EINTR) {
         wl_display_cancel_read(state->display);
         return -1;
     }
@@ -143,7 +143,7 @@ int wayland_idle_poll(wayland_idle_t *state, int timeout_ms) {
     int ret = poll(pfds, nfds, timeout_ms);
     if (ret < 0) {
         wl_display_cancel_read(state->display);
-        if (errno == EINTR) {
+        if (errno == EINTR || errno == EAGAIN) {
             return 0;
         }
         return -1;
@@ -156,6 +156,9 @@ int wayland_idle_poll(wayland_idle_t *state, int timeout_ms) {
 
     if (ret > 0 && (pfds[0].revents & POLLIN)) {
         if (wl_display_read_events(state->display) < 0) {
+            if (errno == EINTR || errno == EAGAIN) {
+                return 0;
+            }
             return -1;
         }
         wl_display_dispatch_pending(state->display);
