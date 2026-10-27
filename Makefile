@@ -16,20 +16,17 @@ frontend:
 	cd frontend && npm install && npm run build
 
 build: frontend
+	@if [ "$${SKIP_COVERAGE:-0}" != "1" ]; then bash ./scripts/run-coverage.sh; fi
 	go build -tags "gtk3,desktop,production,webkit2_41" -ldflags="-s -w" -o $(APP_NAME) .
 
 test:
-	@echo "==> Running unit tests with coverage..."
-	go test -v -coverprofile=coverage.out -covermode=atomic ./internal/...
-	@echo ""
-	@echo "==> Coverage Summary by Function:"
-	@go tool cover -func=coverage.out
-	@echo ""
-	@go tool cover -func=coverage.out | tail -n 1 | awk '{print "==> TOTAL TEST COVERAGE: " $$3}'
+	bash ./scripts/run-coverage.sh
 
 coverage: test
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "==> HTML coverage report written to coverage.html"
+	go tool cover -html=coverage/backend.cov -o coverage/backend.html
+	@echo "==> HTML backend coverage written to coverage/backend.html"
+	@echo "==> LCOV frontend coverage written to coverage/frontend/lcov.info"
+	@echo "==> Combined summary written to coverage/summary.json"
 
 pacman: test
 	@echo "==> Building Arch Linux pacman package..."
@@ -113,6 +110,6 @@ install:
 	cd noctalia-plugin/wscreensavers && find . -type f -exec install -Dm644 {} "$(DESTDIR)$(PLUGINSRCDIR)/{}" \;
 
 clean:
-	rm -f $(APP_NAME) coverage.out coverage.html
+	rm -rf $(APP_NAME) coverage.out coverage.html coverage
 	rm -f $(APP_NAME)-*.pkg.tar* $(APP_NAME)-*.tar.gz
 	rm -rf frontend/dist frontend/node_modules pkg src

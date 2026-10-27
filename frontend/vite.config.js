@@ -7,5 +7,19 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     target: 'esnext'
+  },
+  test: {
+    environment: 'happy-dom',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'lcov'],
+      reportsDirectory: '../coverage/frontend',
+      include: [
+        'src/App.vue',
+        'src/wails.js',
+        'src/components/**/*.vue',
+        'src/savers/index.js'
+      ]
+    }
   }
 })

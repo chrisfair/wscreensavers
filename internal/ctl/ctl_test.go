@@ -1,19 +1,44 @@
 package ctl
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"wscreensavers/internal/config"
 )
 
 func TestCtlCommands(t *testing.T) {
-	tmp := filepath.Join(t.TempDir(), "config.json")
+	tmpDir := t.TempDir()
+	tmp := filepath.Join(tmpDir, "config.json")
 	cfgMgr, err := config.NewManager(tmp)
 	if err != nil {
 		t.Fatalf("failed to create config manager: %v", err)
 	}
 
-	// 1. Test status, version & get
+	tmpBin := filepath.Join(tmpDir, "bin")
+	_ = os.MkdirAll(tmpBin, 0755)
+	fakeExe := filepath.Join(tmpBin, "fake-wscreensavers")
+	_ = os.WriteFile(fakeExe, []byte("#!/bin/sh\nexit 0\n"), 0755)
+	for _, cmd := range []string{"pgrep", "pkill", "hyprctl", "swaymsg", "wlr-randr"} {
+		_ = os.WriteFile(filepath.Join(tmpBin, cmd), []byte("#!/bin/sh\nexit 1\n"), 0755)
+	}
+	origPath := os.Getenv("PATH")
+	_ = os.Setenv("PATH", tmpBin+":"+origPath)
+	defer func() { _ = os.Setenv("PATH", origPath) }()
+
+	origExe := executablePathFunc
+	executablePathFunc = func() (string, error) { return fakeExe, nil }
+	defer func() { executablePathFunc = origExe }()
+
+	origDaemon := daemonBaseURL
+	daemonBaseURL = "http://127.0.0.1:1"
+	defer func() { daemonBaseURL = origDaemon }()
+
+	if err := Run(cfgMgr, nil); err != nil {
+		t.Fatalf("expected empty args status to succeed, got: %v", err)
+	}
 	if err := Run(cfgMgr, []string{"status"}); err != nil {
 		t.Fatalf("expected status to succeed, got: %v", err)
 	}
@@ -26,7 +51,6 @@ func TestCtlCommands(t *testing.T) {
 		t.Fatalf("expected get to succeed, got: %v", err)
 	}
 
-	// 2. Test set commands
 	cases := [][]string{
 		{"set", "mode", "single"},
 		{"set", "selectedSaver", "boing"},
@@ -59,7 +83,6 @@ func TestCtlCommands(t *testing.T) {
 		t.Errorf("unexpected updated config values: %+v", cfg)
 	}
 
-	// 3. Test pool commands
 	poolCases := [][]string{
 		{"pool", "toggle", "glmatrix"},
 		{"pool", "toggle", "glmatrix"},
@@ -72,20 +95,62 @@ func TestCtlCommands(t *testing.T) {
 		}
 	}
 
-	// 4. Test randomize (without launch)
-	if err := Run(cfgMgr, []string{"randomize"}); err != nil {
-		t.Errorf("expected randomize to succeed, got: %v", err)
+	actionCases := [][]string{
+		{"randomize"},
+		{"randomize", "launch"},
+		{"launch"},
+		{"launch", "glmatrix"},
+		{"lock"},
+		{"lock", "flurry"},
+		{"stop"},
+		{"unlock"},
+		{"wallpaper", "on", "glmatrix"},
+		{"wallpaper", "off"},
+		{"wallpaper", "toggle"},
+		{"wallpaper", "shuffle"},
+		{"gui"},
+		{"nag", "off"},
+		{"nag", "status"},
+	}
+	for _, args := range actionCases {
+		if err := Run(cfgMgr, args); err != nil {
+			t.Errorf("expected ctl %v to succeed, got: %v", args, err)
+		}
 	}
 
-	// 5. Test nag disable & status
-	if err := Run(cfgMgr, []string{"nag", "off"}); err != nil {
-		t.Errorf("expected nag off to succeed, got: %v", err)
+	// Test with mock daemon HTTP server and simulated running wallpaper process
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	daemonBaseURL = srv.URL
+
+	_ = os.WriteFile(filepath.Join(tmpBin, "pgrep"), []byte("#!/bin/sh\necho 999999\nexit 0\n"), 0755)
+	daemonCases := [][]string{
+		{"set", "saver", "starfield"},
+		{"set", "wallpaperSaver", "random"},
+		{"set", "wallpaperMode", "per-monitor"},
+		{"set", "wallpaperMode", "single"},
+		{"set", "wallpaperPerMonitor", "DP-1=sonar"},
+		{"launch"},
+		{"lock"},
+		{"stop"},
+		{"randomize", "launch"},
+		{"wallpaper", "shuffle"},
+		{"wallpaper", "on", "random"},
+		{"wallpaper", "off"},
 	}
-	if err := Run(cfgMgr, []string{"nag", "status"}); err != nil {
-		t.Errorf("expected nag status to succeed, got: %v", err)
+	for _, args := range daemonCases {
+		if err := Run(cfgMgr, args); err != nil {
+			t.Errorf("expected daemon ctl %v to succeed, got: %v", args, err)
+		}
 	}
 
-	// 6. Test invalid key/command error handling
+	// Test fallback when daemon returns non-200 while wallpaper process is reported running
+	daemonBaseURL = "http://127.0.0.1:1"
+	// Make pgrep return 1 on subsequent calls so stopMatchingProcesses finishes quickly
+	_ = os.WriteFile(filepath.Join(tmpBin, "pgrep"), []byte("#!/bin/sh\nexit 1\n"), 0755)
+
 	errCases := [][]string{
 		{"set"},
 		{"set", "onlyOneArg"},

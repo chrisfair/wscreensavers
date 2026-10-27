@@ -2,6 +2,7 @@ package singleton
 
 import (
 	"errors"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -63,8 +64,6 @@ func TestWaitsForPredecessorToExit(t *testing.T) {
 	r()
 }
 
-// main.go discards the release function, so the lock must survive garbage
-// collection of everything the caller no longer references.
 func TestLockSurvivesDiscardedRelease(t *testing.T) {
 	dir := t.TempDir()
 
@@ -85,9 +84,21 @@ func TestLockSurvivesDiscardedRelease(t *testing.T) {
 func TestAcquireOrReplaceTakesOver(t *testing.T) {
 	dir := t.TempDir()
 
+	// Immediate uncontested AcquireOrReplace
+	rel0, err := acquireOrReplaceIn(dir, "immediate", 100*time.Millisecond)
+	if err != nil {
+		t.Fatalf("immediate acquireOrReplace failed: %v", err)
+	}
+	rel0()
+
 	rel1, err := acquireIn(dir, "wallpaper", 0)
 	if err != nil {
 		t.Fatalf("first acquire: %v", err)
+	}
+
+	// Timeout when holder refuses to exit
+	if _, err := acquireOrReplaceIn(dir, "wallpaper", 60*time.Millisecond); !errors.Is(err, ErrAlreadyRunning) {
+		t.Fatalf("expected ErrAlreadyRunning on timeout, got %v", err)
 	}
 
 	// Release in background to simulate old process terminating upon SIGTERM
@@ -101,4 +112,21 @@ func TestAcquireOrReplaceTakesOver(t *testing.T) {
 		t.Fatalf("acquireOrReplace failed: %v", err)
 	}
 	defer rel2()
+
+	// Test top-level Acquire and AcquireOrReplace with XDG_RUNTIME_DIR pointed at temp dir
+	origXDG := os.Getenv("XDG_RUNTIME_DIR")
+	_ = os.Setenv("XDG_RUNTIME_DIR", dir)
+	defer func() { _ = os.Setenv("XDG_RUNTIME_DIR", origXDG) }()
+
+	relTop, err := Acquire("toptest", 50*time.Millisecond)
+	if err != nil {
+		t.Fatalf("Acquire failed: %v", err)
+	}
+	relTop()
+
+	relRep, err := AcquireOrReplace("toptest", 50*time.Millisecond)
+	if err != nil {
+		t.Fatalf("AcquireOrReplace failed: %v", err)
+	}
+	relRep()
 }

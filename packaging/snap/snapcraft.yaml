@@ -64,6 +64,6 @@ parts:
       - xscreensaver-gl-extra
     override-build: |
       export PATH="/snap/bin:$PATH"
-      make build
+      make build SKIP_COVERAGE=1
       make install DESTDIR="$CRAFT_PART_INSTALL" PREFIX=/usr
       sed -i 's|^Icon=.*|Icon=/usr/share/icons/hicolor/scalable/apps/wscreensavers.svg|' "$CRAFT_PART_INSTALL/usr/share/applications/wscreensavers.desktop"

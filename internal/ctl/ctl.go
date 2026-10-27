@@ -59,13 +59,18 @@ func isWallpaperProcessRunning() bool {
 	return err == nil && len(strings.TrimSpace(string(out))) > 0
 }
 
+var (
+	daemonBaseURL      = "http://127.0.0.1:8642"
+	executablePathFunc = os.Executable
+)
+
 func tryDaemonPost(endpoint string, reqBody any) bool {
 	client := &http.Client{Timeout: 800 * time.Millisecond}
 	data, err := json.Marshal(reqBody)
 	if err != nil {
 		return false
 	}
-	resp, err := client.Post("http://127.0.0.1:8642"+endpoint, "application/json", bytes.NewReader(data))
+	resp, err := client.Post(daemonBaseURL+endpoint, "application/json", bytes.NewReader(data))
 	if err != nil {
 		return false
 	}
@@ -107,7 +112,7 @@ func stopLockProcesses() {
 }
 
 func spawnDetached(args ...string) error {
-	exe, err := os.Executable()
+	exe, err := executablePathFunc()
 	if err != nil {
 		exe = "wscreensavers"
 	}

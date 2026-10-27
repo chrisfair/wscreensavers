@@ -392,6 +392,8 @@ import (
 	"unsafe"
 )
 
+var executablePathFunc = os.Executable
+
 // RequestQuit signals the GTK main loop to destroy all layer-shell windows and exit cleanly.
 func RequestQuit() {
 	C.request_gtk_quit()
@@ -480,7 +482,7 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 	p.stopSaverOnly()
 	p.StopWallpaper()
 
-	exe, err := os.Executable()
+	exe, err := executablePathFunc()
 	if err != nil {
 		return fmt.Errorf("failed to resolve executable: %w", err)
 	}
@@ -642,7 +644,7 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 
 	p.stopWallpaperLocked()
 
-	exe, err := os.Executable()
+	exe, err := executablePathFunc()
 	if err != nil {
 		return fmt.Errorf("failed to resolve executable: %w", err)
 	}

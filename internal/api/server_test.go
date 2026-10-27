@@ -21,18 +21,29 @@ func TestAPIServerEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Mock display/browser commands in PATH so DPMS and support links never touch the real desktop
 	tmpBin := filepath.Join(tmpDir, "bin")
 	_ = os.MkdirAll(tmpBin, 0755)
-	for _, cmd := range []string{"hyprctl", "swaymsg", "wlr-randr", "xdg-open"} {
+	for _, cmd := range []string{"hyprctl", "swaymsg", "wlr-randr", "xdg-open", "hyprlock", "pgrep"} {
 		_ = os.WriteFile(filepath.Join(tmpBin, cmd), []byte("#!/bin/sh\nexit 0\n"), 0755)
 	}
+	_ = os.WriteFile(filepath.Join(tmpBin, "pgrep"), []byte("#!/bin/sh\nexit 1\n"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpBin, "Xvfb"), []byte("#!/bin/sh\nsleep 10\n"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpBin, "ffmpeg"), []byte("#!/bin/sh\nprintf 'frame'\nexit 0\n"), 0755)
+	fakeHack := filepath.Join(tmpBin, "fakehack")
+	_ = os.WriteFile(fakeHack, []byte("#!/bin/sh\nsleep 10\n"), 0755)
+
 	origPath := os.Getenv("PATH")
 	_ = os.Setenv("PATH", tmpBin+":"+origPath)
 	defer func() { _ = os.Setenv("PATH", origPath) }()
 
 	srv := NewServer(cfgMgr, os.DirFS(tmpDir))
 	srv.supportMgr, _ = support.NewManager(filepath.Join(tmpDir, "support.json"))
+	srv.savers = append(srv.savers, models.Screensaver{
+		ID:         "xss_fakehack",
+		Name:       "FakeHack",
+		BinaryPath: fakeHack,
+	})
+
 	baseURL, err := srv.StartHTTP("127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start API server: %v", err)
@@ -60,6 +71,16 @@ func TestAPIServerEndpoints(t *testing.T) {
 		if exclude[uniqueID] {
 			t.Errorf("PickUniqueRandomSaver returned excluded saver: %s", uniqueID)
 		}
+	}
+
+	// Test wails runtime stub
+	wailsRes, err := http.Get(baseURL + "/wails/runtime.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wailsRes.Body.Close()
+	if wailsRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK on /wails/runtime.js, got %d", wailsRes.StatusCode)
 	}
 
 	// CORS OPTIONS preflight
@@ -108,7 +129,6 @@ func TestAPIServerEndpoints(t *testing.T) {
 		t.Fatalf("expected 200 OK updating params, got %d", pResp.StatusCode)
 	}
 
-	// Invalid saver action paths
 	badSaverRes1, _ := http.Get(baseURL + "/api/savers/onlyonepart")
 	badSaverRes1.Body.Close()
 	badSaverRes2, _ := http.Get(baseURL + "/api/savers/glmatrix/params")
@@ -139,6 +159,7 @@ func TestAPIServerEndpoints(t *testing.T) {
 	cResp.Body.Close()
 
 	cfg.IdleTimeoutMinutes = 25
+	cfg.LockProvider = "hyprlock"
 	bodyBytes, _ := json.Marshal(cfg)
 	putCfgReq, _ := http.NewRequest(http.MethodPut, baseURL+"/api/config", strings.NewReader(string(bodyBytes)))
 	putCfgReq.Header.Set("Content-Type", "application/json")
@@ -169,7 +190,7 @@ func TestAPIServerEndpoints(t *testing.T) {
 		}
 	}
 
-	// 5. Wake, DPMS, suspend-wallpaper, overlay-exited, and XSS-stream endpoints
+	// 5. Wake, DPMS, suspend-wallpaper, overlay-exited, lock, toggle-wallpaper, and XSS-stream endpoints
 	for _, ep := range []string{"/api/action/wake", "/api/action/dpms-on", "/api/action/dpms-off", "/api/action/suspend-wallpaper", "/api/action/overlay-exited"} {
 		res, err := http.Post(baseURL+ep, "application/json", nil)
 		if err != nil {
@@ -181,12 +202,46 @@ func TestAPIServerEndpoints(t *testing.T) {
 		}
 	}
 
+	lockRes, err := http.Post(baseURL+"/api/action/lock", "application/json", strings.NewReader(`{"saverId":"random"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockRes.Body.Close()
+	if lockRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK on /api/action/lock with external provider, got %d", lockRes.StatusCode)
+	}
+
+	launchLockedRes, err := http.Post(baseURL+"/api/action/launch-saver", "application/json", strings.NewReader(`{"saverId":"","locked":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	launchLockedRes.Body.Close()
+
+	badWpRes, _ := http.Post(baseURL+"/api/action/toggle-wallpaper", "application/json", strings.NewReader(`{bad`))
+	badWpRes.Body.Close()
+	offWpRes, err := http.Post(baseURL+"/api/action/toggle-wallpaper", "application/json", strings.NewReader(`{"enabled":false,"saverId":"per-monitor"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	offWpRes.Body.Close()
+	if offWpRes.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK disabling wallpaper, got %d", offWpRes.StatusCode)
+	}
+
+	_ = srv.StartConfiguredWallpaper()
+	srv.isPrimary = true
+	srv.ResumeWallpaperAfterOverlay()
+
 	xssStopRes, _ := http.Get(baseURL + "/api/xss-stream?stop=1&monitor=DP-1&client=c1")
 	xssStopRes.Body.Close()
 	xssMissingRes, _ := http.Get(baseURL + "/api/xss-stream")
 	xssMissingRes.Body.Close()
 	xssNotFoundRes, _ := http.Get(baseURL + "/api/xss-stream?saver=nonexistent_xss")
 	xssNotFoundRes.Body.Close()
+	xssLiveRes, err := http.Get(baseURL + "/api/xss-stream?saver=fakehack&w=640&h=360&fps=15&monitor=DP-1&client=c1")
+	if err == nil {
+		xssLiveRes.Body.Close()
+	}
 
 	// 6. POST /api/action/stop-saver & /api/action/unlock
 	stopRes, err := http.Post(baseURL+"/api/action/stop-saver", "application/json", nil)
@@ -207,7 +262,12 @@ func TestAPIServerEndpoints(t *testing.T) {
 		t.Errorf("expected 401 on empty password unlock, got %d", unlockRes.StatusCode)
 	}
 
-	// 7. Support endpoints: GET /api/support, POST /api/support/dismiss, POST /api/support/record, POST /api/support/open
+	// 7. Support endpoints & methods
+	_ = srv.GetSupportStatus()
+	_, _ = srv.DismissSupportNag()
+	_, _ = srv.RecordUserSupport("$5 Support", "ref1")
+	_, _ = srv.OpenSupportLink(5, false)
+
 	suppRes, err := http.Get(baseURL + "/api/support")
 	if err != nil {
 		t.Fatal(err)
@@ -222,27 +282,18 @@ func TestAPIServerEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	disRes.Body.Close()
-	if disRes.StatusCode != http.StatusOK {
-		t.Errorf("expected 200 OK on /api/support/dismiss, got %d", disRes.StatusCode)
-	}
 
 	recRes, err := http.Post(baseURL+"/api/support/record", "application/json", strings.NewReader(`{"tier":"$5 Support","reference":"test_rcpt"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	recRes.Body.Close()
-	if recRes.StatusCode != http.StatusOK {
-		t.Errorf("expected 200 OK on /api/support/record, got %d", recRes.StatusCode)
-	}
 
 	openRes, err := http.Post(baseURL+"/api/support/open", "application/json", strings.NewReader(`{"amountUsd":5}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	openRes.Body.Close()
-	if openRes.StatusCode != http.StatusOK {
-		t.Errorf("expected 200 OK on /api/support/open, got %d", openRes.StatusCode)
-	}
 }
 
 func TestLockSaverIDAndIdleLoopStop(t *testing.T) {

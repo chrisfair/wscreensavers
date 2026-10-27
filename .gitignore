@@ -5,6 +5,7 @@
 /src/
 /coverage.out
 /coverage.html
+/coverage/
 *.pkg.tar*
 *.tar.gz
 *.deb
