@@ -26,6 +26,18 @@ var (
 	}
 )
 
+func init() {
+	if snap := os.Getenv("SNAP"); snap != "" {
+		DefaultConfigDirs = append([]string{
+			filepath.Join(snap, "usr/share/xscreensaver/config"),
+		}, DefaultConfigDirs...)
+		DefaultBinaryDirs = append([]string{
+			filepath.Join(snap, "usr/libexec/xscreensaver"),
+			filepath.Join(snap, "usr/lib/xscreensaver"),
+		}, DefaultBinaryDirs...)
+	}
+}
+
 // xmlScreenSaver represents the root <screensaver> element in XScreenSaver config XML files.
 type xmlScreenSaver struct {
 	XMLName     xml.Name `xml:"screensaver"`

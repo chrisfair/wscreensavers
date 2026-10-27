@@ -1,37 +1,68 @@
 name: wscreensavers
 base: core24
 version: '1.1.9'
-summary: Native Wayland screensaver and live desktop wallpaper suite
+summary: Wayland screensaver, live desktop wallpaper, and screen-lock suite
 description: |
-  WScreenSavers brings classic and modern screensavers to Wayland with 24
-  built-in WebGL visualizers, PAM screen locking, and live desktop wallpapers.
+  WScreenSavers brings classic XScreenSaver modules and custom 3D WebGL scenes
+  to Wayland desktops (wlroots, Hyprland, Sway, KDE, GNOME) using gtk-layer-shell
+  BACKGROUND and OVERLAY surfaces, with idle detection, multi-monitor support,
+  an IPC CLI (wscreensavers ctl), and a Noctalia Shell plugin.
+license: MIT
+source-code: https://github.com/chrisfair/wscreensavers
+issues: https://github.com/chrisfair/wscreensavers/issues
 grade: stable
-confinement: classic
+confinement: strict
+
+platforms:
+  amd64:
 
 apps:
   wscreensavers:
     command: usr/bin/wscreensavers
+    desktop: usr/share/applications/wscreensavers.desktop
+    extensions: [gnome]
     plugs:
       - wayland
       - x11
       - opengl
       - desktop
       - desktop-legacy
+      - network
+      - network-bind
       - audio-playback
+      - screen-inhibit-control
+    environment:
+      WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+      PATH: $SNAP/usr/libexec/xscreensaver:$SNAP/usr/lib/xscreensaver:$SNAP/usr/bin:$SNAP/bin:$PATH
   ctl:
     command: usr/bin/wscreensavers ctl
+    plugs:
+      - network
 
 parts:
   wscreensavers:
     plugin: nil
+    source: .
+    build-snaps:
+      - go/latest/stable
+      - node/22/stable
     build-packages:
-      - golang
-      - nodejs
-      - npm
-      - libgtk-3-dev
-      - libwebkit2gtk-4.1-dev
+      - build-essential
+      - pkg-config
       - libgtk-layer-shell-dev
       - libpam0g-dev
+      - libx11-dev
+    stage-packages:
+      - libgtk-layer-shell0
+      - libpam0g
+      - xvfb
+      - ffmpeg
+      - xscreensaver-data
+      - xscreensaver-data-extra
+      - xscreensaver-gl
+      - xscreensaver-gl-extra
     override-build: |
+      export PATH="/snap/bin:$PATH"
       make build
-      make install DESTDIR=$SNAPCRAFT_PART_INSTALL PREFIX=/usr
+      make install DESTDIR="$CRAFT_PART_INSTALL" PREFIX=/usr
+      sed -i 's|^Icon=.*|Icon=/usr/share/icons/hicolor/scalable/apps/wscreensavers.svg|' "$CRAFT_PART_INSTALL/usr/share/applications/wscreensavers.desktop"

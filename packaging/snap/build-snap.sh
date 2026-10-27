@@ -11,11 +11,18 @@ echo "==> Checking Snapcraft environment..."
 if ! command -v snapcraft >/dev/null 2>&1; then
     echo "NOTICE: 'snapcraft' is not installed on this host."
     echo "The Snapcraft manifest is ready at: ${SCRIPT_DIR}/snapcraft.yaml"
-    echo "To build on a system with snapcraft:"
-    echo "  cd ${SCRIPT_DIR} && snapcraft"
+    echo "To build on a system with snapcraft (or via GitHub Actions):"
+    echo "  cp packaging/snap/snapcraft.yaml snapcraft.yaml && snapcraft"
     exit 0
 fi
 
-echo "==> Building Snap package..."
-(cd "${SCRIPT_DIR}" && snapcraft)
+cleanup() {
+    rm -f "${ROOT_DIR}/snapcraft.yaml"
+}
+trap cleanup EXIT
+
+cp "${SCRIPT_DIR}/snapcraft.yaml" "${ROOT_DIR}/snapcraft.yaml"
+
+echo "==> Building Snap package from repository root..."
+snapcraft "$@"
 echo "==> Snap build complete."

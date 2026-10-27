@@ -1,0 +1,54 @@
+name: Snap Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: snap-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  snap:
+    name: Build & Publish Snap
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Stage snapcraft.yaml at repository root
+        run: |
+          mkdir -p snap
+          cp packaging/snap/snapcraft.yaml snap/snapcraft.yaml
+
+      - name: Build Snap package
+        id: build
+        uses: canonical/action-build@v1
+
+      - name: Upload Snap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wscreensavers-snap
+          path: ${{ steps.build.outputs.snap }}
+
+      - name: Attach Snap to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" "${{ steps.build.outputs.snap }}" --clobber
+
+      - name: Publish to Snap Store
+        if: env.SNAPCRAFT_TOKEN != ''
+        env:
+          SNAPCRAFT_TOKEN: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        uses: canonical/action-publish@v1
+        with:
+          snap: ${{ steps.build.outputs.snap }}
+          release: stable
+          store_login: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
