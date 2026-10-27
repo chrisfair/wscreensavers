@@ -7,7 +7,7 @@ description: |
   to Wayland desktops (wlroots, Hyprland, Sway, KDE, GNOME) using gtk-layer-shell
   BACKGROUND and OVERLAY surfaces, with idle detection, multi-monitor support,
   an IPC CLI (wscreensavers ctl), and a Noctalia Shell plugin.
-license: MIT
+license: GPL-3.0+
 icon: assets/icon-512.png
 source-code: https://github.com/chrisfair/wscreensavers
 issues: https://github.com/chrisfair/wscreensavers/issues
