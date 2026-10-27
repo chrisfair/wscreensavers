@@ -13,12 +13,16 @@ cleanup() {
 trap cleanup EXIT
 
 echo "==> Step 1: Exporting Snap Store login token..."
-docker run --rm -it -v "${ROOT_DIR}:/work" -w /work snapcore/snapcraft:stable \
-    snapcraft export-login --snaps=wscreensavers --acls package_access,package_push,package_update,package_release /work/snapcraft.login
+docker run --rm -it -v "${ROOT_DIR}:/work" -w /work snapcore/snapcraft:stable bash -c "
+    snapcraft export-login --snaps=wscreensavers --acls package_access,package_push,package_update,package_release /work/snapcraft.login &&
+    chown $(id -u):$(id -g) /work/snapcraft.login &&
+    chmod 600 /work/snapcraft.login
+"
 
-if [ -f "${ROOT_DIR}/snapcraft.login" ]; then
+if [ -s "${ROOT_DIR}/snapcraft.login" ]; then
     echo "==> Step 2: Saving SNAPCRAFT_STORE_CREDENTIALS to GitHub Actions secrets..."
     gh secret set SNAPCRAFT_STORE_CREDENTIALS --repo chrisfair/wscreensavers < "${ROOT_DIR}/snapcraft.login"
+    gh secret list --repo chrisfair/wscreensavers
 fi
 
 if [ -n "${SNAP_FILE}" ]; then
