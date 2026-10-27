@@ -47,9 +47,12 @@ Classic XScreenSaver relies on X11 root-window drawing and X11 server grabs, whi
 # Arch Linux / Manjaro / CachyOS (AUR)
 paru -S wscreensavers
 # or: yay -S wscreensavers
+
+# Ubuntu / Debian / Snap Store
+sudo snap install wscreensavers
 ```
 
-Pre-built packages (`.AppImage`, `.deb`, `.pkg.tar.xz`, `.tar.gz`) are available on [GitHub Releases](https://github.com/chrisfair/wscreensavers/releases), or via Nix flakes (`nix run github:chrisfair/wscreensavers`).
+Pre-built packages (`.AppImage`, `.deb`, `.snap`, `.pkg.tar.xz`, `.tar.gz`) are available on [GitHub Releases](https://github.com/chrisfair/wscreensavers/releases), on the [Snap Store](https://snapcraft.io/wscreensavers), or via Nix flakes (`nix run github:chrisfair/wscreensavers`).
 
 ---
 
