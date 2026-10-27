@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.8
+Version:        1.1.9
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -50,6 +50,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Tue Oct 27 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.9-1
+- Release v1.1.9: migrate desktop Control Center from Wails v2 to Wails v3 (v3.0.0) with GTK3/WebKit2GTK 4.1 service bindings
+
 * Mon Oct 26 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.8-1
 - Release v1.1.8: set pass-through empty input region on wallpaper layer surfaces, isolate Xvfb child env from Wayland display, and fix ctl wallpaper selection
 

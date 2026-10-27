@@ -650,6 +650,7 @@ import LockScreenOverlay from './components/LockScreenOverlay.vue';
 import MonitorMap from './components/MonitorMap.vue';
 import ParameterPanel from './components/ParameterPanel.vue';
 import SupportModal from './components/SupportModal.vue';
+import { callWailsApp } from './wails.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const isFullscreenSurface = ref(urlParams.get('mode') === 'fullscreen');
@@ -670,7 +671,7 @@ const username = ref('user');
 const showSupportModal = ref(false);
 const showAboutModal = ref(false);
 const isSupporter = ref(false);
-const appVersion = ref('1.1.7');
+const appVersion = ref('1.1.9');
 const openMenu = ref(null);
 
 const themeOptions = {
@@ -838,12 +839,8 @@ const filteredSavers = computed(() => {
 
 async function resolveApiBase() {
   if (apiBase.value) return;
-  if (window.go && window.go.main && window.go.main.App) {
-    try {
-      const url = await window.go.main.App.GetServerBaseURL();
-      if (url) apiBase.value = url;
-    } catch (_) {}
-  }
+  const url = await callWailsApp('GetServerBaseURL');
+  if (url) apiBase.value = url;
 }
 
 async function fetchInitialData() {
@@ -866,12 +863,7 @@ async function fetchInitialData() {
       if (st.version) appVersion.value = st.version;
     }
     if (!isFullscreenSurface.value) {
-      let supp = null;
-      if (window.go && window.go.main && window.go.main.App && window.go.main.App.GetSupportStatus) {
-        try {
-          supp = await window.go.main.App.GetSupportStatus();
-        } catch (_) {}
-      }
+      let supp = await callWailsApp('GetSupportStatus');
       if (!supp) {
         const suppRes = await fetch(`${apiBase.value}/api/support`);
         if (suppRes.ok) supp = await suppRes.json();

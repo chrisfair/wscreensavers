@@ -263,6 +263,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/support/dismiss", s.handleSupportDismiss)
 	mux.HandleFunc("/api/support/record", s.handleSupportRecord)
 	mux.HandleFunc("/api/support/open", s.handleSupportOpen)
+	mux.HandleFunc("/wails/runtime.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("export {};\n"))
+	})
 
 	if s.frontendFS != nil {
 		fileServer := http.FileServer(http.FS(s.frontendFS))

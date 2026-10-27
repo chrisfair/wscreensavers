@@ -407,6 +407,9 @@ func RunLayerShellWindows(urls []string, isWallpaper bool, isLocked bool) {
 	if len(urls) == 0 {
 		return
 	}
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		_ = os.Setenv("GDK_BACKEND", "wayland")
+	}
 	cURLs := make([]*C.char, len(urls))
 	for i, u := range urls {
 		cURLs[i] = C.CString(u)

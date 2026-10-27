@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"wscreensavers/internal/api"
 	"wscreensavers/internal/auth"
 	"wscreensavers/internal/config"
@@ -17,12 +17,13 @@ import (
 	"wscreensavers/internal/support"
 )
 
-// App struct bound to Wails frontend and backed by the unified API Server.
+// App struct bound as a Wails v3 service and backed by the unified API Server.
 type App struct {
-	ctx    context.Context
-	cfgMgr *config.Manager
-	srv    *api.Server
-	stopCh chan struct{}
+	ctx      context.Context
+	wailsApp *application.App
+	cfgMgr   *config.Manager
+	srv      *api.Server
+	stopCh   chan struct{}
 }
 
 func NewApp(cfgMgr *config.Manager, srv *api.Server) *App {
@@ -33,18 +34,28 @@ func NewApp(cfgMgr *config.Manager, srv *api.Server) *App {
 	}
 }
 
-func (a *App) startup(ctx context.Context) {
+func (a *App) SetApplication(wailsApp *application.App) {
+	a.wailsApp = wailsApp
+}
+
+func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
 	// Only run idle daemon loop if this server is the primary daemon on port 8642.
 	// If a background daemon is already running, it handles idle detection and DPMS.
 	if a.srv.BaseURL() == "http://127.0.0.1:8642" {
 		go a.srv.StartIdleDaemonLoop(a.stopCh)
 	}
+	return nil
 }
 
-func (a *App) shutdown(ctx context.Context) {
-	close(a.stopCh)
+func (a *App) ServiceShutdown() error {
+	select {
+	case <-a.stopCh:
+	default:
+		close(a.stopCh)
+	}
 	a.srv.Shutdown()
+	return nil
 }
 
 func (a *App) GetServerBaseURL() string {
@@ -137,9 +148,9 @@ func (a *App) DismissSupportNag() (support.SupportStatus, error) {
 }
 
 func (a *App) OpenSupportLink(amountUSD int) string {
-	targetURL, _ := a.srv.OpenSupportLink(amountUSD, a.ctx == nil)
-	if a.ctx != nil {
-		runtime.BrowserOpenURL(a.ctx, targetURL)
+	targetURL, _ := a.srv.OpenSupportLink(amountUSD, a.wailsApp == nil)
+	if a.wailsApp != nil && a.wailsApp.Browser != nil {
+		_ = a.wailsApp.Browser.OpenURL(targetURL)
 	}
 	return targetURL
 }

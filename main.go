@@ -17,10 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"wscreensavers/internal/api"
 	"wscreensavers/internal/config"
@@ -39,6 +36,15 @@ var assets embed.FS
 func init() {
 	// Ensure hardware GPU acceleration is not overridden by stale shell env vars
 	_ = os.Unsetenv("LIBGL_ALWAYS_SOFTWARE")
+	// Preserve native Wayland GDK backend when WAYLAND_DISPLAY is present
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		if os.Getenv("XDG_SESSION_TYPE") == "" {
+			_ = os.Setenv("XDG_SESSION_TYPE", "wayland")
+		}
+		if os.Getenv("GDK_BACKEND") == "x11" {
+			_ = os.Unsetenv("GDK_BACKEND")
+		}
+	}
 	// Prevent WebKit2GTK DMA-BUF Wayland protocol crashes on NVIDIA / Hyprland setups
 	if os.Getenv("WEBKIT_DISABLE_DMABUF_RENDERER") == "" {
 		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
@@ -213,28 +219,33 @@ func main() {
 		return
 	}
 
-	// Mode 3: Native Wails v2 Desktop Control Center
+	// Mode 3: Native Wails v3 Desktop Control Center
 	app := NewApp(cfgMgr, srv)
-	err = wails.Run(&options.App{
-		Title:     "WScreenSavers - Wayland Screensaver & Wallpaper Suite",
-		Width:     1400,
-		Height:    900,
-		MinWidth:  1024,
-		MinHeight: 680,
-		AssetServer: &assetserver.Options{
-			Assets:  distFS,
+	wailsApp := application.New(application.Options{
+		Name:        "wscreensavers",
+		Description: "WScreenSavers - Wayland Screensaver & Wallpaper Suite",
+		Services: []application.Service{
+			application.NewService(app),
+		},
+		Assets: application.AssetOptions{
 			Handler: srv.Handler(),
 		},
-		BackgroundColour: &options.RGBA{R: 9, G: 11, B: 17, A: 255},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
-		Bind: []interface{}{
-			app,
-		},
-		Linux: &linux.Options{
+		Linux: application.LinuxOptions{
 			ProgramName: "wscreensavers",
 		},
 	})
+	app.SetApplication(wailsApp)
+	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
+		Title:            "WScreenSavers - Wayland Screensaver & Wallpaper Suite",
+		Width:            1400,
+		Height:           900,
+		MinWidth:         1024,
+		MinHeight:        680,
+		BackgroundColour: application.NewRGBA(9, 11, 17, 255),
+		URL:              "/?api=" + url.QueryEscape(baseURL),
+	})
+	err = wailsApp.Run()
 	if err != nil {
 		log.Fatalf("Error running Wails application: %v", err)
 	}

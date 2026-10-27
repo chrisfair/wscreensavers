@@ -184,6 +184,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { callWailsApp } from '../wails.js';
 
 const props = defineProps({
   apiBase: {
@@ -243,12 +244,10 @@ function enableCustom() {
 
 async function loadSupportStatus() {
   try {
-    if (window.go && window.go.main && window.go.main.App && window.go.main.App.GetSupportStatus) {
-      const res = await window.go.main.App.GetSupportStatus();
-      if (res) {
-        status.value = res;
-        return;
-      }
+    const wailsRes = await callWailsApp('GetSupportStatus');
+    if (wailsRes) {
+      status.value = wailsRes;
+      return;
     }
     const res = await fetch(`${props.apiBase}/api/support`);
     if (res.ok) {
@@ -265,8 +264,8 @@ onMounted(() => {
 
 async function handleOpenStripe() {
   try {
-    if (window.go && window.go.main && window.go.main.App && window.go.main.App.OpenSupportLink) {
-      await window.go.main.App.OpenSupportLink(effectiveAmount.value);
+    const openedViaWails = await callWailsApp('OpenSupportLink', effectiveAmount.value);
+    if (openedViaWails) {
       await loadSupportStatus();
     } else {
       const res = await fetch(`${props.apiBase}/api/support/open`, {
@@ -291,9 +290,9 @@ async function handleOpenStripe() {
 async function handleConfirmSupport() {
   try {
     const tierLabel = `$${effectiveAmount.value} Support`;
-    if (window.go && window.go.main && window.go.main.App && window.go.main.App.RecordUserSupport) {
-      const updated = await window.go.main.App.RecordUserSupport(tierLabel, referenceInput.value);
-      if (updated) status.value = updated;
+    const updatedViaWails = await callWailsApp('RecordUserSupport', tierLabel, referenceInput.value);
+    if (updatedViaWails) {
+      status.value = updatedViaWails;
     } else {
       const res = await fetch(`${props.apiBase}/api/support/record`, {
         method: 'POST',
@@ -317,9 +316,8 @@ async function handleConfirmSupport() {
 async function handleDismiss() {
   try {
     if (!status.value.supported && !status.value.isAuthor) {
-      if (window.go && window.go.main && window.go.main.App && window.go.main.App.DismissSupportNag) {
-        await window.go.main.App.DismissSupportNag();
-      } else {
+      const dismissedViaWails = await callWailsApp('DismissSupportNag');
+      if (!dismissedViaWails) {
         await fetch(`${props.apiBase}/api/support/dismiss`, { method: 'POST' });
       }
     }

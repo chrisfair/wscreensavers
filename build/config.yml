@@ -1,0 +1,31 @@
+version: '3'
+
+info:
+  companyName: "Christopher Patrick Fair"
+  productName: "WScreenSavers"
+  productIdentifier: "com.github.chrisfair.wscreensavers"
+  description: "Native Wayland version of XScreenSaver with 24 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
+  copyright: "(c) 2026, Christopher Patrick Fair"
+  version: "1.1.9"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: make build
+      type: blocking
+    - cmd: make run
+      type: primary

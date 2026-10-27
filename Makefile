@@ -15,7 +15,7 @@ frontend:
 	cd frontend && npm install && npm run build
 
 build: frontend
-	go build -tags "desktop,production,webkit2_41" -ldflags="-s -w" -o $(APP_NAME) .
+	go build -tags "gtk3,desktop,production,webkit2_41" -ldflags="-s -w" -o $(APP_NAME) .
 
 test:
 	@echo "==> Running unit tests with coverage..."
