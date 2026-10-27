@@ -45,6 +45,7 @@ make build
 %{_bindir}/wscreensavers
 %{_datadir}/applications/wscreensavers.desktop
 %{_datadir}/icons/hicolor/scalable/apps/wscreensavers.svg
+%{_mandir}/man1/wscreensavers.1*
 %{_userunitdir}/wscreensavers.service
 %{_datadir}/wscreensavers/nag
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*

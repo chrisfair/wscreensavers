@@ -1,0 +1,339 @@
+.TH WSCREENSAVERS 1 "October 2026" "wscreensavers 1.1.9" "User Commands"
+.SH NAME
+wscreensavers \- Wayland screensaver, live desktop wallpaper, and PAM screen-lock suite
+.SH SYNOPSIS
+.B wscreensavers
+[\fIOPTIONS\fR]
+.br
+.B wscreensavers ctl
+\fISUBCOMMAND\fR [\fIARGS\fR...]
+.SH DESCRIPTION
+.B wscreensavers
+runs 24 built-in WebGL2/Canvas visualizers and 300+ external
+.BR xscreensaver (1)
+and
+.B rss-glx
+binaries on Wayland compositors (Hyprland, Sway, River, Wayfire, KDE Plasma) using
+the
+.B zwlr_layer_shell_v1
+and
+.B ext-idle-notify-v1
+Wayland protocols.
+.PP
+When invoked with no arguments,
+.B wscreensavers
+opens the desktop Studio Control Center (built with Wails v3 and WebKit2GTK 4.1)
+for browsing savers, tuning per-saver parameters, configuring multi-monitor
+assignments, and managing the background daemon and live wallpapers.
+.PP
+External XScreenSaver modules that normally draw onto an X11 root window are
+executed inside isolated offscreen
+.BR Xvfb (1)
+servers and streamed as MJPEG frames onto borderless Wayland
+.B OVERLAY
+or
+.B BACKGROUND
+layer-shell surfaces.
+.SH OPTIONS
+.TP
+.B \-\-saver
+Launch the fullscreen Wayland screensaver overlay across all connected monitors.
+Moving the mouse or pressing any key dismisses the overlay.
+.TP
+.B \-\-lock
+Launch the fullscreen locked Wayland screensaver overlay across all monitors.
+Requires PAM password authentication (or delegates to
+.BR hyprlock (1)
+/
+.BR swaylock (1)
+when configured) before unmapping.
+.TP
+.B \-\-wallpaper
+Launch the live wallpaper renderer on the Wayland
+.B BACKGROUND
+layer-shell surface with an empty input region so pointer clicks pass through to
+the desktop and windows above it.
+.TP
+.B \-\-daemon
+Run the headless idle-detection, saver-cycling, and local HTTP control daemon.
+Monitors Wayland seat activity via
+.B ext-idle-notify-v1
+(with a fallback to
+.B hyprctl cursorpos
+on Hyprland), inhibits activation during active PipeWire/ALSA audio playback or
+fullscreen windows, and manages DPMS monitor power-off timers.
+.TP
+.B \-\-web
+Run the Studio Control Center as a local HTTP web server on
+.I 127.0.0.1:8642
+without opening a native desktop window.
+.TP
+.BI \-\-saver\-id " ID"
+Override the configured screensaver and run the specified saver ID (for example,
+.B matrix3d
+or
+.BR xss_glmatrix ).
+Use
+.B per-monitor
+with
+.B \-\-wallpaper
+to assign distinct savers per display output.
+.TP
+.BI \-\-server\-url " URL"
+Connect overlay or wallpaper views to an existing local
+.B wscreensavers
+HTTP asset/stream server instead of starting an embedded listener.
+.TP
+.BI \-\-addr " HOST:PORT"
+Set the HTTP listen address for
+.B \-\-daemon
+and
+.B \-\-web
+modes (default:
+.IR 127.0.0.1:8642 ).
+.TP
+.BR \-v ", " \-\-version
+Print the
+.B wscreensavers
+version and exit.
+.SH CTL SUBCOMMANDS
+The
+.B wscreensavers ctl
+interface controls the running daemon or spawns detached overlay/wallpaper
+processes from shell scripts, window-manager keybindings, or the Noctalia Shell
+plugin. Most subcommands print the updated status payload as JSON.
+.TP
+.B status\fR, \fBget
+Print the current configuration, active saver names, live wallpaper state,
+detected monitor outputs, and available saver catalog as JSON.
+.TP
+.BI "launch " "[SAVER_ID]"
+Start the fullscreen screensaver immediately. If
+.I SAVER_ID
+is omitted, uses the configured saver or picks the next entry from the shuffle
+pool when mode is
+.B random
+or
+.BR cycle .
+.TP
+.BI "lock " "[SAVER_ID]"
+Lock all monitors immediately using the configured lock provider and saver.
+.TP
+.B stop\fR, \fBunlock
+Dismiss any running screensaver or lock overlay and restore the live wallpaper
+if enabled.
+.TP
+.BR "randomize " "[launch]"
+Select the next saver from the non-repeating shuffle pool and update
+.IR selectedSaver .
+Pass
+.B launch
+to immediately start the newly selected saver.
+.TP
+.B wallpaper \fR[\fBtoggle\fR|\fBon\fR|\fBoff\fR|\fBshuffle\fR] [\fISAVER_ID\fR]
+Control the Wayland layer-shell live wallpaper.
+.B shuffle
+assigns a random native WebGL visualizer to each connected monitor in
+.B per-monitor
+mode.
+.TP
+.BI "set " "KEY VALUE"
+Update a configuration key in
+.I ~/.config/wscreensavers/config.json
+and apply changes to running wallpaper or daemon processes. See
+.B CONFIGURATION KEYS
+below.
+.TP
+.B pool toggle \fISAVER_ID\fR | \fBpool all\fR | \fBpool none
+Add or remove a saver from the random/cycle shuffle pool, enable all discovered
+savers, or clear the pool.
+.TP
+.B gui
+Launch the Studio Control Center desktop window in the background.
+.TP
+.B nag \fR[\fBoff\fR|\fBdisable\fR|\fBstatus\fR]
+Permanently disable or inspect the startup community support reminder.
+.TP
+.B version
+Print the
+.B wscreensavers
+version and exit.
+.SH CONFIGURATION KEYS
+Keys accepted by
+.BR "wscreensavers ctl set " "\fIKEY VALUE\fR:"
+.TP
+.B mode
+Screensaver selection mode:
+.BR single ,
+.BR random ,
+or
+.BR cycle .
+.TP
+.B selectedSaver\fR, \fBsaver
+Default screensaver ID (for example,
+.BR bughouse3d ,
+.BR matrix3d ,
+.BR flurry ,
+.BR xss_endgame ).
+.TP
+.B multiMonitorMode
+Multi-monitor behavior for screensavers:
+.B clone
+(same saver on all outputs) or
+.B independent
+(separate random saver per monitor).
+.TP
+.B idleTimeoutMinutes
+Minutes of seat inactivity before the screensaver activates (positive integer).
+.TP
+.B cycleTimeoutMinutes
+Minutes before rotating to the next saver in
+.B cycle
+mode (positive integer).
+.TP
+.B lockEnabled
+Whether idle activation locks the screen (\fBtrue\fR/\fBfalse\fR).
+.TP
+.B lockProvider
+Lock implementation:
+.B internal
+(built-in PAM overlay),
+.BR hyprlock ,
+or
+.BR swaylock .
+.TP
+.B showClockOnSaver
+Display a digital clock HUD overlay on active screensavers (\fBtrue\fR/\fBfalse\fR).
+.TP
+.B inhibitOnAudio
+Suppress idle activation while PipeWire, PulseAudio, or ALSA audio streams are
+playing (\fBtrue\fR/\fBfalse\fR).
+.TP
+.B inhibitOnFullscreen
+Suppress idle activation while a fullscreen application window is focused
+(\fBtrue\fR/\fBfalse\fR).
+.TP
+.B wallpaperSaver
+Screensaver ID rendered in single-saver live wallpaper mode, or
+.BR random .
+.TP
+.B wallpaperMode
+Live wallpaper layout:
+.B single
+or
+.BR per-monitor .
+.TP
+.B wallpaperPerMonitor
+Assign a saver to a specific monitor output in the form
+.IB MONITOR = SAVER_ID
+(for example,
+.BR DP-1=bughouse3d ).
+.TP
+.B wallpaperFpsCap
+Frame rate cap for live wallpapers (integer >= 5, default 30).
+.TP
+.B xssMaxStreamDim
+Maximum long-edge resolution in pixels for offscreen Xvfb XScreenSaver streams
+(320\(en3840, default 1920).
+.TP
+.B dpmsOffMinutes
+Minutes after screensaver activation before powering off displays via DPMS
+(0 disables DPMS power-off).
+.SH ENVIRONMENT
+.TP
+.B WAYLAND_DISPLAY
+Wayland compositor socket used by GTK3 and
+.BR gtk-layer-shell .
+.TP
+.B WEBKIT_DISABLE_DMABUF_RENDERER
+Set to
+.B 1
+by default at startup to prevent WebKit2GTK DMA-BUF protocol crashes on
+NVIDIA and wlroots/Hyprland setups.
+.TP
+.B XDG_CONFIG_HOME
+Base directory for user configuration (defaults to
+.IR ~/.config ).
+.TP
+.B XDG_RUNTIME_DIR
+Directory used for per-mode singleton flock files
+(\fIwscreensavers-daemon.lock\fR, \fIwscreensavers-saver.lock\fR,
+\fIwscreensavers-lock.lock\fR, \fIwscreensavers-wallpaper.lock\fR).
+.SH FILES
+.TP
+.I ~/.config/wscreensavers/config.json
+User configuration file storing saver selections, per-saver parameter overrides,
+timeouts, and multi-monitor mappings.
+.TP
+.I ~/.config/wscreensavers/shuffle.json
+Persisted deck state for non-repeating random saver selection.
+.TP
+.I /usr/share/xscreensaver/config/*.xml
+System XScreenSaver XML module definitions parsed automatically at startup.
+.TP
+.I /usr/lib/xscreensaver/*\fR, \fI/usr/libexec/xscreensaver/*
+External XScreenSaver binaries executed inside offscreen Xvfb sessions.
+.TP
+.I /usr/lib/systemd/user/wscreensavers.service
+Systemd user unit for running
+.B wscreensavers \-\-daemon
+automatically on graphical session login.
+.SH EXAMPLES
+Open the Studio Control Center GUI:
+.PP
+.nf
+.RS
+wscreensavers
+.RE
+.fi
+.PP
+Enable and start the background idle daemon via systemd:
+.PP
+.nf
+.RS
+systemctl --user enable --now wscreensavers.service
+.RE
+.fi
+.PP
+Bind a lock keybinding in
+.I ~/.config/hypr/hyprland.conf
+(Hyprland):
+.PP
+.nf
+.RS
+bind = $mainMod, L, exec, wscreensavers ctl lock
+.RE
+.fi
+.PP
+Start a live wallpaper with a specific 3D scene across all monitors:
+.PP
+.nf
+.RS
+wscreensavers ctl wallpaper on bughouse3d
+.RE
+.fi
+.PP
+Assign different live wallpapers to two monitors:
+.PP
+.nf
+.RS
+wscreensavers ctl set wallpaperPerMonitor DP-1=matrix3d
+wscreensavers ctl set wallpaperPerMonitor HDMI-A-1=starwars
+wscreensavers ctl wallpaper on
+.RE
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Successful execution.
+.TP
+.B 1
+Invalid arguments, configuration error, or failed IPC command.
+.SH AUTHOR
+Written by Christopher Patrick Fair <christopherpatrickfair@gmail.com>.
+.SH SEE ALSO
+.BR xscreensaver (1),
+.BR Xvfb (1),
+.BR ffmpeg (1),
+.BR hyprlock (1),
+.BR swaylock (1)

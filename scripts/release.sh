@@ -65,10 +65,13 @@ sed -i "s/tag: v${CURRENT_VER}/tag: v${NEW_VER}/" packaging/flatpak/com.github.c
 # 8. packaging/snap/snapcraft.yaml
 sed -i "s/^version: .*/version: '${NEW_VER}'/" packaging/snap/snapcraft.yaml
 
-echo "==> All 8 packaging manifests updated to v${NEW_VER}"
+# 9. wscreensavers.1 man page
+sed -i "s/\"wscreensavers [0-9.]*\"/\"wscreensavers ${NEW_VER}\"/" wscreensavers.1
+
+echo "==> All packaging manifests and man page updated to v${NEW_VER}"
 
 echo "==> Committing version bump to main..."
-git add PKGBUILD flake.nix packaging/
+git add PKGBUILD flake.nix packaging/ wscreensavers.1
 git commit -m "chore(release): bump version to ${NEW_VER}"
 git push origin main
 
@@ -123,6 +126,7 @@ tar -czvf "${TAR_PKG}" \
   wscreensavers \
   wscreensavers.desktop \
   wscreensavers.svg \
+  wscreensavers.1 \
   wscreensavers.service \
   nag \
   noctalia-plugin \

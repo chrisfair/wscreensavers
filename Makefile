@@ -3,6 +3,7 @@ PREFIX ?= /usr
 BINDIR := $(PREFIX)/bin
 DESKTOPDIR := $(PREFIX)/share/applications
 ICONDIR := $(PREFIX)/share/icons/hicolor/scalable/apps
+MANDIR := $(PREFIX)/share/man/man1
 SYSTEMDUSERDIR := $(PREFIX)/lib/systemd/user
 NOCTALIADIR := $(HOME)/.config/noctalia/plugins/wscreensavers
 PLUGINSRCDIR := $(PREFIX)/share/wscreensavers/noctalia-plugins/wscreensavers
@@ -106,6 +107,7 @@ install:
 	install -Dm755 $(APP_NAME) "$(DESTDIR)$(BINDIR)/$(APP_NAME)"
 	install -Dm644 wscreensavers.desktop "$(DESTDIR)$(DESKTOPDIR)/wscreensavers.desktop"
 	install -Dm644 wscreensavers.svg "$(DESTDIR)$(ICONDIR)/wscreensavers.svg"
+	install -Dm644 wscreensavers.1 "$(DESTDIR)$(MANDIR)/wscreensavers.1"
 	install -Dm644 wscreensavers.service "$(DESTDIR)$(SYSTEMDUSERDIR)/wscreensavers.service"
 	install -Dm644 nag "$(DESTDIR)$(PREFIX)/share/wscreensavers/nag"
 	cd noctalia-plugin/wscreensavers && find . -type f -exec install -Dm644 {} "$(DESTDIR)$(PLUGINSRCDIR)/{}" \;
