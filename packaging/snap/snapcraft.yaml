@@ -8,6 +8,7 @@ description: |
   BACKGROUND and OVERLAY surfaces, with idle detection, multi-monitor support,
   an IPC CLI (wscreensavers ctl), and a Noctalia Shell plugin.
 license: MIT
+icon: assets/icon-512.png
 source-code: https://github.com/chrisfair/wscreensavers
 issues: https://github.com/chrisfair/wscreensavers/issues
 grade: stable
