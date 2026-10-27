@@ -17,6 +17,8 @@ jobs:
   snap:
     name: Build & Publish Snap
     runs-on: ubuntu-24.04
+    env:
+      SNAPCRAFT_TOKEN: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,12 +43,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${GITHUB_REF_NAME}" "${{ steps.build.outputs.snap }}" --clobber
+          for i in 1 2 3 4 5 6; do
+            gh release upload "${GITHUB_REF_NAME}" "${{ steps.build.outputs.snap }}" --clobber && break || sleep 15
+          done
 
       - name: Publish to Snap Store
         if: env.SNAPCRAFT_TOKEN != ''
-        env:
-          SNAPCRAFT_TOKEN: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         uses: canonical/action-publish@v1
         with:
           snap: ${{ steps.build.outputs.snap }}

@@ -81,19 +81,25 @@ sleep 3
 
 TAG_URL="https://github.com/chrisfair/wscreensavers/archive/refs/tags/v${NEW_VER}.tar.gz"
 echo "==> Fetching live tarball hash directly from GitHub (${TAG_URL})..."
-SUM=$(curl -sL "${TAG_URL}" | sha256sum | awk '{print $1}')
+TARBALL_TMP=$(mktemp)
+curl -sL "${TAG_URL}" -o "${TARBALL_TMP}"
+SUM=$(sha256sum "${TARBALL_TMP}" | awk '{print $1}')
+MD5=$(md5sum "${TARBALL_TMP}" | awk '{print $1}')
+rm -f "${TARBALL_TMP}"
 
 if [ -z "${SUM}" ] || [ ${#SUM} -ne 64 ]; then
     echo "Error: Failed to fetch valid sha256 checksum from GitHub."
     exit 1
 fi
 echo "==> LIVE SHA256: ${SUM}"
+echo "==> LIVE MD5:    ${MD5}"
 
-echo "==> Updating PKGBUILD and regenerating .SRCINFO..."
+echo "==> Updating PKGBUILD, .SRCINFO, and Slackware wscreensavers.info..."
 sed -i "s/^sha256sums=.*/sha256sums=('${SUM}')/" PKGBUILD
+sed -i "s/^MD5SUM=.*/MD5SUM=\"${MD5}\"/" packaging/slackware/wscreensavers.info
 makepkg --printsrcinfo > .SRCINFO
 
-git add PKGBUILD .SRCINFO
+git add PKGBUILD .SRCINFO packaging/slackware/wscreensavers.info
 git commit -m "chore(aur): update PKGBUILD and .SRCINFO with verified v${NEW_VER} sha256 checksum"
 git push origin main
 
@@ -103,11 +109,13 @@ echo "==> Publishing to AUR..."
 echo "==> Compiling distribution binary packages for GitHub Release..."
 make deb
 make appimage
+OUTPUT="${ROOT_DIR}" bash ./packaging/slackware/wscreensavers.SlackBuild
 makepkg -f --nodeps
 
 ARCH_PKG=$(ls wscreensavers-${NEW_VER}-*.pkg.tar.* 2>/dev/null | head -n1 || true)
 DEB_PKG="wscreensavers_${NEW_VER}_amd64.deb"
 APPIMAGE_PKG="wscreensavers-${NEW_VER}-x86_64.AppImage"
+SLACK_PKG="wscreensavers-${NEW_VER}-x86_64-1_cf.txz"
 TAR_PKG="wscreensavers-${NEW_VER}-linux-x86_64.tar.gz"
 
 echo "==> Creating universal standalone tarball..."
@@ -125,6 +133,7 @@ echo "==> Creating GitHub Release for v${NEW_VER} with assets..."
 gh release create "v${NEW_VER}" \
   "${APPIMAGE_PKG}" \
   "${DEB_PKG}" \
+  "${SLACK_PKG}" \
   "${ARCH_PKG}" \
   "${TAR_PKG}" \
   --title "WScreenSavers v${NEW_VER}" \
