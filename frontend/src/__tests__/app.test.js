@@ -31,6 +31,7 @@ function createFake2DCanvas() {
     closePath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
+    quadraticCurveTo: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
@@ -56,6 +57,8 @@ beforeEach(() => {
     fillRect: vi.fn(),
     clearRect: vi.fn(),
     beginPath: vi.fn(),
+    closePath: vi.fn(),
+    quadraticCurveTo: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
@@ -111,6 +114,60 @@ describe('savers/index.js factory', () => {
 
     const fallback = createSaverInstance('unknown_saver_id', cvs, () => ({}), () => ({ blips: [], feed: [] }));
     expect(fallback).toBeTruthy();
+  });
+
+  it('renders 3D polar and rectangular functions with equation HUD in surface3d', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      coordMode: 'both',
+      functionPreset: 'cycle',
+      renderStyle: 'shaded_wire',
+      palette: 'spectrum',
+      spinSpeed: 1.0,
+      resolution: 16,
+      cycleSeconds: 6,
+      showAxes: true,
+      showEquation: true
+    };
+    const saver = createSaverInstance('surface3d', cvs, () => params);
+    expect(saver).toBeTruthy();
+
+    // Render initial rectangular preset and advance past cycleSeconds to polar preset
+    saver.render(0.5);
+    saver.render(6.5);
+
+    // Test explicit polar and rectangular presets, palettes, and render styles
+    const presets = [
+      'sombrero',
+      'polar_rose',
+      'saddle',
+      'spherical_harmonic',
+      'eggcrate',
+      'bessel_drum',
+      'gabor',
+      'torus_wave',
+      'enneper',
+      'archimedean_vortex'
+    ];
+    const palettes = ['spectrum', 'plasma', 'cyber', 'emerald'];
+    const styles = ['shaded_wire', 'wireframe', 'solid_contour'];
+
+    presets.forEach((preset, idx) => {
+      params = {
+        coordMode: idx % 2 === 0 ? 'rectangular' : 'polar',
+        functionPreset: preset,
+        renderStyle: styles[idx % styles.length],
+        palette: palettes[idx % palettes.length],
+        resolution: 16,
+        showAxes: true,
+        showEquation: true
+      };
+      saver.render(0.2);
+    });
+
+    const ctx = cvs.getContext('2d');
+    expect(ctx.fillText).toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
   });
 });
 

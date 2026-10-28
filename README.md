@@ -14,7 +14,7 @@
 
 <p align="center">
   Wayland screensaver, PAM lock screen, and live wallpaper daemon.<br />
-  Runs 310+ classic <strong>XScreenSaver</strong> binaries and 24 built-in WebGL2 visualizers on Wayland compositors (Hyprland, Sway, River, Wayfire, and KDE).
+  Runs 310+ classic <strong>XScreenSaver</strong> binaries and 25 built-in WebGL2 visualizers on Wayland compositors (Hyprland, Sway, River, Wayfire, and KDE).
 </p>
 
 ---
@@ -23,7 +23,7 @@
 
 Classic XScreenSaver relies on X11 root-window drawing and X11 server grabs, which do not work on Wayland compositors. `wscreensavers` bridges that gap using standard Wayland protocols (`zwlr_layer_shell_v1` and `ext-idle-notify-v1`):
 
-- **24 Built-in WebGL2 Visualizers**: Includes Apex 3D Chess (`bughouse-online.com`), 3D Chess Openings, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and others.
+- **25 Built-in WebGL2 Visualizers**: Includes 3D Function Plotter (Polar & Rectangular), Apex 3D Chess (`bughouse-online.com`), 3D Chess Openings, GLMatrix, Flurry, 3D Pipes, Star Wars, Amiga Boing, and others.
 - **XScreenSaver Bridge**: Streams installed `/usr/lib/xscreensaver/*` and `rss-glx` binaries onto Wayland layer-shell surfaces (`endgame`, `anemone`, `glknots`, `sierpinski3d`, etc.).
 - **Live Wallpapers**: Renders any screensaver on the `zwlr_layer_shell_v1` background layer with configurable FPS caps, per-monitor assignments, and automatic pause when locked.
 - **PAM Screen Lock**: Built-in PAM authentication overlay or delegation to `hyprlock` / `swaylock`.

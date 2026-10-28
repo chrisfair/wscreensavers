@@ -499,10 +499,58 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show bughouse-online.com HUD Overlay", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "surface3d",
+			Name:        "3D Function Plotter (Polar & Rectangular)",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#38bdf8",
+			Tags:        []string{"Math", "3D", "Polar", "Cartesian", "Surface", "Calculus"},
+			Description: "Plots 3D mathematical surfaces in both Polar (cylindrical & spherical) and Rectangular (Cartesian & parametric) coordinate systems spinning in 3D space with a live symbolic equation HUD.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "coordMode", Label: "Coordinate System Filter", Type: models.ParamSelect, Default: "both", Options: []models.SelectOption{
+					{Label: "Both Polar & Rectangular (Cycle)", Value: "both"},
+					{Label: "Rectangular / Cartesian Only (x, y, z)", Value: "rectangular"},
+					{Label: "Polar / Cylindrical / Spherical Only (r, θ, φ)", Value: "polar"},
+				}},
+				{ID: "functionPreset", Label: "Function Equation", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
+					{Label: "Auto-Cycle Functions", Value: "cycle"},
+					{Label: "[Rect] Sinc Wave / Sombrero Ripple", Value: "sombrero"},
+					{Label: "[Polar] Rhodonea 5-Petal Harmonic Rose", Value: "polar_rose"},
+					{Label: "[Rect] Hyperbolic & Monkey Saddle Homotopy", Value: "saddle"},
+					{Label: "[Polar] Spherical Harmonic Orbital Y₃²(θ, φ)", Value: "spherical_harmonic"},
+					{Label: "[Rect] Bi-Harmonic Standing Wave Membrane", Value: "eggcrate"},
+					{Label: "[Polar] Circular Drumhead Bessel Mode J₃(kr)", Value: "bessel_drum"},
+					{Label: "[Rect] 2D Gaussian Gabor Wavepacket", Value: "gabor"},
+					{Label: "[Polar] Toroidal Trefoil Harmonic Manifold", Value: "torus_wave"},
+					{Label: "[Rect] Enneper Minimal Surface (H = 0)", Value: "enneper"},
+					{Label: "[Polar] Logarithmic Spiral Gravity Vortex", Value: "archimedean_vortex"},
+				}},
+				{ID: "renderStyle", Label: "Surface Render Mode", Type: models.ParamSelect, Default: "shaded_wire", Options: []models.SelectOption{
+					{Label: "Shaded Facets + Iso-Parametric Mesh", Value: "shaded_wire"},
+					{Label: "Glowing Vector Wireframe", Value: "wireframe"},
+					{Label: "Solid Specular Surface", Value: "solid_contour"},
+				}},
+				{ID: "palette", Label: "Colormap Palette", Type: models.ParamSelect, Default: "spectrum", Options: []models.SelectOption{
+					{Label: "Harmonic Spectrum (Cyan-Gold-Magenta)", Value: "spectrum"},
+					{Label: "Thermal Plasma (Indigo-Violet-Amber)", Value: "plasma"},
+					{Label: "Cyber Oscilloscope Cyan", Value: "cyber"},
+					{Label: "Phosphor Emerald Green", Value: "emerald"},
+				}},
+				{ID: "spinSpeed", Label: "3D Rotation & Phase Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 2.5, Step: 0.1},
+				{ID: "resolution", Label: "Mesh Grid Resolution", Type: models.ParamRange, Default: 30.0, Min: 16.0, Max: 44.0, Step: 2.0},
+				{ID: "cycleSeconds", Label: "Seconds per Function", Type: models.ParamRange, Default: 14.0, Min: 6.0, Max: 45.0, Step: 2.0},
+				{ID: "showAxes", Label: "Show 3D Polar / Cartesian Reference Axes", Type: models.ParamBoolean, Default: true},
+				{ID: "showEquation", Label: "Show On-Screen Function Formula HUD", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 
-// BuiltinScreensavers returns all 23 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
+// BuiltinScreensavers returns all 25 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
 func BuiltinScreensavers() []models.Screensaver {
 	list := BuiltinSavers()
 	for i := range list {

@@ -34,6 +34,7 @@ import {
 
 import { createChessOpenings } from './chessOpenings.js';
 import { createBughouse3D } from './bughouse3d.js';
+import { createSurface3D } from './functionPlotter3d.js';
 
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
@@ -59,7 +60,8 @@ const SAVER_FACTORIES = {
   rorschach: createRorschach,
   mystify: createMystify,
   chessopenings: createChessOpenings,
-  bughouse3d: createBughouse3D
+  bughouse3d: createBughouse3D,
+  surface3d: createSurface3D
 };
 
 export function createSaverInstance(saverId, canvas, getParams, getTelemetry) {

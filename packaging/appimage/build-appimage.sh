@@ -38,8 +38,8 @@ if [ "${IN_APPIMAGE_CONTAINER:-0}" != "1" ] && command -v docker >/dev/null 2>&1
             fi
             git config --global --add safe.directory /work
             export GOFLAGS="-buildvcs=false"
+            trap '\''chown -R "${HOST_UID}:${HOST_GID}" /work'\'' EXIT
             bash ./packaging/appimage/build-appimage.sh
-            chown "${HOST_UID}:${HOST_GID}" "/work/wscreensavers-'"${VERSION}"'-x86_64.AppImage"
         '
     exit 0
 fi

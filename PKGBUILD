@@ -2,7 +2,7 @@
 pkgname=wscreensavers
 pkgver=1.1.9
 pkgrel=1
-pkgdesc="Native Wayland version of XScreenSaver with 24 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
+pkgdesc="Native Wayland version of XScreenSaver with 25 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
 arch=('x86_64' 'aarch64')
 url="https://github.com/chrisfair/wscreensavers"
 license=('GPL-3.0-or-later')

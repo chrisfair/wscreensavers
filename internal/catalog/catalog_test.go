@@ -4,8 +4,8 @@ import "testing"
 
 func TestBuiltinScreensaversCatalog(t *testing.T) {
 	savers := BuiltinScreensavers()
-	if len(savers) < 22 {
-		t.Fatalf("expected at least 22 builtin screensavers, got %d", len(savers))
+	if len(savers) < 25 {
+		t.Fatalf("expected at least 25 builtin screensavers, got %d", len(savers))
 	}
 
 	seen := make(map[string]bool)
@@ -17,5 +17,8 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 			t.Errorf("duplicate screensaver ID: %s", s.ID)
 		}
 		seen[s.ID] = true
+	}
+	if !seen["surface3d"] {
+		t.Errorf("expected surface3d (3D Function Plotter) in builtin catalog")
 	}
 }

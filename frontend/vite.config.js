@@ -18,7 +18,8 @@ export default defineConfig({
         'src/App.vue',
         'src/wails.js',
         'src/components/**/*.vue',
-        'src/savers/index.js'
+        'src/savers/index.js',
+        'src/savers/functionPlotter3d.js'
       ]
     }
   }
