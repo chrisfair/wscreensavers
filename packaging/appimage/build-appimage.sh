@@ -104,7 +104,8 @@ for helper in "${APP_DIR}/usr/lib/webkit2gtk-4.1/"* "${APP_DIR}/usr/lib/webkit2g
 done
 
 cp "${SCRIPT_DIR}/AppRun" "${APP_DIR}/AppRun"
-chmod +x "${APP_DIR}/AppRun"
+chmod 0755 "${APP_DIR}/AppRun" "${APP_DIR}/usr/bin/wscreensavers"
+chmod -R a+rX "${APP_DIR}"
 
 cp "${APP_DIR}/usr/share/applications/wscreensavers.desktop" "${APP_DIR}/"
 cp "${APP_DIR}/usr/share/icons/hicolor/scalable/apps/wscreensavers.svg" "${APP_DIR}/wscreensavers.svg"
