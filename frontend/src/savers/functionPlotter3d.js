@@ -111,7 +111,6 @@ const FUNCTIONS_3D = [
       const r = u * 3.0;
       const theta = v * Math.PI * 2;
       const kr = r * 2.8;
-      // Fast rational-trigonometric approximation to cylindrical Bessel J3(kr) + J0 overtone
       const j3 =
         Math.pow(r / 3.0, 1.3) *
         Math.sin(kr - 0.4) *
@@ -208,8 +207,228 @@ const FUNCTIONS_3D = [
         metric: z + spiral * 1.5
       };
     }
+  },
+  {
+    id: 'helicoid_catenoid',
+    name: 'Catenoid–Helicoid Minimal Isometry',
+    coordSystem: 'polar',
+    coordBadge: 'POLAR · CYLINDRICAL ISOMETRY (r, θ, z)',
+    equation: 'r(u, θ) = cos(α)·sinh(u) + sin(α)·cosh(u),  z = θ·cos(α) + u·sin(α)',
+    domainText: 'u ∈ [-1.25, 1.25],  θ ∈ [-π, π],  α = ωt',
+    subtitle: 'Locally isometric minimal surface family continuously bending a catenoid into a helicoid',
+    evalPoint(u, v, t) {
+      const uu = (u * 2 - 1) * 1.22;
+      const theta = (v * 2 - 1) * Math.PI;
+      const alpha = t * 0.65;
+      const ca = Math.cos(alpha);
+      const sa = Math.sin(alpha);
+      const sinhU = Math.sinh(uu);
+      const coshU = Math.cosh(uu);
+      const x = (ca * sinhU * Math.sin(theta) + sa * coshU * Math.cos(theta)) * 0.92;
+      const y = (-ca * sinhU * Math.cos(theta) + sa * coshU * Math.sin(theta)) * 0.92;
+      const z = (ca * theta * 0.52 + sa * uu * 0.85) * 0.95;
+      return { x, y, z, metric: z * 0.8 };
+    }
+  },
+  {
+    id: 'astroidal_dome',
+    name: 'Superquadric Astroidal Wave Dome',
+    coordSystem: 'rectangular',
+    coordBadge: 'RECTANGULAR · CARTESIAN (x, y, z)',
+    equation: 'z(x, y, t) = (1.3 - |x|^(2/3) - |y|^(2/3)) · cos(2r - ωt)',
+    domainText: 'x ∈ [-2.2, 2.2],  y ∈ [-2.2, 2.2]',
+    subtitle: 'Four-cusped hypocycloid envelope modulated by concentric phase ripples',
+    evalPoint(u, v, t) {
+      const x = (u * 2 - 1) * 2.15;
+      const y = (v * 2 - 1) * 2.15;
+      const r = Math.sqrt(x * x + y * y);
+      const ax = Math.pow(Math.abs(x), 0.6667);
+      const ay = Math.pow(Math.abs(y), 0.6667);
+      const env = 1.35 - 0.52 * (ax + ay);
+      const z = env * Math.cos(1.9 * r - t * 2.0);
+      return { x: x * 0.95, y: y * 0.95, z: z * 0.98, metric: z };
+    }
+  },
+  {
+    id: 'spherical_lissajous',
+    name: 'Spherical Tesseral Harmonic Y₄³(θ, φ)',
+    coordSystem: 'polar',
+    coordBadge: 'POLAR · SPHERICAL (r, θ, φ)',
+    equation: 'r(θ, φ, t) = 1.2 + 0.65 · sin³(φ)·cos(φ) · sin(3θ - ωt)',
+    domainText: 'θ ∈ [0, 2π],  φ ∈ [0, π],  (l = 4, m = 3)',
+    subtitle: 'Octupole-order spherical harmonic eigenfunction on the unit 2-sphere',
+    evalPoint(u, v, t) {
+      const phi = u * Math.PI;
+      const theta = v * Math.PI * 2;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+      const lobe = Math.pow(sinPhi, 3) * cosPhi * Math.sin(3 * theta - t * 1.65);
+      const zonal = 0.22 * (5 * Math.pow(cosPhi, 3) - 3 * cosPhi) * Math.cos(t * 1.1);
+      const r = 1.22 + 1.35 * lobe + zonal;
+      const x = r * sinPhi * Math.cos(theta);
+      const y = r * sinPhi * Math.sin(theta);
+      const z = r * cosPhi;
+      return { x: x * 1.12, y: y * 1.12, z: z * 1.12, metric: (r - 1.22) * 1.5 };
+    }
+  },
+  {
+    id: 'breather_soliton',
+    name: 'Sine-Gordon Nonlinear Breather Soliton',
+    coordSystem: 'rectangular',
+    coordBadge: 'RECTANGULAR · CARTESIAN (x, y, z)',
+    equation: 'z(x, y, t) = 4·arctan(cos(ωt) / cosh(0.8·√(x² + y²))) - cos(kx)·sin(ky)/4',
+    domainText: 'x ∈ [-3.2, 3.2],  y ∈ [-3.2, 3.2]',
+    subtitle: 'Localized oscillating soliton solution to the 2D relativistic Sine-Gordon wave equation',
+    evalPoint(u, v, t) {
+      const x = (u * 2 - 1) * 3.1;
+      const y = (v * 2 - 1) * 3.1;
+      const r = Math.sqrt(x * x + y * y);
+      const soliton = 1.15 * Math.atan((Math.cos(t * 1.85) * 1.6) / Math.cosh(0.82 * r));
+      const carrier = 0.24 * Math.cos(1.8 * x + t) * Math.sin(1.8 * y - t);
+      const z = soliton + carrier;
+      const scale = 0.72;
+      return { x: x * scale, y: y * scale, z: z * 1.05, metric: z };
+    }
+  },
+  {
+    id: 'klein_figure8',
+    name: 'Figure-8 Klein Immersion Manifold',
+    coordSystem: 'polar',
+    coordBadge: 'POLAR · TOROIDAL IMMERSION (r, θ, φ)',
+    equation: 'r(θ, φ) = R + cos(θ/2)·sin(φ) - sin(θ/2)·sin(2φ + ωt)',
+    domainText: 'θ ∈ [0, 2π],  φ ∈ [0, 2π]',
+    subtitle: 'Non-orientable genus-2 surface immersed in 3D cylindrical polar coordinates',
+    evalPoint(u, v, t) {
+      const theta = u * Math.PI * 2;
+      const phi = v * Math.PI * 2;
+      const half = theta * 0.5 + t * 0.35;
+      const sinPhi = Math.sin(phi);
+      const sin2Phi = Math.sin(2 * phi + t * 1.1) * 0.5;
+      const rad = 1.65 + Math.cos(half) * sinPhi - Math.sin(half) * sin2Phi;
+      const x = rad * Math.cos(theta);
+      const y = rad * Math.sin(theta);
+      const z = Math.sin(half) * sinPhi + Math.cos(half) * sin2Phi;
+      return { x: x * 0.88, y: y * 0.88, z: z * 1.05, metric: z };
+    }
+  },
+  {
+    id: 'ripple_interference',
+    name: 'Two-Source Dipole Wave Interference',
+    coordSystem: 'rectangular',
+    coordBadge: 'RECTANGULAR · CARTESIAN (x, y, z)',
+    equation: 'z(x, y, t) = sin(k·r₁ - ωt)/(0.5r₁+1) + sin(k·r₂ - ωt)/(0.5r₂+1)',
+    domainText: 'x ∈ [-2.8, 2.8],  y ∈ [-2.8, 2.8],  sources (±1.1, 0)',
+    subtitle: 'Constructive and destructive nodal hyperbolas from two coherent point emitters',
+    evalPoint(u, v, t) {
+      const x = (u * 2 - 1) * 2.8;
+      const y = (v * 2 - 1) * 2.8;
+      const r1 = Math.sqrt((x - 1.1) * (x - 1.1) + y * y);
+      const r2 = Math.sqrt((x + 1.1) * (x + 1.1) + y * y);
+      const w1 = Math.sin(3.4 * r1 - t * 2.4) / (0.55 * r1 + 1.0);
+      const w2 = Math.sin(3.4 * r2 - t * 2.4) / (0.55 * r2 + 1.0);
+      const z = (w1 + w2) * 0.92;
+      const scale = 0.8;
+      return { x: x * scale, y: y * scale, z: z * 1.05, metric: z };
+    }
   }
 ];
+
+function createProceduralFunction(coordFilter) {
+  const choosePolar =
+    coordFilter === 'polar' ? true : coordFilter === 'rectangular' ? false : Math.random() < 0.5;
+
+  if (choosePolar) {
+    const petals = 2 + Math.floor(Math.random() * 6); // 2..7
+    const radialFreq = Number((1.4 + Math.random() * 2.2).toFixed(1));
+    const twist = Number((0.6 + Math.random() * 2.2).toFixed(1));
+    const sphericalMode = Math.random() < 0.38;
+
+    if (sphericalMode) {
+      const l = petals + 1;
+      const m = Math.max(1, petals - 1);
+      return {
+        id: `proc_sph_${l}_${m}`,
+        name: `Randomized Spherical Harmonic Y(${l},${m})`,
+        coordSystem: 'polar',
+        coordBadge: 'POLAR · SPHERICAL (r, θ, φ)',
+        equation: `r(θ, φ, t) = 1.2 + 0.6·sin^${m}(φ)·cos(φ)·cos(${m}θ - ${radialFreq}t)`,
+        domainText: `θ ∈ [0, 2π],  φ ∈ [0, π],  random mode (l=${l}, m=${m})`,
+        subtitle: 'Procedurally synthesized spherical harmonic eigenmode',
+        evalPoint(u, v, t) {
+          const phi = u * Math.PI;
+          const theta = v * Math.PI * 2;
+          const sinPhi = Math.sin(phi);
+          const cosPhi = Math.cos(phi);
+          const harmonic = Math.pow(Math.abs(sinPhi), m) * cosPhi * Math.cos(m * theta - t * 1.5);
+          const overtone = 0.24 * Math.sin(petals * phi - t * 1.1);
+          const r = 1.22 + 1.15 * harmonic + overtone;
+          return {
+            x: r * sinPhi * Math.cos(theta) * 1.1,
+            y: r * sinPhi * Math.sin(theta) * 1.1,
+            z: r * cosPhi * 1.1,
+            metric: (r - 1.22) * 1.5
+          };
+        }
+      };
+    }
+
+    return {
+      id: `proc_polar_${petals}_${radialFreq}`,
+      name: `Randomized Polar Harmonic (k=${petals}, kr=${radialFreq})`,
+      coordSystem: 'polar',
+      coordBadge: 'POLAR · CYLINDRICAL (r, θ, z)',
+      equation: `z(r, θ, t) = r·cos(${petals}θ - ${twist}r + ωt)·exp(-r²/5.5)·cos(${radialFreq}r - ωt)`,
+      domainText: `r ∈ [0, 3.1],  θ ∈ [0, 2π],  k = ${petals} harmonic lobes`,
+      subtitle: 'Procedurally synthesized cylindrical polar harmonic surface',
+      evalPoint(u, v, t) {
+        const r = u * 3.1;
+        const theta = v * Math.PI * 2;
+        const env = (r * 0.68) * Math.exp(-(r * r) / 5.4);
+        const z =
+          1.45 *
+          env *
+          Math.cos(petals * theta - twist * r + t * 1.4) *
+          Math.cos(radialFreq * r - t * 1.9);
+        const scale = 0.74;
+        return {
+          x: r * Math.cos(theta) * scale,
+          y: r * Math.sin(theta) * scale,
+          z: z * 1.15,
+          metric: z
+        };
+      }
+    };
+  }
+
+  const kx = 1 + Math.floor(Math.random() * 4);
+  const ky = 1 + Math.floor(Math.random() * 4);
+  const crossAmp = Number((0.25 + Math.random() * 0.45).toFixed(2));
+  const damp = Number((0.12 + Math.random() * 0.18).toFixed(2));
+
+  return {
+    id: `proc_rect_${kx}_${ky}`,
+    name: `Randomized Cartesian Eigenmode (${kx}×${ky})`,
+    coordSystem: 'rectangular',
+    coordBadge: 'RECTANGULAR · CARTESIAN (x, y, z)',
+    equation: `z(x, y, t) = [sin(${kx}x + ωt)·cos(${ky}y - ωt) + ${crossAmp}·cos(2r - ωt)]·e^(-${damp}r²)`,
+    domainText: `x ∈ [-π, π],  y ∈ [-π, π],  modes (kx=${kx}, ky=${ky})`,
+    subtitle: 'Procedurally synthesized 2D Cartesian Fourier-Gaussian surface',
+    evalPoint(u, v, t) {
+      const x = (u * 2 - 1) * Math.PI;
+      const y = (v * 2 - 1) * Math.PI;
+      const r2 = x * x + y * y;
+      const r = Math.sqrt(r2);
+      const env = Math.exp(-damp * r2);
+      const z =
+        1.25 *
+        env *
+        (Math.sin(kx * x + t * 1.6) * Math.cos(ky * y - t * 1.4) +
+          crossAmp * Math.cos(2.1 * r - t * 2.0));
+      const scale = 0.74;
+      return { x: x * scale, y: y * scale, z: z * 1.08, metric: z };
+    }
+  };
+}
 
 const PALETTES = {
   spectrum: {
@@ -218,7 +437,6 @@ const PALETTES = {
     gridLine: 'rgba(148, 163, 184, 0.22)',
     axisColor: 'rgba(56, 189, 248, 0.55)',
     hueForMetric(m) {
-      // Maps metric [-1.2, 1.2] to [210 (cyan-blue) -> 140 (emerald) -> 45 (amber) -> 325 (magenta)]
       const norm = Math.max(0, Math.min(1, (m + 1.1) / 2.2));
       return (225 - norm * 240 + 360) % 360;
     },
@@ -273,6 +491,15 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function filterPool(coordFilter) {
+  const pool = FUNCTIONS_3D.filter(fn => {
+    if (coordFilter === 'rectangular') return fn.coordSystem === 'rectangular';
+    if (coordFilter === 'polar') return fn.coordSystem === 'polar';
+    return true;
+  });
+  return pool.length > 0 ? pool : FUNCTIONS_3D;
+}
+
 export function createSurface3D(canvas, getParams) {
   const ctx = canvas.getContext('2d');
   let phase = 0;
@@ -280,25 +507,82 @@ export function createSurface3D(canvas, getParams) {
   let pitch = 0.52;
   let roll = 0.08;
   let cycleTimer = 0;
-  let activeIndex = 0;
 
-  function selectActiveFunction(p) {
+  let shuffleBag = [];
+  let orderedIndex = Math.floor(Math.random() * FUNCTIONS_3D.length);
+  let activeFn = null;
+  let prevFn = null;
+  let morphProgress = 1.0;
+  let lastCoordFilter = null;
+  let lastPreset = null;
+
+  function drawNextRandom(pool, currentId) {
+    if (shuffleBag.length === 0) {
+      shuffleBag = pool.slice();
+      for (let i = shuffleBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = shuffleBag[i];
+        shuffleBag[i] = shuffleBag[j];
+        shuffleBag[j] = tmp;
+      }
+      // Avoid immediate repeat across deck boundary when pool has > 1 item
+      if (shuffleBag.length > 1 && shuffleBag[shuffleBag.length - 1].id === currentId) {
+        const last = shuffleBag.pop();
+        shuffleBag.unshift(last);
+      }
+    }
+    return shuffleBag.pop();
+  }
+
+  function pickNextFunction(p, forceRandom) {
     const coordFilter = p.coordMode || 'both';
-    const preset = p.functionPreset || 'cycle';
+    const preset = p.functionPreset || 'random';
+    const randomizeOrder = p.randomizeOrder !== false;
 
-    if (preset !== 'cycle') {
-      const found = FUNCTIONS_3D.find(fn => fn.id === preset);
-      if (found) return found;
+    if (preset === 'procedural') {
+      return createProceduralFunction(coordFilter);
     }
 
-    const pool = FUNCTIONS_3D.filter(fn => {
-      if (coordFilter === 'rectangular') return fn.coordSystem === 'rectangular';
-      if (coordFilter === 'polar') return fn.coordSystem === 'polar';
-      return true;
-    });
+    if (preset !== 'random' && preset !== 'cycle') {
+      const fixed = FUNCTIONS_3D.find(fn => fn.id === preset);
+      if (fixed) return fixed;
+    }
 
-    const list = pool.length > 0 ? pool : FUNCTIONS_3D;
-    return list[activeIndex % list.length];
+    const pool = filterPool(coordFilter);
+    if (forceRandom || preset === 'random' || randomizeOrder) {
+      return drawNextRandom(pool, activeFn ? activeFn.id : null);
+    }
+
+    orderedIndex = (orderedIndex + 1) % pool.length;
+    return pool[orderedIndex];
+  }
+
+  function ensureActiveFunction(p) {
+    const coordFilter = p.coordMode || 'both';
+    const preset = p.functionPreset || 'random';
+
+    if (coordFilter !== lastCoordFilter) {
+      shuffleBag = [];
+      lastCoordFilter = coordFilter;
+    }
+
+    if (!activeFn || preset !== lastPreset) {
+      lastPreset = preset;
+      activeFn = pickNextFunction(p, preset === 'random');
+      prevFn = null;
+      morphProgress = 1.0;
+      cycleTimer = 0;
+    } else if (
+      coordFilter !== 'both' &&
+      activeFn.coordSystem !== coordFilter &&
+      preset !== 'sombrero' &&
+      preset !== 'polar_rose' &&
+      !FUNCTIONS_3D.some(fn => fn.id === preset)
+    ) {
+      activeFn = pickNextFunction(p, true);
+      prevFn = null;
+      morphProgress = 1.0;
+    }
   }
 
   function rotateAndProject(x, y, z, w, h, cy, sy, cp, sp, cr, sr, fovScale) {
@@ -446,18 +730,18 @@ export function createSurface3D(canvas, getParams) {
     ctx.restore();
   }
 
-  function drawEquationHud(fn, w, h, pal) {
+  function drawEquationHud(fn, w, h, pal, isAutoSwitch, isRandomized, cycleSeconds) {
     ctx.save();
     const padX = Math.max(20, Math.min(36, w * 0.03));
     const padY = Math.max(18, Math.min(32, h * 0.035));
     const isCompact = w < 680;
 
     const badgeColor = fn.coordSystem === 'polar' ? pal.polarAccent : pal.accent;
-    const cardW = Math.min(w - padX * 2, isCompact ? 500 : 620);
-    const cardH = isCompact ? 114 : 132;
+    const cardW = Math.min(w - padX * 2, isCompact ? 520 : 650);
+    const cardH = isCompact ? 118 : 136;
 
     // Translucent glass panel
-    ctx.fillStyle = 'rgba(7, 11, 22, 0.82)';
+    ctx.fillStyle = 'rgba(7, 11, 22, 0.84)';
     ctx.strokeStyle = badgeColor;
     ctx.lineWidth = 1.4;
     roundRectPath(ctx, padX, padY, cardW, cardH, 10);
@@ -496,18 +780,33 @@ export function createSurface3D(canvas, getParams) {
     ctx.stroke();
 
     ctx.fillStyle = '#fef08a';
-    ctx.font = `700 ${isCompact ? 12 : 15}px "JetBrains Mono", monospace`;
-    ctx.fillText(fn.equation, padX + 24, eqBoxY + eqBoxH * 0.52);
+    ctx.font = `700 ${isCompact ? 12 : 14}px "JetBrains Mono", monospace`;
+    ctx.fillText(fn.equation, padX + 22, eqBoxY + eqBoxH * 0.52);
 
-    // Domain & Live 3D Spin Angles Footer
-    const footerY = eqBoxY + eqBoxH + (isCompact ? 18 : 22);
+    // Domain, Live 3D Spin Angles & Cadence Countdown Footer
+    const footerY = eqBoxY + eqBoxH + (isCompact ? 17 : 20);
     ctx.fillStyle = '#94a3b8';
-    ctx.font = `500 ${isCompact ? 10 : 12}px "JetBrains Mono", monospace`;
+    ctx.font = `500 ${isCompact ? 10 : 11.5}px "JetBrains Mono", monospace`;
     const degYaw = Math.round(((yaw * 180) / Math.PI) % 360);
     const degPitch = Math.round(((pitch * 180) / Math.PI) % 360);
-    const degRoll = Math.round(((roll * 180) / Math.PI) % 360);
-    const footerText = `${fn.domainText}   |   3D Spin: (θz=${degYaw}°, θx=${degPitch}°, θy=${degRoll}°)   |   ωt=${phase.toFixed(1)} rad`;
+    const remaining = Math.max(0, cycleSeconds - cycleTimer).toFixed(1);
+    const cadenceTag = isAutoSwitch
+      ? `${isRandomized ? 'RANDOM' : 'CYCLE'} ${remaining}s/${cycleSeconds}s`
+      : 'FIXED';
+    const footerText = `${fn.domainText}  |  Spin (${degYaw}°, ${degPitch}°)  |  ${cadenceTag}`;
     ctx.fillText(footerText, padX + 14, footerY);
+
+    // Regular Cadence Progress Bar along bottom of HUD card
+    if (isAutoSwitch) {
+      const barX = padX + 14;
+      const barY = padY + cardH - 8;
+      const barW = cardW - 28;
+      const frac = Math.max(0, Math.min(1, cycleTimer / cycleSeconds));
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+      ctx.fillRect(barX, barY, barW, 3);
+      ctx.fillStyle = badgeColor;
+      ctx.fillRect(barX, barY, barW * frac, 3);
+    }
 
     ctx.restore();
   }
@@ -521,22 +820,41 @@ export function createSurface3D(canvas, getParams) {
       const paletteName = p.palette || 'spectrum';
       const showAxes = p.showAxes !== false;
       const showEquation = p.showEquation !== false;
-      const cycleSeconds = Math.max(6, Number(p.cycleSeconds ?? 14));
+      const cycleSeconds = Math.max(4, Number(p.cycleSeconds ?? 10));
+      const preset = p.functionPreset || 'random';
+      const randomizeOrder = p.randomizeOrder !== false;
+      const isAutoSwitch = preset === 'random' || preset === 'cycle' || preset === 'procedural';
+      const isRandomized = preset === 'random' || preset === 'procedural' || randomizeOrder;
 
       const pal = PALETTES[paletteName] || PALETTES.spectrum;
+
+      ensureActiveFunction(p);
 
       phase += dt * 0.85 * spinSpeed;
       yaw += dt * 0.42 * spinSpeed;
       pitch = 0.56 + Math.sin(phase * 0.37) * 0.28;
       roll = Math.cos(phase * 0.29) * 0.22;
 
-      cycleTimer += dt;
-      if (cycleTimer >= cycleSeconds) {
-        cycleTimer = 0;
-        activeIndex = (activeIndex + 1) % FUNCTIONS_3D.length;
+      if (isAutoSwitch) {
+        cycleTimer += dt;
+        if (cycleTimer >= cycleSeconds) {
+          cycleTimer = 0;
+          prevFn = activeFn;
+          activeFn = pickNextFunction(p, isRandomized);
+          morphProgress = 0.0;
+        }
       }
 
-      const fn = selectActiveFunction(p);
+      if (morphProgress < 1.0) {
+        const morphDuration = Math.min(1.1, cycleSeconds * 0.25);
+        morphProgress = Math.min(1.0, morphProgress + dt / Math.max(0.25, morphDuration));
+      }
+
+      const fn = activeFn;
+      const morphBlend =
+        prevFn && morphProgress < 1.0
+          ? morphProgress * morphProgress * (3 - 2 * morphProgress)
+          : 1.0;
 
       const w = canvas.width;
       const h = canvas.height;
@@ -566,7 +884,17 @@ export function createSurface3D(canvas, getParams) {
         const u = i / gridRes;
         for (let j = 0; j <= gridRes; j++) {
           const v = j / gridRes;
-          const pt3 = fn.evalPoint(u, v, phase);
+          let pt3 = fn.evalPoint(u, v, phase);
+          if (morphBlend < 1.0 && prevFn) {
+            const oldPt = prevFn.evalPoint(u, v, phase);
+            const inv = 1.0 - morphBlend;
+            pt3 = {
+              x: oldPt.x * inv + pt3.x * morphBlend,
+              y: oldPt.y * inv + pt3.y * morphBlend,
+              z: oldPt.z * inv + pt3.z * morphBlend,
+              metric: oldPt.metric * inv + pt3.metric * morphBlend
+            };
+          }
           const proj = rotateAndProject(pt3.x, pt3.y, pt3.z, w, h, cy, sy, cp, sp, cr, sr, fovScale);
           proj.metric = pt3.metric;
           verts[i * rows + j] = proj;
@@ -649,7 +977,7 @@ export function createSurface3D(canvas, getParams) {
       ctx.restore();
 
       if (showEquation) {
-        drawEquationHud(fn, w, h, pal);
+        drawEquationHud(fn, w, h, pal, isAutoSwitch, isRandomized, cycleSeconds);
       }
     }
   };

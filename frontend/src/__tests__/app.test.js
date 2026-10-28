@@ -120,21 +120,48 @@ describe('savers/index.js factory', () => {
     const cvs = createFake2DCanvas();
     let params = {
       coordMode: 'both',
-      functionPreset: 'cycle',
+      functionPreset: 'random',
+      randomizeOrder: true,
       renderStyle: 'shaded_wire',
       palette: 'spectrum',
       spinSpeed: 1.0,
       resolution: 16,
-      cycleSeconds: 6,
+      cycleSeconds: 4,
       showAxes: true,
       showEquation: true
     };
     const saver = createSaverInstance('surface3d', cvs, () => params);
     expect(saver).toBeTruthy();
 
-    // Render initial rectangular preset and advance past cycleSeconds to polar preset
+    // Render initial random preset and advance past cycleSeconds to trigger morph & random switch
     saver.render(0.5);
-    saver.render(6.5);
+    saver.render(4.2);
+    saver.render(0.3);
+
+    // Test procedural random harmonic generator for both polar and rectangular
+    for (const mode of ['polar', 'rectangular', 'both']) {
+      params = {
+        ...params,
+        coordMode: mode,
+        functionPreset: 'procedural',
+        cycleSeconds: 4
+      };
+      for (let k = 0; k < 4; k++) {
+        saver.render(4.5);
+        saver.render(0.2);
+      }
+    }
+
+    // Test ordered sequential cycle
+    params = {
+      ...params,
+      coordMode: 'both',
+      functionPreset: 'cycle',
+      randomizeOrder: false,
+      cycleSeconds: 4
+    };
+    saver.render(4.5);
+    saver.render(0.2);
 
     // Test explicit polar and rectangular presets, palettes, and render styles
     const presets = [
@@ -147,7 +174,13 @@ describe('savers/index.js factory', () => {
       'gabor',
       'torus_wave',
       'enneper',
-      'archimedean_vortex'
+      'archimedean_vortex',
+      'helicoid_catenoid',
+      'astroidal_dome',
+      'spherical_lissajous',
+      'breather_soliton',
+      'klein_figure8',
+      'ripple_interference'
     ];
     const palettes = ['spectrum', 'plasma', 'cyber', 'emerald'];
     const styles = ['shaded_wire', 'wireframe', 'solid_contour'];

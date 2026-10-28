@@ -512,12 +512,14 @@ func BuiltinSavers() []models.Screensaver {
 			Installed:   true,
 			Params: []models.SaverParam{
 				{ID: "coordMode", Label: "Coordinate System Filter", Type: models.ParamSelect, Default: "both", Options: []models.SelectOption{
-					{Label: "Both Polar & Rectangular (Cycle)", Value: "both"},
+					{Label: "Both Polar & Rectangular (Mix)", Value: "both"},
 					{Label: "Rectangular / Cartesian Only (x, y, z)", Value: "rectangular"},
 					{Label: "Polar / Cylindrical / Spherical Only (r, θ, φ)", Value: "polar"},
 				}},
-				{ID: "functionPreset", Label: "Function Equation", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
-					{Label: "Auto-Cycle Functions", Value: "cycle"},
+				{ID: "functionPreset", Label: "Function Selection Mode", Type: models.ParamSelect, Default: "random", Options: []models.SelectOption{
+					{Label: "Randomize Functions (Switch on Cadence)", Value: "random"},
+					{Label: "Procedural Random Equation Generator", Value: "procedural"},
+					{Label: "Sequential Auto-Cycle (Ordered)", Value: "cycle"},
 					{Label: "[Rect] Sinc Wave / Sombrero Ripple", Value: "sombrero"},
 					{Label: "[Polar] Rhodonea 5-Petal Harmonic Rose", Value: "polar_rose"},
 					{Label: "[Rect] Hyperbolic & Monkey Saddle Homotopy", Value: "saddle"},
@@ -528,7 +530,15 @@ func BuiltinSavers() []models.Screensaver {
 					{Label: "[Polar] Toroidal Trefoil Harmonic Manifold", Value: "torus_wave"},
 					{Label: "[Rect] Enneper Minimal Surface (H = 0)", Value: "enneper"},
 					{Label: "[Polar] Logarithmic Spiral Gravity Vortex", Value: "archimedean_vortex"},
+					{Label: "[Polar] Catenoid–Helicoid Minimal Isometry", Value: "helicoid_catenoid"},
+					{Label: "[Rect] Superquadric Astroidal Wave Dome", Value: "astroidal_dome"},
+					{Label: "[Polar] Spherical Tesseral Harmonic Y₄³(θ, φ)", Value: "spherical_lissajous"},
+					{Label: "[Rect] Sine-Gordon Breather Soliton", Value: "breather_soliton"},
+					{Label: "[Polar] Figure-8 Klein Immersion Manifold", Value: "klein_figure8"},
+					{Label: "[Rect] Two-Source Dipole Wave Interference", Value: "ripple_interference"},
 				}},
+				{ID: "randomizeOrder", Label: "Randomize Function Order on Switch", Type: models.ParamBoolean, Default: true},
+				{ID: "cycleSeconds", Label: "Function Switch Cadence (Seconds)", Type: models.ParamRange, Default: 10.0, Min: 4.0, Max: 45.0, Step: 2.0, LowLabel: "Fast (4s)", HighLabel: "Slow (45s)"},
 				{ID: "renderStyle", Label: "Surface Render Mode", Type: models.ParamSelect, Default: "shaded_wire", Options: []models.SelectOption{
 					{Label: "Shaded Facets + Iso-Parametric Mesh", Value: "shaded_wire"},
 					{Label: "Glowing Vector Wireframe", Value: "wireframe"},
@@ -542,7 +552,6 @@ func BuiltinSavers() []models.Screensaver {
 				}},
 				{ID: "spinSpeed", Label: "3D Rotation & Phase Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 2.5, Step: 0.1},
 				{ID: "resolution", Label: "Mesh Grid Resolution", Type: models.ParamRange, Default: 30.0, Min: 16.0, Max: 44.0, Step: 2.0},
-				{ID: "cycleSeconds", Label: "Seconds per Function", Type: models.ParamRange, Default: 14.0, Min: 6.0, Max: 45.0, Step: 2.0},
 				{ID: "showAxes", Label: "Show 3D Polar / Cartesian Reference Axes", Type: models.ParamBoolean, Default: true},
 				{ID: "showEquation", Label: "Show On-Screen Function Formula HUD", Type: models.ParamBoolean, Default: true},
 			},
