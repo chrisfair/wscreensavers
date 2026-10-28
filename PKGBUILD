@@ -26,7 +26,7 @@ build() {
   export CGO_CXXFLAGS="${CXXFLAGS}"
   export CGO_LDFLAGS="${LDFLAGS}"
   export GOFLAGS="-buildmode=pie -trimpath -modcacherw"
-  make build
+  make build SKIP_COVERAGE=1
 }
 
 check() {
