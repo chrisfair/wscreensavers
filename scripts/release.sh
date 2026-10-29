@@ -38,7 +38,7 @@ fi
 echo "==> Running quality checks & tests..."
 make test
 
-echo "==> Bumping version to ${NEW_VER} across all 8 package manifests..."
+echo "==> Bumping version to ${NEW_VER} across all package manifests..."
 
 # 1. PKGBUILD
 sed -i "s/^pkgver=.*/pkgver=${NEW_VER}/" PKGBUILD
@@ -68,10 +68,17 @@ sed -i "s/^version: .*/version: '${NEW_VER}'/" packaging/snap/snapcraft.yaml
 # 9. wscreensavers.1 man page
 sed -i "s/\"wscreensavers [0-9.]*\"/\"wscreensavers ${NEW_VER}\"/" wscreensavers.1
 
-echo "==> All packaging manifests and man page updated to v${NEW_VER}"
+# 10. Application version strings (reported by --version and the UI)
+sed -i "s/const Version = \"${CURRENT_VER}\"/const Version = \"${NEW_VER}\"/" internal/version/version.go
+sed -i "s/version: \"${CURRENT_VER}\"/version: \"${NEW_VER}\"/" build/config.yml
+sed -i "s/ref('${CURRENT_VER}')/ref('${NEW_VER}')/" frontend/src/App.vue
+sed -i "s/version: '${CURRENT_VER}'/version: '${NEW_VER}'/" frontend/src/__tests__/app.test.js
+
+echo "==> All packaging manifests, man page, and app version strings updated to v${NEW_VER}"
 
 echo "==> Committing version bump to main..."
-git add PKGBUILD flake.nix packaging/ wscreensavers.1
+git add PKGBUILD flake.nix packaging/ wscreensavers.1 \
+    internal/version/version.go build/config.yml frontend/src/App.vue frontend/src/__tests__/app.test.js
 git commit -m "chore(release): bump version to ${NEW_VER}"
 git push origin main
 
