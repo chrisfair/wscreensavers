@@ -13,8 +13,7 @@ local function shellQuote(value)
 end
 
 local function ctlCommand(args)
-  local home = noctalia.getenv("HOME") or "/home/christopher"
-  return home .. "/.local/bin/wscreensavers ctl " .. args
+  return "wscreensavers ctl " .. args
 end
 
 local function render()

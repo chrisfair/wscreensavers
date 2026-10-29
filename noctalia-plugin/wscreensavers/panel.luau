@@ -111,15 +111,13 @@ local function tr(key)
   return val
 end
 
--- Prefer a personal $HOME/bin copy when present, otherwise fall back to PATH
--- (the package installs /usr/bin/wscreensavers).
+-- Resolve wscreensavers through PATH (the package installs /usr/bin/wscreensavers).
 local function shellQuote(value)
   return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
 local function ctl(args)
-  local home = noctalia.getenv("HOME") or "/home/christopher"
-  return home .. "/.local/bin/wscreensavers ctl " .. args
+  return "wscreensavers ctl " .. args
 end
 
 local function resetCallbacks()
