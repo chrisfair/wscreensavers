@@ -6,7 +6,7 @@ info:
   productIdentifier: "com.github.chrisfair.wscreensavers"
   description: "Native Wayland version of XScreenSaver with 24 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
   copyright: "(c) 2026, Christopher Patrick Fair"
-  version: "1.1.11"
+  version: "1.1.12"
 
 dev_mode:
   root_path: .

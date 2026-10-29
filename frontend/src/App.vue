@@ -671,7 +671,7 @@ const username = ref('user');
 const showSupportModal = ref(false);
 const showAboutModal = ref(false);
 const isSupporter = ref(false);
-const appVersion = ref('1.1.11');
+const appVersion = ref('1.1.12');
 const openMenu = ref(null);
 
 const themeOptions = {

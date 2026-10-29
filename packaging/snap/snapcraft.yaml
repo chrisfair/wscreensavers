@@ -1,6 +1,6 @@
 name: wscreensavers
 base: core24
-version: '1.1.11'
+version: '1.1.12'
 summary: Wayland screensaver, live desktop wallpaper, and screen-lock suite
 description: |
   WScreenSavers brings classic XScreenSaver modules and custom 3D WebGL scenes
