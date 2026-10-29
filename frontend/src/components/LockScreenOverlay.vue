@@ -23,17 +23,28 @@
         <div class="pam-subtitle">Wayland Session Locked via PAM</div>
 
         <form class="pam-form" @submit.prevent="submitUnlock">
-          <input
-            ref="passInput"
-            v-model="password"
-            type="password"
-            class="pam-input"
-            placeholder="Enter system password..."
-            :disabled="verifying"
-            autofocus
-            @input="onPasswordInput"
-            @keydown.stop="onInputKeyDown"
-          />
+          <div class="pam-input-wrap">
+            <input
+              ref="passInput"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              class="pam-input"
+              placeholder="Enter system password..."
+              :disabled="verifying"
+              autofocus
+              @input="onPasswordInput"
+              @keydown.stop="onInputKeyDown"
+            />
+            <button
+              v-if="password"
+              type="button"
+              class="pam-eye-btn"
+              :title="showPassword ? 'Hide password' : 'Show password'"
+              @click.stop="showPassword = !showPassword"
+            >
+              {{ showPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
           <button type="submit" class="pam-btn" :disabled="verifying || !password">
             {{ verifying ? 'Verifying...' : 'Unlock' }}
           </button>
@@ -67,6 +78,7 @@ const emit = defineEmits(['unlocked', 'dark-change']);
 const timeStr = ref('');
 const dateStr = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const verifying = ref(false);
 const authError = ref(false);
 const errorMsg = ref('');
@@ -99,6 +111,15 @@ function onOverlayClick() {
   handleUserActivity(false, null, true);
 }
 
+function dimLockCard() {
+  password.value = '';
+  showPassword.value = false;
+  isDimmed.value = true;
+  if (passInput.value && document.activeElement === passInput.value) {
+    passInput.value.blur();
+  }
+}
+
 function resetDimTimer(delayMs = 5000) {
   if (dimTimer) clearTimeout(dimTimer);
   dimTimer = setTimeout(() => {
@@ -107,12 +128,11 @@ function resetDimTimer(delayMs = 5000) {
         // If password has partial text, allow up to 15s before clearing & dimming
         dimTimer = setTimeout(() => {
           if (!verifying.value && !authError.value) {
-            password.value = '';
-            isDimmed.value = true;
+            dimLockCard();
           }
         }, 15000);
       } else {
-        isDimmed.value = true;
+        dimLockCard();
       }
     }
   }, delayMs);
@@ -178,6 +198,7 @@ function broadcastWake(wasDark) {
 
 function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
   const wasDark = isDark.value;
+  const wasDimmed = isDimmed.value;
   const wasFocused = Boolean(passInput.value && document.activeElement === passInput.value);
   wakeLocalOnly();
   broadcastWake(wasDark);
@@ -192,6 +213,10 @@ function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
   if (props.locked) {
     focusInput();
     if (isKey && keyEvent && !wasFocused) {
+      if ((wasDimmed || wasDark) && (keyEvent.key === ' ' || keyEvent.key === 'Enter' || keyEvent.key === 'Escape')) {
+        keyEvent.preventDefault();
+        return;
+      }
       if (keyEvent.key.length === 1 && !keyEvent.ctrlKey && !keyEvent.altKey && !keyEvent.metaKey) {
         keyEvent.preventDefault();
         password.value += keyEvent.key;
@@ -225,12 +250,15 @@ function onPasswordInput() {
 }
 
 function onInputKeyDown(e) {
+  const wasDark = isDark.value;
+  const wasDimmed = isDimmed.value;
   if (e.key === 'Escape') {
     e.preventDefault();
     password.value = '';
     broadcastPasswordToPassiveMonitors();
+  } else if ((wasDimmed || wasDark) && e.key === ' ') {
+    e.preventDefault();
   }
-  const wasDark = isDark.value;
   wakeLocalOnly();
   broadcastWake(wasDark);
 }
@@ -485,15 +513,35 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.pam-input {
+.pam-input-wrap {
+  position: relative;
   flex: 1;
-  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+}
+
+.pam-input {
+  width: 100%;
+  padding: 11px 52px 11px 14px;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(2, 6, 17, 0.8);
   color: #f8fafc;
   font-size: 14px;
   outline: none;
+}
+
+.pam-eye-btn {
+  position: absolute;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .pam-input:focus {

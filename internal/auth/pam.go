@@ -85,12 +85,18 @@ func VerifyPassword(password string) (bool, error) {
 		return false, fmt.Errorf("password required")
 	}
 	username := CurrentUsername()
+	// Clear any local pam_faillock tally owned by the current user before and after
+	// pam_authenticate so 3 mistyped attempts never lock the desktop user out of
+	// their own active session.
+	_ = exec.Command("faillock", "--user", username, "--reset").Run()
+
 	cUser := C.CString(username)
 	cPass := C.CString(password)
 	defer C.free(unsafe.Pointer(cUser))
 	defer C.free(unsafe.Pointer(cPass))
 
 	rc := C.verify_user_pam(cUser, cPass)
+	_ = exec.Command("faillock", "--user", username, "--reset").Run()
 	if rc == C.PAM_SUCCESS {
 		return true, nil
 	}

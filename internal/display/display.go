@@ -3,6 +3,8 @@ package display
 import (
 	"encoding/json"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"wscreensavers/internal/models"
 )
@@ -41,12 +43,15 @@ type wlrRandrOutput struct {
 	} `json:"modes"`
 }
 
-// DetectMonitors queries Wayland compositor outputs (Hyprland, wlr-randr, or fallback).
+// DetectMonitors queries Wayland or X11 outputs (Hyprland, wlr-randr, xrandr, or fallback).
 func DetectMonitors() []models.MonitorOutput {
 	if mons := detectHyprland(); len(mons) > 0 {
 		return mons
 	}
 	if mons := detectWlrRandr(); len(mons) > 0 {
+		return mons
+	}
+	if mons := detectXrandr(); len(mons) > 0 {
 		return mons
 	}
 	return []models.MonitorOutput{
@@ -134,6 +139,43 @@ func detectWlrRandr() []models.MonitorOutput {
 			Scale:       m.Scale,
 			Focused:     idx == 0,
 		})
+	}
+	return res
+}
+
+var xrandrLineRe = regexp.MustCompile(`^(\S+)\s+connected\s+(?:primary\s+)?(\d+)x(\d+)\+(\d+)\+(\d+)`)
+
+func detectXrandr() []models.MonitorOutput {
+	out, err := exec.Command("xrandr", "--query").Output()
+	if err != nil || len(out) == 0 {
+		return nil
+	}
+	var res []models.MonitorOutput
+	for _, line := range strings.Split(string(out), "\n") {
+		matches := xrandrLineRe.FindStringSubmatch(line)
+		if len(matches) == 6 {
+			w, _ := strconv.Atoi(matches[2])
+			h, _ := strconv.Atoi(matches[3])
+			x, _ := strconv.Atoi(matches[4])
+			y, _ := strconv.Atoi(matches[5])
+			if w > 0 && h > 0 {
+				idx := len(res)
+				res = append(res, models.MonitorOutput{
+					ID:          idx,
+					Name:        matches[1],
+					Description: matches[1] + " (X11 Output)",
+					Make:        "X11",
+					Model:       matches[1],
+					Width:       w,
+					Height:      h,
+					RefreshRate: 60.0,
+					X:           x,
+					Y:           y,
+					Scale:       1.0,
+					Focused:     idx == 0 || strings.Contains(line, " primary "),
+				})
+			}
+		}
 	}
 	return res
 }

@@ -33,7 +33,23 @@ func TestDetectMonitorsWlrRandrAndFallback(t *testing.T) {
 		t.Fatalf("expected fallback monitor DP-1, got %+v", fallback)
 	}
 
-	// 2. Test wlr-randr JSON parsing
+	// 2. Test xrandr output parsing when wlr-randr is not present
+	xrandrScript := filepath.Join(tmpBin, "xrandr")
+	xrandrOut := `#!/bin/sh
+printf '%s\n' "Screen 0: minimum 320 x 200, current 1440 x 900, maximum 16384 x 16384"
+printf '%s\n' "HDMI-1 disconnected (normal left inverted right x axis y axis)"
+printf '%s\n' "HDMI-2 connected primary 1440x900+0+0 (normal left inverted right x axis y axis) 1872mm x 1053mm"
+printf '%s\n' "   1440x900      59.90*"
+`
+	if err := os.WriteFile(xrandrScript, []byte(xrandrOut), 0755); err != nil {
+		t.Fatal(err)
+	}
+	xrandrMons := DetectMonitors()
+	if len(xrandrMons) != 1 || xrandrMons[0].Name != "HDMI-2" || xrandrMons[0].Width != 1440 || xrandrMons[0].Height != 900 {
+		t.Fatalf("expected 1 xrandr monitor HDMI-2 1440x900, got %+v", xrandrMons)
+	}
+
+	// 3. Test wlr-randr JSON parsing
 	wlrScript := filepath.Join(tmpBin, "wlr-randr")
 	wlrJSON := `#!/bin/sh
 printf '%s\n' '[{"name":"HDMI-A-1","description":"Test Display 1","make":"AOC","model":"Q32","enabled":true,"position":{"x":0,"y":0},"scale":1.0,"modes":[{"width":1920,"height":1080,"refresh":60.0,"current":false},{"width":2560,"height":1440,"refresh":144.0,"current":true}]},{"name":"DP-2","enabled":false}]'

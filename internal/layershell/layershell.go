@@ -40,6 +40,7 @@ static void destroy_all_layer_windows(void) {
         if (layer_windows[i] != NULL) {
             GtkWidget *w = layer_windows[i];
             layer_windows[i] = NULL;
+            gtk_widget_hide(w);
             gtk_widget_destroy(w);
         }
     }
@@ -78,7 +79,7 @@ static void on_layer_window_destroy(GtkWidget *widget, gpointer user_data) {
 static gint64 last_wake_eval_us = 0;
 
 static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
-    if (layer_is_wallpaper || !gtk_layer_is_supported()) return;
+    if (layer_is_wallpaper) return;
     int target_idx = -1;
     for (int i = 0; i < layer_window_count; i++) {
         if (layer_windows[i] != NULL && layer_windows[i] == target_win) {
@@ -88,20 +89,26 @@ static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
     }
     if (target_idx != -1 && target_idx != active_monitor_idx) {
         active_monitor_idx = target_idx;
-        for (int i = 0; i < layer_window_count; i++) {
-            if (layer_windows[i] != NULL && i != target_idx) {
+        if (gtk_layer_is_supported()) {
+            for (int i = 0; i < layer_window_count; i++) {
+                if (layer_windows[i] != NULL && i != target_idx) {
+                    gtk_layer_set_keyboard_mode(
+                        GTK_WINDOW(layer_windows[i]),
+                        GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+                    );
+                }
+            }
+            if (target_win != NULL) {
                 gtk_layer_set_keyboard_mode(
-                    GTK_WINDOW(layer_windows[i]),
-                    GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND
+                    GTK_WINDOW(target_win),
+                    GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
                 );
             }
         }
-        if (target_win != NULL) {
-            gtk_layer_set_keyboard_mode(
-                GTK_WINDOW(target_win),
-                GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE
-            );
-        }
+    }
+    if (!gtk_layer_is_supported() && target_win != NULL) {
+        gtk_window_set_keep_above(GTK_WINDOW(target_win), TRUE);
+        gtk_window_present(GTK_WINDOW(target_win));
     }
     if (webview != NULL && !gtk_widget_has_focus(webview)) {
         gtk_widget_grab_focus(webview);
@@ -170,6 +177,10 @@ static void request_gtk_quit(void) {
 
 static void on_window_map(GtkWidget *widget, gpointer user_data) {
     GtkWidget *webview = GTK_WIDGET(user_data);
+    if (!layer_is_wallpaper && !gtk_layer_is_supported() && widget != NULL) {
+        gtk_window_set_keep_above(GTK_WINDOW(widget), TRUE);
+        gtk_window_present(GTK_WINDOW(widget));
+    }
     if (webview != NULL) {
         gtk_widget_grab_focus(webview);
     }
@@ -295,7 +306,24 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_LEFT, TRUE);
             gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_RIGHT, TRUE);
         } else {
-            gtk_window_fullscreen(GTK_WINDOW(window));
+            gtk_window_set_skip_taskbar_hint(GTK_WINDOW(window), TRUE);
+            gtk_window_set_skip_pager_hint(GTK_WINDOW(window), TRUE);
+            if (display != NULL && i < gdk_display_get_n_monitors(display)) {
+                GdkMonitor *mon = gdk_display_get_monitor(display, i);
+                if (mon != NULL) {
+                    GdkRectangle geom;
+                    gdk_monitor_get_geometry(mon, &geom);
+                    gtk_window_move(GTK_WINDOW(window), geom.x, geom.y);
+                    gtk_window_set_default_size(GTK_WINDOW(window), geom.width, geom.height);
+                }
+            }
+            if (is_wallpaper) {
+                gtk_window_set_type_hint(GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_DESKTOP);
+                gtk_window_set_keep_below(GTK_WINDOW(window), TRUE);
+            } else {
+                gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
+                gtk_window_fullscreen(GTK_WINDOW(window));
+            }
         }
 
         WebKitWebContext *web_ctx = webkit_web_context_get_default();
