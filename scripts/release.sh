@@ -144,7 +144,7 @@ gh release create "v${NEW_VER}" \
   --generate-notes
 
 echo "==> Cleaning up local build artifacts..."
-rm -f wscreensavers*${NEW_VER}*
+rm -rf src pkg wscreensavers*${NEW_VER}*
 
 echo "=========================================================="
 echo "==> Release v${NEW_VER} complete!"
