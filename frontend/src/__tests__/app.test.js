@@ -202,6 +202,37 @@ describe('savers/index.js factory', () => {
     expect(ctx.fillText).toHaveBeenCalled();
     expect(ctx.stroke).toHaveBeenCalled();
   });
+
+  it('renders Celestia 3D Solar System tour across planets, rings, moons, and warp modes', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      tourMode: 'auto',
+      flightSpeed: 1.5,
+      dwellSeconds: 6,
+      textureDetail: 0.7,
+      showOrbits: true,
+      showHud: true
+    };
+    const saver = createSaverInstance('celestia', cvs, () => params);
+    saver.resize(640, 360);
+
+    // Exercise warp and orbital flyby in auto, inner, and giants tour modes
+    for (const mode of ['auto', 'inner', 'giants']) {
+      params = { ...params, tourMode: mode, dwellSeconds: 6, textureDetail: 0.6 };
+      saver.render(1.0);
+      saver.render(3.5);
+      saver.render(6.5);
+    }
+
+    // Exercise every individual Solar System body including Saturn/Uranus rings and Sun corona
+    for (const bodyId of ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']) {
+      params = { ...params, tourMode: bodyId, textureDetail: 0.6 };
+      saver.render(0.5);
+      saver.render(3.5);
+    }
+
+    saver.destroy();
+  });
 });
 
 describe('ParameterPanel.vue', () => {

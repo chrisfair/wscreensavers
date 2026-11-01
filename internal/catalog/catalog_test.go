@@ -21,4 +21,7 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	if !seen["surface3d"] {
 		t.Errorf("expected surface3d (3D Function Plotter) in builtin catalog")
 	}
+	if !seen["celestia"] {
+		t.Errorf("expected celestia (Celestia: Solar System Tour) in builtin catalog")
+	}
 }
