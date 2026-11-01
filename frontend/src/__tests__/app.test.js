@@ -448,19 +448,31 @@ describe('SaverCanvas.vue', () => {
 
     expect(wrapper.find('.fps-badge').exists()).toBe(true);
 
-    // Switch to external XScreenSaver stream
+    // External XScreenSaver without a native port stays in stream mode on errors (never falls back to glmatrix)
+    await wrapper.setProps({ saverId: 'xss_fuzzyflakes' });
+    await nextTick();
+    let img = wrapper.find('img.saver-stream');
+    expect(img.exists()).toBe(true);
+    for (let i = 0; i < 5; i++) {
+      await img.trigger('error');
+    }
+    await nextTick();
+    expect(wrapper.find('img.saver-stream').exists()).toBe(true);
+
+    // Switch to external XScreenSaver stream that has a matching native visualizer
     await wrapper.setProps({ saverId: 'xss_boing' });
     await nextTick();
-    const img = wrapper.find('img.saver-stream');
+    img = wrapper.find('img.saver-stream');
     expect(img.exists()).toBe(true);
     expect(img.attributes('src')).toContain('/api/xss-stream?saver=xss_boing');
 
-    // Trigger stream errors to exercise fallback to native visualizer
-    await img.trigger('error');
-    await img.trigger('error');
+    // Trigger stream errors to exercise fallback to matching native visualizer
+    for (let i = 0; i < 4; i++) {
+      await img.trigger('error');
+    }
     await nextTick();
 
-    // Pause and resume
+    // Pause and resume resets error count
     await wrapper.setProps({ paused: true });
     await wrapper.setProps({ paused: false });
     wrapper.unmount();

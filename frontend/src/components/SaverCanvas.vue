@@ -20,7 +20,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import { createSaverInstance } from '../savers/index.js';
+import { createSaverInstance, hasNativeSaver } from '../savers/index.js';
 
 const props = defineProps({
   saverId: { type: String, default: 'glmatrix' },
@@ -41,7 +41,17 @@ const streamVersion = ref(0);
 const streamErrorCount = ref(0);
 const clientId = 'c_' + Math.random().toString(36).slice(2, 10);
 
-const isExternalXSS = computed(() => (props.saverId || '').startsWith('xss_') && streamErrorCount.value < 2);
+const isExternalXSS = computed(() => {
+  const id = props.saverId || '';
+  if (!id.startsWith('xss_')) return false;
+  // Only fall back to a native visualizer if a matching built-in saver actually exists;
+  // otherwise keep retrying the XScreenSaver stream so we never silently replace an
+  // unrelated hack with the default GLMatrix falling letters.
+  if (streamErrorCount.value >= 4 && hasNativeSaver(id)) {
+    return false;
+  }
+  return true;
+});
 
 // Fullscreen overlay pages carry ?monitor=<name>; each monitor gets its own stream
 // session at its native resolution. The Control Center preview has no monitor.
@@ -198,8 +208,9 @@ function stopRemoteStream() {
 }
 
 function onStreamError() {
+  if (props.paused) return;
   streamErrorCount.value++;
-  if (streamErrorCount.value >= 2) {
+  if (!isExternalXSS.value) {
     stopRemoteStream();
     nextTick(() => {
       initVisualizer();
@@ -207,11 +218,12 @@ function onStreamError() {
     });
     return;
   }
-  if (isExternalXSS.value) {
-    setTimeout(() => {
+  const retryDelay = Math.min(2500, 500 * streamErrorCount.value);
+  setTimeout(() => {
+    if (!props.paused && isExternalXSS.value) {
       streamVersion.value++;
-    }, 800);
-  }
+    }
+  }, retryDelay);
 }
 
 function onContextLost(e) {
@@ -227,12 +239,12 @@ function onContextRestored() {
 watch(() => props.paused, (isPaused) => {
   if (isPaused) {
     clearLoopHandles();
-    if (isExternalXSS.value) {
-      if (imgRef.value) imgRef.value.src = '';
+    if ((props.saverId || '').startsWith('xss_')) {
       stopRemoteStream();
     }
   } else {
-    if (isExternalXSS.value) {
+    streamErrorCount.value = 0;
+    if ((props.saverId || '').startsWith('xss_')) {
       streamVersion.value++;
     } else {
       startLoopIfNeeded();

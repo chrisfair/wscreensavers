@@ -64,6 +64,11 @@ const SAVER_FACTORIES = {
   surface3d: createSurface3D
 };
 
+export function hasNativeSaver(saverId) {
+  const cleanId = (saverId || '').replace(/^xss_/, '');
+  return Boolean(cleanId && Object.prototype.hasOwnProperty.call(SAVER_FACTORIES, cleanId));
+}
+
 export function createSaverInstance(saverId, canvas, getParams, getTelemetry) {
   const cleanId = (saverId || 'glmatrix').replace(/^xss_/, '');
   const factory = SAVER_FACTORIES[cleanId] || SAVER_FACTORIES.glmatrix;

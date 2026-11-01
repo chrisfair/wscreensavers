@@ -69,6 +69,7 @@ type session struct {
 	activeSaver   string
 	activeArgs    string
 	activeStreams map[string]*clientStream
+	idleEpoch     uint64
 }
 
 // clientStream is one connected viewer of a session; entries are compared by identity.
@@ -186,6 +187,10 @@ func (sess *session) stopXvfbLocked() {
 		_, _ = sess.xvfbCmd.Process.Wait()
 	}
 	sess.xvfbCmd = nil
+	if sess.displayNum > 0 {
+		_ = os.Remove(fmt.Sprintf("/tmp/.X%d-lock", sess.displayNum))
+		_ = os.Remove(fmt.Sprintf("/tmp/.X11-unix/X%d", sess.displayNum))
+	}
 }
 
 func (sess *session) ensureXvfbLocked(width, height int) error {
@@ -219,7 +224,18 @@ func (sess *session) ensureXvfbLocked(width, height int) error {
 	sess.xvfbCmd = cmd
 	sess.width = width
 	sess.height = height
-	time.Sleep(250 * time.Millisecond)
+
+	// Wait until Xvfb creates its UNIX socket (or up to 600ms) so the hack and ffmpeg
+	// never race Xvfb initialization when waking multiple monitors from dark/DPMS.
+	sockPath := fmt.Sprintf("/tmp/.X11-unix/X%d", sess.displayNum)
+	deadline := time.Now().Add(600 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(sockPath); err == nil {
+			time.Sleep(50 * time.Millisecond)
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 	return nil
 }
 
@@ -358,7 +374,7 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	sess.activeSaver = saver.ID
 	sess.activeArgs = argsKey
 
-	go func(targetCmd *exec.Cmd, failedBin string) {
+	go func(targetCmd *exec.Cmd, restartSaver models.Screensaver, restartValues map[string]any) {
 		_ = targetCmd.Wait()
 		sess.mu.Lock()
 		defer sess.mu.Unlock()
@@ -367,22 +383,24 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 			sess.activeSaver = ""
 			sess.activeArgs = ""
 			if len(sess.activeStreams) > 0 {
-				if fbBin, fbArgs := findFallbackBinary(failedBin); fbBin != "" {
-					fbCmd := exec.Command("nice", append([]string{"-n", "19", fbBin}, fbArgs...)...)
-					fbCmd.Env = xvfbEnv(sess.displayString())
-					fbCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
-					if err := fbCmd.Start(); err == nil {
-						sess.hackCmd = fbCmd
-						sess.activeSaver = "fallback"
-					}
+				// Restart the user's selected hack if it exited while viewers are still connected,
+				// rather than replacing it with glmatrix.
+				retryArgs := BuildCommandArgs(restartSaver, restartValues)
+				retryCmd := exec.Command("nice", append([]string{"-n", "19", restartSaver.BinaryPath}, retryArgs...)...)
+				retryCmd.Env = xvfbEnv(sess.displayString())
+				retryCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
+				if err := retryCmd.Start(); err == nil {
+					sess.hackCmd = retryCmd
+					sess.activeSaver = restartSaver.ID
+					sess.activeArgs = fmt.Sprintf("%v", retryArgs)
 				}
 			}
 		}
-	}(cmd, saver.BinaryPath)
+	}(cmd, saver, values)
 
-	sess.mu.Unlock()
+	// Wait briefly while holding sess.mu so a concurrent viewer request on the same
+	// monitor cannot interleave and kill the newly launched hack during initialization.
 	time.Sleep(120 * time.Millisecond)
-	sess.mu.Lock()
 	if sess.hackCmd == nil {
 		return fmt.Errorf("xscreensaver binary %s exited prematurely", saver.BinaryPath)
 	}
@@ -412,6 +430,7 @@ func (sess *session) registerClientStream(clientID string, parent context.Contex
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 
+	sess.idleEpoch++
 	if prev, exists := sess.activeStreams[clientID]; exists {
 		prev.cancel()
 	}
@@ -426,20 +445,22 @@ func (sess *session) registerClientStream(clientID string, parent context.Contex
 			delete(sess.activeStreams, clientID)
 		}
 		idle := len(sess.activeStreams) == 0
+		sess.idleEpoch++
+		epoch := sess.idleEpoch
 		sess.mu.Unlock()
 		if idle {
-			sess.stopWhenIdle()
+			sess.stopWhenIdle(epoch)
 		}
 	}
 	return ctx, release
 }
 
 // stopWhenIdle shuts the hack and Xvfb down if no viewer has returned after idleStopDelay.
-func (sess *session) stopWhenIdle() {
+func (sess *session) stopWhenIdle(epoch uint64) {
 	time.AfterFunc(idleStopDelay, func() {
 		sess.mu.Lock()
 		defer sess.mu.Unlock()
-		if len(sess.activeStreams) == 0 {
+		if sess.idleEpoch == epoch && len(sess.activeStreams) == 0 {
 			sess.stopHackLocked()
 			sess.stopXvfbLocked()
 		}
@@ -447,7 +468,7 @@ func (sess *session) stopWhenIdle() {
 }
 
 // StopClient cancels any active stream for the given client in the given session and stops
-// that session's hack if no streams remain.
+// that session's hack and Xvfb if no streams remain.
 func (s *Streamer) StopClient(sessionKey, clientID string) {
 	if clientID == "" {
 		clientID = "default"
@@ -455,12 +476,14 @@ func (s *Streamer) StopClient(sessionKey, clientID string) {
 	sess := s.sessionFor(sessionKey)
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
+	sess.idleEpoch++
 	if entry, ok := sess.activeStreams[clientID]; ok {
 		entry.cancel()
 		delete(sess.activeStreams, clientID)
 	}
 	if len(sess.activeStreams) == 0 {
 		sess.stopHackLocked()
+		sess.stopXvfbLocked()
 	}
 }
 
