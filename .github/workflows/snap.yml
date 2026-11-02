@@ -49,8 +49,7 @@ jobs:
 
       - name: Publish to Snap Store
         if: env.SNAPCRAFT_TOKEN != ''
-        uses: canonical/action-publish@v1
-        with:
-          snap: ${{ steps.build.outputs.snap }}
-          release: stable
-          store_login: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          /snap/bin/snapcraft upload --release=stable "${{ steps.build.outputs.snap }}"
