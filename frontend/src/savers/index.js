@@ -36,6 +36,7 @@ import { createChessOpenings } from './chessOpenings.js';
 import { createBughouse3D } from './bughouse3d.js';
 import { createSurface3D } from './functionPlotter3d.js';
 import { createCelestia } from './celestia.js';
+import { createHyperdimension } from './hyperdimension.js';
 
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
@@ -63,7 +64,8 @@ const SAVER_FACTORIES = {
   chessopenings: createChessOpenings,
   bughouse3d: createBughouse3D,
   surface3d: createSurface3D,
-  celestia: createCelestia
+  celestia: createCelestia,
+  hyperdimension: createHyperdimension
 };
 
 export function hasNativeSaver(saverId) {

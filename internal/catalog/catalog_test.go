@@ -24,4 +24,7 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	if !seen["celestia"] {
 		t.Errorf("expected celestia (Celestia: Solar System Tour) in builtin catalog")
 	}
+	if !seen["hyperdimension"] {
+		t.Errorf("expected hyperdimension (4D Polytopes & Klein Manifolds) in builtin catalog")
+	}
 }

@@ -233,6 +233,59 @@ describe('savers/index.js factory', () => {
 
     saver.destroy();
   });
+
+  it('renders 4D hypercubes, Klein bottles, Boy surface, Hopf fibration, and polytopes in hyperdimension', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      shapePreset: 'cycle',
+      rotSpeed: 1.2,
+      cycleSeconds: 5,
+      renderMode: 'translucent_cells',
+      palette: 'hyper_cyan',
+      wDistance: 2.65,
+      resolution: 18,
+      showHud: true
+    };
+    const saver = createSaverInstance('hyperdimension', cvs, () => params);
+    saver.resize(640, 360);
+
+    // Exercise cycle and random switching
+    for (const mode of ['cycle', 'random']) {
+      params = { ...params, shapePreset: mode, cycleSeconds: 5, resolution: 16 };
+      saver.render(1.0);
+      saver.render(5.5);
+    }
+
+    // Exercise all 10 4D polytopes and non-orientable manifolds across render modes and palettes
+    const shapes = [
+      'tesseract',
+      'klein_bottle_4d',
+      'icositetrachoron24',
+      'clifford_torus',
+      'klein_lawson',
+      'orthoplex16',
+      'boys_surface',
+      'hopf_fibration',
+      'hexacosichoron600',
+      'duoprism',
+      'hypernested'
+    ];
+    const renderModes = ['translucent_cells', 'wireframe', 'solid_manifold'];
+    const palettes = ['hyper_cyan', 'klein_gold', 'matrix_emerald', 'crimson_void'];
+
+    shapes.forEach((shape, idx) => {
+      params = {
+        ...params,
+        shapePreset: shape,
+        renderMode: renderModes[idx % renderModes.length],
+        palette: palettes[idx % palettes.length],
+        resolution: 16
+      };
+      saver.render(0.3);
+    });
+
+    saver.destroy();
+  });
 });
 
 describe('ParameterPanel.vue', () => {
