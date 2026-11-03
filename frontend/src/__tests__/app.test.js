@@ -286,6 +286,46 @@ describe('savers/index.js factory', () => {
 
     saver.destroy();
   });
+
+  it('renders 3D Soroban, Roman Tabula Abaci with calculi stones, and Suanpan performing the 123,456,789 × 9 drill', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      abacusStyle: 'auto_cycle',
+      drillMode: 'hyakumanben_add_sub',
+      materialTheme: 'ebony_gold',
+      calcSpeed: 3.0,
+      rotSpeed: 1.2,
+      tiltAngle: 24,
+      showHud: true
+    };
+    const saver = createSaverInstance('soroban3d', cvs, () => params);
+    saver.resize(960, 540);
+
+    // Step through full 9 passes of +123,456,789 -> 1,111,111,101 and reverse subtraction
+    for (let i = 0; i < 185; i++) {
+      saver.render(0.1);
+    }
+
+    // Exercise explicit Roman Tabula Abaci, Chinese Suanpan, and all drill/material modes
+    const styles = ['roman_calculi', 'soroban_1_4', 'suanpan_2_5'];
+    const drills = ['add_only_sweep', 'complement_987654321', 'fibonacci_cascade'];
+    const themes = ['carrara_marble', 'jade_lacquer', 'cyber_obsidian', 'rosewood_ivory'];
+
+    for (let idx = 0; idx < styles.length; idx++) {
+      params = {
+        ...params,
+        abacusStyle: styles[idx],
+        drillMode: drills[idx % drills.length],
+        materialTheme: themes[idx % themes.length],
+        calcSpeed: 3.0
+      };
+      for (let step = 0; step < 30; step++) {
+        saver.render(0.1);
+      }
+    }
+
+    saver.destroy();
+  });
 });
 
 describe('ParameterPanel.vue', () => {

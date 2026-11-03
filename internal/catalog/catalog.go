@@ -634,6 +634,43 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show 4D Schläfli & Topology Invariant HUD", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "soroban3d",
+			Name:        "3D Abacus & Roman Tabula (123456789 × 9)",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#f59e0b",
+			Tags:        []string{"Abacus", "Soroban", "Roman", "Suanpan", "Math", "3D"},
+			Description: "Rotating 3D Japanese Soroban (1:4 bicone hishi-dama beads), Roman Tabula Abaci (carved Carrara marble stone counting table with recessed sulci grooves, spherical calculi pebbles, and chiseled Roman numerals), and Chinese Suanpan (2:5 Heaven/Earth beads) performing the classic Hyakumanben 123,456,789 × 9 = 1,111,111,101 addition and subtraction drill with real-time ripple carries.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "abacusStyle", Label: "Abacus Instrument Architecture", Type: models.ParamSelect, Default: "auto_cycle", Options: []models.SelectOption{
+					{Label: "Auto-Cycle (Soroban 1:4 → Roman Stone Table → Suanpan 2:5)", Value: "auto_cycle"},
+					{Label: "Japanese Soroban (1:4 Bicone Hishi-dama Beads)", Value: "soroban_1_4"},
+					{Label: "Roman Tabula Abaci (Stone Table, Grooves & Calculi Pebbles)", Value: "roman_calculi"},
+					{Label: "Chinese Suanpan (2:5 Heaven/Earth Oblate Beads)", Value: "suanpan_2_5"},
+				}},
+				{ID: "drillMode", Label: "Arithmetic Drill Sequence", Type: models.ParamSelect, Default: "hyakumanben_add_sub", Options: []models.SelectOption{
+					{Label: "123,456,789 × 9 = 1,111,111,101 (Add & Subtract Cycle)", Value: "hyakumanben_add_sub"},
+					{Label: "123,456,789 × 9 = 1,111,111,101 + Gohassan Clear Lever", Value: "add_only_sweep"},
+					{Label: "Repunit Complement (123,456,789 + 987,654,321 = 1,111,111,110)", Value: "complement_987654321"},
+					{Label: "Fibonacci Golden Ratio Cascade (F_n = F_{n-1} + F_{n-2})", Value: "fibonacci_cascade"},
+				}},
+				{ID: "materialTheme", Label: "Frame / Stone & Bead Material Finish", Type: models.ParamSelect, Default: "ebony_gold", Options: []models.SelectOption{
+					{Label: "Kokutan Ebony & Boxwood Gold (Auto-Marble on Roman Table)", Value: "ebony_gold"},
+					{Label: "Roman Carrara Marble & Agate Calculi Stones", Value: "carrara_marble"},
+					{Label: "Imperial Vermilion Lacquer & Nephrite Jade", Value: "jade_lacquer"},
+					{Label: "Vintage Rosewood & Carved Ivory", Value: "rosewood_ivory"},
+					{Label: "Cyber Obsidian & Neon Cyan", Value: "cyber_obsidian"},
+				}},
+				{ID: "calcSpeed", Label: "Bead / Calculus Arithmetic Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 3.0, Step: 0.1, LowLabel: "Deliberate", HighLabel: "Master"},
+				{ID: "rotSpeed", Label: "3D Orbital Rotation Speed", Type: models.ParamRange, Default: 1.0, Min: 0.0, Max: 2.5, Step: 0.1, LowLabel: "Static", HighLabel: "Fast"},
+				{ID: "tiltAngle", Label: "Viewing Pitch Tilt (Degrees)", Type: models.ParamRange, Default: 24.0, Min: 5.0, Max: 50.0, Step: 1.0},
+				{ID: "showHud", Label: "Show 123,456,789 × 9 Ledger & Roman Register HUD", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 

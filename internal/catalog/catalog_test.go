@@ -27,4 +27,7 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	if !seen["hyperdimension"] {
 		t.Errorf("expected hyperdimension (4D Polytopes & Klein Manifolds) in builtin catalog")
 	}
+	if !seen["soroban3d"] {
+		t.Errorf("expected soroban3d (3D Abacus & Roman Tabula) in builtin catalog")
+	}
 }
