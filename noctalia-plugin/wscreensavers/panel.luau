@@ -682,7 +682,7 @@ function onIpc(event, _payload)
     if panelOpen then
       panel.close()
     else
-      noctalia.togglePanel("christopher/wscreensavers:controls")
+      noctalia.togglePanel("christopherpfair/wscreensavers:controls")
     end
   end
 end
