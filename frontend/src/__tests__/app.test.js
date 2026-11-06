@@ -382,6 +382,39 @@ describe('savers/index.js factory', () => {
 
     saver.destroy();
   });
+
+  it('renders Ames Window Optical Illusion across all prop modes, camera angles, and color schemes', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      propMode: 'pen_through',
+      cameraMode: 'eye_level',
+      colorScheme: 'curiosity_classic',
+      rotSpeed: 1.5,
+      spinDirection: 'ccw',
+      showHud: true
+    };
+    const saver = createSaverInstance('ameswindow', cvs, () => params);
+    saver.resize(960, 540);
+
+    const propModes = ['pen_through', 'pen_and_cube', 'pure_window', 'double_counter', 'auto_cycle'];
+    const camModes = ['eye_level', 'periodic_reveal', 'overhead_truth'];
+    const schemes = ['curiosity_classic', 'studio_emerald', 'blueprint_cobalt', 'monochrome_lab'];
+
+    for (let i = 0; i < propModes.length; i++) {
+      params = {
+        ...params,
+        propMode: propModes[i],
+        cameraMode: camModes[i % camModes.length],
+        colorScheme: schemes[i % schemes.length],
+        spinDirection: i % 2 === 0 ? 'ccw' : 'cw'
+      };
+      for (let step = 0; step < 8; step++) {
+        saver.render(2.5);
+      }
+    }
+
+    saver.destroy();
+  });
 });
 
 describe('ParameterPanel.vue', () => {

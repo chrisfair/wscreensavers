@@ -714,6 +714,44 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show Hausdorff Dimension & Zoom HUD", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "ameswindow",
+			Name:        "Ames Window Optical Illusion (1951)",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#f97316",
+			Tags:        []string{"Illusion", "Ames", "Perspective", "Curiosity", "3D", "Psychology"},
+			Description: "Adelbert Ames Jr.'s 1951 trapezoidal 6-pane window illusion (famous from The Curiosity Show). A flat trapezoid painted on both sides with foreshortened mullions and terracotta reveals rotates continuously 360° in one direction, yet human visual perception irresistibly sees it oscillating back and forth while a solid blue pen stuck through the pane appears to ghost through solid bars.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "propMode", Label: "Apparatus & Penetrating Props", Type: models.ParamSelect, Default: "pen_through", Options: []models.SelectOption{
+					{Label: "Blue Ballpoint Pen Through Central Pane (Curiosity Show Classic)", Value: "pen_through"},
+					{Label: "Blue Pen + Suspended Corner Cube (Dual Conflicting Cues)", Value: "pen_and_cube"},
+					{Label: "Pure Unadorned 1951 Trapezoidal Ames Window", Value: "pure_window"},
+					{Label: "Dual 90°-Phased Ames Windows on Torsion Wire", Value: "double_counter"},
+					{Label: "Auto-Cycle All Apparatus Configurations", Value: "auto_cycle"},
+				}},
+				{ID: "cameraMode", Label: "Camera Perspective & Truth Reveal", Type: models.ParamSelect, Default: "eye_level", Options: []models.SelectOption{
+					{Label: "Eye-Level Illusion Lock (Unbreakable 180° Oscillation Illusion)", Value: "eye_level"},
+					{Label: "Periodic Overhead Truth Peek (Tilts Up Every 24s to Prove 360° Spin)", Value: "periodic_reveal"},
+					{Label: "Overhead Bird's-Eye Truth Angle (48° Orbit View)", Value: "overhead_truth"},
+				}},
+				{ID: "colorScheme", Label: "Window Paint & Studio Backdrop", Type: models.ParamSelect, Default: "curiosity_classic", Options: []models.SelectOption{
+					{Label: "Curiosity Show 1951 (Cream Frame, Terracotta Reveals & Blue Pen)", Value: "curiosity_classic"},
+					{Label: "Curiosity Studio Green Backdrop & Terracotta Window", Value: "studio_emerald"},
+					{Label: "Architectural Ivory & Cobalt Blue Reveals", Value: "blueprint_cobalt"},
+					{Label: "1951 Princeton Psych Lab (High-Contrast Monochrome)", Value: "monochrome_lab"},
+				}},
+				{ID: "rotSpeed", Label: "Torsion Thread Rotation Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1, LowLabel: "Slow", HighLabel: "Fast"},
+				{ID: "spinDirection", Label: "True 360° Rotation Direction", Type: models.ParamSelect, Default: "ccw", Options: []models.SelectOption{
+					{Label: "Counter-Clockwise (CCW Continuous)", Value: "ccw"},
+					{Label: "Clockwise (CW Continuous)", Value: "cw"},
+				}},
+				{ID: "showHud", Label: "Show True 360° Spin vs Perceived Swing HUD & Top-Down Radar", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 

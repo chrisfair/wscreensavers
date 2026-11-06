@@ -33,4 +33,7 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	if !seen["fractals3d"] {
 		t.Errorf("expected fractals3d (3D Fractal Zoom & Recursive Polyhedra) in builtin catalog")
 	}
+	if !seen["ameswindow"] {
+		t.Errorf("expected ameswindow (Ames Window Optical Illusion) in builtin catalog")
+	}
 }

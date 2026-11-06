@@ -39,6 +39,7 @@ import { createCelestia } from './celestia.js';
 import { createHyperdimension } from './hyperdimension.js';
 import { createSoroban3D } from './soroban3d.js';
 import { createFractals3D } from './fractals3d.js';
+import { createAmesWindow } from './ameswindow.js';
 
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
@@ -69,7 +70,8 @@ const SAVER_FACTORIES = {
   celestia: createCelestia,
   hyperdimension: createHyperdimension,
   soroban3d: createSoroban3D,
-  fractals3d: createFractals3D
+  fractals3d: createFractals3D,
+  ameswindow: createAmesWindow
 };
 
 export function hasNativeSaver(saverId) {
