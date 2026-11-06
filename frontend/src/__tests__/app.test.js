@@ -768,7 +768,7 @@ describe('App.vue Control Center', () => {
         return {
           ok: true,
           json: async () => ({
-            version: '1.1.18',
+            version: '1.1.19',
             username: 'christopher',
             otherWallpapers: ['hyprpaper'],
             lastWakeMs: 1000,
