@@ -32,6 +32,8 @@ function createFake2DCanvas() {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     quadraticCurveTo: vi.fn(),
+    bezierCurveTo: vi.fn(),
+    ellipse: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
@@ -59,6 +61,8 @@ beforeEach(() => {
     beginPath: vi.fn(),
     closePath: vi.fn(),
     quadraticCurveTo: vi.fn(),
+    bezierCurveTo: vi.fn(),
+    ellipse: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
@@ -302,13 +306,13 @@ describe('savers/index.js factory', () => {
     saver.resize(960, 540);
 
     // Step through full 9 passes of +123,456,789 -> 1,111,111,101 and reverse subtraction
-    for (let i = 0; i < 185; i++) {
+    for (let i = 0; i < 230; i++) {
       saver.render(0.1);
     }
 
-    // Exercise explicit Roman Tabula Abaci, Chinese Suanpan, and all drill/material modes
-    const styles = ['roman_calculi', 'soroban_1_4', 'suanpan_2_5'];
-    const drills = ['add_only_sweep', 'complement_987654321', 'fibonacci_cascade'];
+    // Exercise explicit Roman Tabula Abaci (with 1/3rd space), Russian Schoty, Chinese Suanpan, and all drill/material modes
+    const styles = ['roman_calculi', 'russian_schoty', 'soroban_1_4', 'suanpan_2_5'];
+    const drills = ['thirds_calculus', 'add_only_sweep', 'complement_987654321', 'fibonacci_cascade'];
     const themes = ['carrara_marble', 'jade_lacquer', 'cyber_obsidian', 'rosewood_ivory'];
 
     for (let idx = 0; idx < styles.length; idx++) {
