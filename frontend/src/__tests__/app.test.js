@@ -326,6 +326,58 @@ describe('savers/index.js factory', () => {
 
     saver.destroy();
   });
+
+  it('renders 3D Fractal Zoom & Recursive Polyhedra across all 7 fractals, zoom stages, and render modes', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      fractalPreset: 'cycle',
+      zoomSpeed: 2.0,
+      rotSpeed: 1.2,
+      recursionDepth: 2,
+      renderStyle: 'shaded_crystal',
+      palette: 'quantum_cyan',
+      cycleSeconds: 10,
+      showHud: true
+    };
+    const saver = createSaverInstance('fractals3d', cvs, () => params);
+    saver.resize(800, 450);
+
+    // Exercise cycle progression across subdivision, deep zoom, and transition
+    for (const mode of ['cycle', 'random']) {
+      params = { ...params, fractalPreset: mode, cycleSeconds: 10 };
+      saver.render(1.5);
+      saver.render(4.0);
+      saver.render(6.0);
+    }
+
+    // Exercise all 7 3D fractal geometries, render styles, and palettes
+    const fractals = [
+      'menger_sponge',
+      'sierpinski_tetrix',
+      'mandelbulb_8',
+      'mosely_snowflake',
+      'apollonian_3d',
+      'octahedron_flake',
+      'mandelbox_fold'
+    ];
+    const styles = ['shaded_crystal', 'neon_holo', 'point_voxels'];
+    const palettes = ['quantum_cyan', 'emerald_nebula', 'crimson_gold', 'ultraviolet'];
+
+    fractals.forEach((fId, idx) => {
+      params = {
+        ...params,
+        fractalPreset: fId,
+        renderStyle: styles[idx % styles.length],
+        palette: palettes[idx % palettes.length],
+        recursionDepth: 2,
+        cycleSeconds: 12
+      };
+      saver.render(1.0);
+      saver.render(5.0);
+    });
+
+    saver.destroy();
+  });
 });
 
 describe('ParameterPanel.vue', () => {

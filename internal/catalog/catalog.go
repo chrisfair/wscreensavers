@@ -671,6 +671,47 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show 123,456,789 × 9 Ledger & Roman Register HUD", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "fractals3d",
+			Name:        "3D Fractal Zoom & Recursive Polyhedra",
+			Category:    "Geometric & Fractal",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#06b6d4",
+			Tags:        []string{"Fractal", "Menger Sponge", "Mandelbulb", "Sierpinski", "3D", "Math"},
+			Description: "Continuous 3D recursive subdivision, SO(3) orbital rotation, and exponential self-similar tunnel zoom through iconic 3D fractals: the Menger Sponge, 3D Sierpiński Tetrix, Power-8 Spherical Triplex Mandelbulb, Mosely 3D Snowflake Sponge, 3D Apollonian Kissing Spheres, Sierpiński-Koch Octahedral Flake, and Tom Lowe's 3D Mandelbox.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "fractalType", Label: "3D Fractal Progression Mode", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
+					{Label: "Auto-Cycle All 7 3D Fractals", Value: "cycle"},
+					{Label: "Randomize 3D Fractal on Cadence", Value: "random"},
+					{Label: "Menger Sponge (D_H ≈ 2.7268 Cantor Tunnel)", Value: "menger_sponge"},
+					{Label: "3D Sierpiński Tetrix (D_H = 2.0000 Tetrahedral Gasket)", Value: "sierpinski_tetrix"},
+					{Label: "3D Mandelbulb (Power-8 Spherical Triplex)", Value: "mandelbulb_8"},
+					{Label: "Mosely 3D Snowflake Sponge (D_H ≈ 2.6309)", Value: "mosely_snowflake"},
+					{Label: "3D Apollonian Gasket (Soddy Kissing Spheres)", Value: "apollonian_3d"},
+					{Label: "Sierpiński-Koch 3D Octahedral Flake (D_H ≈ 2.5850)", Value: "octahedron_flake"},
+					{Label: "3D Mandelbox (Conformal Box/Sphere Fold Lattice)", Value: "mandelbox_fold"},
+				}},
+				{ID: "zoomSpeed", Label: "Subdivision & Tunnel Zoom Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1, LowLabel: "Slow", HighLabel: "Hyper"},
+				{ID: "rotSpeed", Label: "3D Orbital Rotation Speed", Type: models.ParamRange, Default: 1.0, Min: 0.2, Max: 2.5, Step: 0.1, LowLabel: "Gentle", HighLabel: "Fast"},
+				{ID: "cycleSeconds", Label: "Fractal Zoom Cycle Duration (Seconds)", Type: models.ParamRange, Default: 14.0, Min: 6.0, Max: 40.0, Step: 2.0, LowLabel: "6s", HighLabel: "40s"},
+				{ID: "maxDetail", Label: "Recursive Subdivision Depth", Type: models.ParamRange, Default: 2.0, Min: 1.0, Max: 3.0, Step: 1.0, LowLabel: "Fast", HighLabel: "Ultra"},
+				{ID: "renderStyle", Label: "3D Surface & Facet Render Mode", Type: models.ParamSelect, Default: "shaded_crystal", Options: []models.SelectOption{
+					{Label: "Phong Shaded Crystal + Ambient Occlusion", Value: "shaded_crystal"},
+					{Label: "Translucent Hologram + Laser Wireframe", Value: "neon_holo"},
+					{Label: "3D Point-Cloud Voxel Lattice", Value: "point_voxels"},
+				}},
+				{ID: "palette", Label: "Fractal Depth Colormap", Type: models.ParamSelect, Default: "quantum_cyan", Options: []models.SelectOption{
+					{Label: "Quantum Cyan & Solar Gold", Value: "quantum_cyan"},
+					{Label: "Matrix Emerald & Cyber Mint", Value: "emerald_nebula"},
+					{Label: "Magma Crimson & Imperial Gold", Value: "crimson_gold"},
+					{Label: "Ultraviolet & Hyper Magenta", Value: "ultraviolet"},
+				}},
+				{ID: "showHud", Label: "Show Hausdorff Dimension & Zoom HUD", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 

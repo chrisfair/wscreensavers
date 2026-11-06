@@ -38,6 +38,7 @@ import { createSurface3D } from './functionPlotter3d.js';
 import { createCelestia } from './celestia.js';
 import { createHyperdimension } from './hyperdimension.js';
 import { createSoroban3D } from './soroban3d.js';
+import { createFractals3D } from './fractals3d.js';
 
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
@@ -67,7 +68,8 @@ const SAVER_FACTORIES = {
   surface3d: createSurface3D,
   celestia: createCelestia,
   hyperdimension: createHyperdimension,
-  soroban3d: createSoroban3D
+  soroban3d: createSoroban3D,
+  fractals3d: createFractals3D
 };
 
 export function hasNativeSaver(saverId) {
