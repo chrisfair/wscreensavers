@@ -36,6 +36,8 @@ func TestProcessControllerLifecycle(t *testing.T) {
 	}
 
 	RunLayerShellWindows(nil, false, false)
+	ReloadLayerShellWindows(nil)
+	ReloadLayerShellWindows([]string{"http://127.0.0.1:8642/?mode=fullscreen&saver=flurry"})
 	RequestQuit()
 	WakeAllWindows()
 

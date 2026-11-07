@@ -260,9 +260,12 @@ watch(() => props.saverId, async (newId, oldId) => {
     clearTimeout(paramDebounceTimer);
     paramDebounceTimer = null;
   }
-  if ((oldId || '').startsWith('xss_') && !(newId || '').startsWith('xss_')) {
-    if (imgRef.value) imgRef.value.src = '';
+  if ((oldId || '').startsWith('xss_') && oldId !== newId) {
+    if (imgRef.value && !(newId || '').startsWith('xss_')) imgRef.value.src = '';
     stopRemoteStream();
+  }
+  if ((newId || '').startsWith('xss_') && oldId !== newId) {
+    streamVersion.value++;
   }
   await nextTick();
   initVisualizer();

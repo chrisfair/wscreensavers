@@ -311,13 +311,17 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if len(args) >= 2 && args[1] != "" {
 			saverID = args[1]
 		} else if cfg.Mode == "random" || cfg.Mode == "cycle" {
-			pool := cfg.EnabledSavers
-			if len(pool) == 0 {
-				for _, s := range allSavers() {
-					pool = append(pool, s.ID)
+			if cfg.MultiMonitorMode == "independent" || cfg.MultiMonitorMode == "per-monitor" || cfg.MultiMonitorMode == "" {
+				saverID = "random"
+			} else {
+				pool := cfg.EnabledSavers
+				if len(pool) == 0 {
+					for _, s := range allSavers() {
+						pool = append(pool, s.ID)
+					}
 				}
+				saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
 			}
-			saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
 		}
 		if saverID == "" {
 			saverID = cfg.SelectedSaver
@@ -337,13 +341,17 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		if len(args) >= 2 && args[1] != "" {
 			saverID = args[1]
 		} else if cfg.Mode == "random" || cfg.Mode == "cycle" {
-			pool := cfg.EnabledSavers
-			if len(pool) == 0 {
-				for _, s := range allSavers() {
-					pool = append(pool, s.ID)
+			if cfg.MultiMonitorMode == "independent" || cfg.MultiMonitorMode == "per-monitor" || cfg.MultiMonitorMode == "" {
+				saverID = "random"
+			} else {
+				pool := cfg.EnabledSavers
+				if len(pool) == 0 {
+					for _, s := range allSavers() {
+						pool = append(pool, s.ID)
+					}
 				}
+				saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
 			}
-			saverID = shuffle.Next(cfgMgr.ShufflePath(), pool)
 		}
 		if saverID == "" {
 			saverID = cfg.SelectedSaver
@@ -381,9 +389,13 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			cfg.SelectedSaver = picked
 			_ = cfgMgr.Update(cfg)
 			if len(args) >= 2 && args[1] == "launch" {
-				if !tryDaemonPost("/api/action/launch-saver", map[string]any{"saverId": picked, "locked": false}) {
+				launchTarget := picked
+				if cfg.MultiMonitorMode == "independent" || cfg.MultiMonitorMode == "" {
+					launchTarget = "random"
+				}
+				if !tryDaemonPost("/api/action/launch-saver", map[string]any{"saverId": launchTarget, "locked": false}) {
 					stopSaverProcesses()
-					_ = spawnDetached("--saver", "--saver-id", picked)
+					_ = spawnDetached("--saver", "--saver-id", launchTarget)
 				}
 			}
 		}

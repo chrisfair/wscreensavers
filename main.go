@@ -112,7 +112,7 @@ func main() {
 		}
 
 		acquireFunc := singleton.Acquire
-		if *wallpaperMode {
+		if *wallpaperMode || *saverMode {
 			acquireFunc = singleton.AcquireOrReplace
 		}
 
@@ -164,12 +164,13 @@ func main() {
 			layershell.StopMatchingWallpaperProcesses()
 		}
 
-		startedAt := time.Now()
+		var startedAtMs atomic.Int64
+		startedAtMs.Store(time.Now().UnixMilli())
 		var stopSeatWake func()
 		if *saverMode || *lockMode {
 			stopSeatWake = idle.StartSeatWakeListener(func() {
 				if *saverMode {
-					if time.Since(startedAt) > 900*time.Millisecond {
+					if time.Now().UnixMilli()-startedAtMs.Load() > 900 {
 						_ = srv.SetDPMS(true)
 						layershell.RequestQuit()
 					}
@@ -186,7 +187,53 @@ func main() {
 		}
 
 		urls := buildMonitorURLs(baseURL, cfgMgr, srv, *saverIDFlag, *wallpaperMode, *lockMode)
+
+		stopCycleCh := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			lastRotateAt := time.Now()
+			for {
+				select {
+				case <-stopCycleCh:
+					return
+				case <-ticker.C:
+					cfg := cfgMgr.Get()
+					if cfg.CycleTimeoutMinutes <= 0 {
+						continue
+					}
+					interval := time.Duration(cfg.CycleTimeoutMinutes) * time.Minute
+					if *saverMode || *wallpaperMode {
+						// Allow the primary daemon to replace the process at interval first;
+						// if running standalone without the daemon, rotate in-process after a brief grace window.
+						interval += 6 * time.Second
+					}
+					if time.Since(lastRotateAt) < interval {
+						continue
+					}
+					if *wallpaperMode {
+						if cfg.WallpaperMode != "per-monitor" && cfg.WallpaperSaver != "random" && cfg.Mode != "random" && cfg.Mode != "cycle" {
+							continue
+						}
+					} else {
+						if cfg.Mode != "random" && cfg.Mode != "cycle" {
+							continue
+						}
+						if *lockMode && time.Now().UnixMilli()-srv.LastWakeMs() < 12000 {
+							continue
+						}
+					}
+					lastRotateAt = time.Now()
+					startedAtMs.Store(time.Now().UnixMilli())
+					srv.ShutdownEmbedded()
+					nextURLs := buildMonitorURLs(baseURL, cfgMgr, srv, "random", *wallpaperMode, *lockMode)
+					layershell.ReloadLayerShellWindows(nextURLs)
+				}
+			}
+		}()
+
 		layershell.RunLayerShellWindows(urls, *wallpaperMode, *lockMode)
+		close(stopCycleCh)
 
 		if stopSeatWake != nil {
 			stopSeatWake()
@@ -251,6 +298,22 @@ func main() {
 	}
 }
 
+func pickDistinctRandomSaver(srv *api.Server, used map[string]bool) string {
+	var picked string
+	for attempts := 0; attempts < 8; attempts++ {
+		picked = srv.PickRandomSaver()
+		if picked != "" && !used[picked] {
+			used[picked] = true
+			return picked
+		}
+	}
+	if picked == "" {
+		picked = "glmatrix"
+	}
+	used[picked] = true
+	return picked
+}
+
 func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, explicitSaverID string, isWallpaper bool, isLocked bool) []string {
 	cfg := cfgMgr.Get()
 	monitors := display.DetectMonitors()
@@ -260,15 +323,20 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 
 	var urls []string
 	usedWallpaperSavers := make(map[string]bool)
+	usedOverlaySavers := make(map[string]bool)
+	cycleNonce := fmt.Sprintf("%d", time.Now().UnixNano())
 
 	for idx, mon := range monitors {
 		chosenSaver := explicitSaverID
 		if isWallpaper {
-			isPerMon := explicitSaverID == "per-monitor" || (explicitSaverID == "" && (cfg.WallpaperMode != "single" || len(cfg.WallpaperPerMonitor) > 0))
+			isPerMon := explicitSaverID == "per-monitor" || ((explicitSaverID == "" || explicitSaverID == "random") && (cfg.WallpaperMode != "single" || len(cfg.WallpaperPerMonitor) > 0))
 			if isPerMon {
-				if assigned, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && assigned != "" && assigned != "random" && !usedWallpaperSavers[assigned] {
-					chosenSaver = assigned
-				} else {
+				if explicitSaverID != "random" {
+					if assigned, ok := cfg.WallpaperPerMonitor[mon.Name]; ok && assigned != "" && assigned != "random" && !usedWallpaperSavers[assigned] {
+						chosenSaver = assigned
+					}
+				}
+				if chosenSaver == "" || chosenSaver == "random" || chosenSaver == "per-monitor" {
 					chosenSaver = srv.PickUniqueRandomSaver(usedWallpaperSavers)
 				}
 				usedWallpaperSavers[chosenSaver] = true
@@ -287,18 +355,23 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 			if chosenSaver == "" || chosenSaver == "random" {
 				switch cfg.MultiMonitorMode {
 				case "per-monitor":
-					if assigned, ok := cfg.PerMonitorSaver[mon.Name]; ok && assigned != "" {
-						chosenSaver = assigned
+					if explicitSaverID != "random" && cfg.Mode != "random" && cfg.Mode != "cycle" {
+						if assigned, ok := cfg.PerMonitorSaver[mon.Name]; ok && assigned != "" && assigned != "random" {
+							chosenSaver = assigned
+						}
 					}
-				case "independent":
-					if cfg.Mode == "random" || cfg.Mode == "cycle" {
-						chosenSaver = srv.PickRandomSaver()
+					if chosenSaver == "" || chosenSaver == "random" {
+						chosenSaver = pickDistinctRandomSaver(srv, usedOverlaySavers)
+					}
+				case "independent", "":
+					if cfg.Mode == "random" || cfg.Mode == "cycle" || chosenSaver == "random" {
+						chosenSaver = pickDistinctRandomSaver(srv, usedOverlaySavers)
 					} else {
 						chosenSaver = cfg.SelectedSaver
 					}
 				case "clone":
 					if idx == 0 {
-						if cfg.Mode == "random" || cfg.Mode == "cycle" {
+						if cfg.Mode == "random" || cfg.Mode == "cycle" || chosenSaver == "random" {
 							chosenSaver = srv.PickRandomSaver()
 						} else {
 							chosenSaver = cfg.SelectedSaver
@@ -330,6 +403,7 @@ func buildMonitorURLs(baseURL string, cfgMgr *config.Manager, srv *api.Server, e
 			q.Set("clock", "1")
 		}
 		q.Set("dpms", fmt.Sprintf("%d", cfg.DPMSOffMinutes))
+		q.Set("t", cycleNonce)
 
 		target := fmt.Sprintf("%s/?%s", baseURL, q.Encode())
 		urls = append(urls, target)

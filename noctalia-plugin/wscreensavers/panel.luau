@@ -405,7 +405,7 @@ render = function()
         ui.label({ text = tr("mode") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(modeItems, cfg.mode or "random", function(val) setConfig("mode", val) end, "mode"),
       }),
-      cfg.mode == "cycle" and ui.row({ gap = 8, align = "center" }, {
+      (cfg.mode == "random" or cfg.mode == "cycle") and ui.row({ gap = 8, align = "center" }, {
         ui.label({ text = tr("cycle_timeout") .. ":", fontSize = 12, color = "on_surface_variant" }),
         chipRow(CYCLE_TIMEOUTS, cfg.cycleTimeoutMinutes or 5, function(val) setConfig("cycleTimeoutMinutes", val) end, "cycle"),
       }) or ui.spacer({ height = 0 }),

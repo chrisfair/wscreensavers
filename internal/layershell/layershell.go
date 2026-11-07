@@ -7,6 +7,7 @@ package layershell
 #include <webkit2/webkit2.h>
 #include <gtk-layer-shell/gtk-layer-shell.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int gtk_loop_active = 0;
 static int layer_is_wallpaper = 0;
@@ -16,6 +17,7 @@ static GtkWidget *layer_windows[16];
 static int layer_window_count = 0;
 static GtkWidget *layer_webviews[16];
 static int layer_webview_count = 0;
+static int *layer_motion_counters[16];
 static int active_monitor_idx = 0;
 
 static void apply_wallpaper_pass_through(GtkWidget *widget, gpointer user_data) {
@@ -173,6 +175,56 @@ static void request_gtk_quit(void) {
     if (gtk_loop_active) {
         g_idle_add(quit_idle_cb, NULL);
     }
+}
+
+typedef struct {
+    char **urls;
+    int count;
+} ReloadPayload;
+
+static gboolean reload_layer_windows_idle_cb(gpointer data) {
+    ReloadPayload *payload = (ReloadPayload *)data;
+    if (payload == NULL) return FALSE;
+    if (gtk_loop_active && payload->count > 0) {
+        for (int i = 0; i < layer_webview_count; i++) {
+            if (layer_motion_counters[i] != NULL) {
+                *(layer_motion_counters[i]) = 0;
+            }
+            if (layer_webviews[i] != NULL) {
+                const char *target_url = payload->urls[0];
+                if (i < payload->count && payload->urls[i] != NULL) {
+                    target_url = payload->urls[i];
+                }
+                webkit_web_view_load_uri(WEBKIT_WEB_VIEW(layer_webviews[i]), target_url);
+            }
+        }
+    }
+    for (int i = 0; i < payload->count; i++) {
+        if (payload->urls[i] != NULL) {
+            free(payload->urls[i]);
+        }
+    }
+    free(payload->urls);
+    free(payload);
+    return FALSE;
+}
+
+static void request_gtk_reload_urls(const char **urls, int url_count) {
+    if (!gtk_loop_active || url_count <= 0 || urls == NULL) return;
+    ReloadPayload *payload = (ReloadPayload *)calloc(1, sizeof(ReloadPayload));
+    if (payload == NULL) return;
+    payload->urls = (char **)calloc(url_count, sizeof(char *));
+    if (payload->urls == NULL) {
+        free(payload);
+        return;
+    }
+    payload->count = url_count;
+    for (int i = 0; i < url_count; i++) {
+        if (urls[i] != NULL) {
+            payload->urls[i] = strdup(urls[i]);
+        }
+    }
+    g_idle_add(reload_layer_windows_idle_cb, payload);
 }
 
 static void on_window_map(GtkWidget *widget, gpointer user_data) {
@@ -363,6 +415,9 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             g_signal_connect(webview, "map", G_CALLBACK(apply_wallpaper_pass_through), NULL);
         } else if (!is_locked) {
             int *motion_counter = (int *)calloc(1, sizeof(int));
+            if (i < 16) {
+                layer_motion_counters[i] = motion_counter;
+            }
             gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
             gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
             g_signal_connect(window, "map", G_CALLBACK(on_window_map), webview);
@@ -430,6 +485,19 @@ func RequestQuit() {
 // WakeAllWindows signals all active layer-shell webviews across all monitors to wake up immediately.
 func WakeAllWindows() {
 	C.request_gtk_wake_all()
+}
+
+// ReloadLayerShellWindows loads new URLs into all active layer-shell monitor webviews.
+func ReloadLayerShellWindows(urls []string) {
+	if len(urls) == 0 {
+		return
+	}
+	cURLs := make([]*C.char, len(urls))
+	for i, u := range urls {
+		cURLs[i] = C.CString(u)
+		defer C.free(unsafe.Pointer(cURLs[i]))
+	}
+	C.request_gtk_reload_urls(&cURLs[0], C.int(len(cURLs)))
 }
 
 // RunLayerShellWindows initializes GTK + gtk-layer-shell and creates borderless Wayland surfaces across all monitors.

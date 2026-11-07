@@ -39,9 +39,11 @@ type Server struct {
 	baseURL     string
 	isPrimary   bool
 
-	currentSaver string // guarded by mu; saver most recently handed to the overlay
-	lastWakeMs   int64
-	lastResumeMs int64
+	currentSaver   string // guarded by mu; saver most recently handed to the overlay
+	saverStartedAt time.Time
+	lastSwitchAt   time.Time
+	lastWakeMs     int64
+	lastResumeMs   int64
 }
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
@@ -344,11 +346,19 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	}
 
 	cfg := s.cfgMgr.Get()
+	overlaySaverID := saverID
 	if saverID == "" || saverID == "random" {
 		if cfg.Mode == "random" || cfg.Mode == "cycle" || saverID == "random" {
-			saverID = s.PickRandomSaver()
+			if cfg.MultiMonitorMode == "independent" || cfg.MultiMonitorMode == "per-monitor" || cfg.MultiMonitorMode == "" {
+				overlaySaverID = "random"
+				saverID = "random"
+			} else {
+				saverID = s.PickRandomSaver()
+				overlaySaverID = saverID
+			}
 		} else {
 			saverID = cfg.SelectedSaver
+			overlaySaverID = saverID
 		}
 	}
 
@@ -356,8 +366,13 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 		return auth.TriggerExternalLocker(cfg.LockProvider)
 	}
 
+	now := time.Now()
 	s.mu.Lock()
 	s.currentSaver = saverID
+	if !s.idleMon.StatusLight().ScreensaverActive {
+		s.saverStartedAt = now
+	}
+	s.lastSwitchAt = now
 	s.mu.Unlock()
 
 	_ = s.SetDPMS(true)
@@ -366,7 +381,7 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	// Stop live wallpaper and any active Xvfb streams so they don't render or stack under the fullscreen screensaver
 	s.SuspendWallpaperForOverlay()
 
-	err := s.layerCtrl.StartSaverOverlay(s.baseURL, saverID, locked)
+	err := s.layerCtrl.StartSaverOverlay(s.baseURL, overlaySaverID, locked)
 	if err != nil {
 		s.idleMon.SetScreensaverActive(false, false)
 	}
@@ -378,6 +393,10 @@ func (s *Server) StopScreensaver() {
 	s.xssRunner.StopAll()
 	s.xssStreamer.StopAll()
 	s.layerCtrl.StopSaverOverlay()
+	s.mu.Lock()
+	s.saverStartedAt = time.Time{}
+	s.lastSwitchAt = time.Time{}
+	s.mu.Unlock()
 	s.idleMon.SetScreensaverActive(false, false)
 	s.idleMon.RecordActivity()
 
@@ -415,7 +434,7 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	var saverStartedAt, lastSwitchAt, lastWallpaperSwitchAt time.Time
+	var lastWallpaperSwitchAt time.Time
 
 	for {
 		select {
@@ -425,61 +444,96 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 			return
 		case <-ticker.C:
 			cfg := s.cfgMgr.Get()
-			if cfg.Mode == "disabled" || cfg.IdleTimeoutMinutes <= 0 {
-				continue
-			}
 			st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
 			lockRunning := s.layerCtrl.IsLockRunning()
 			saverRunning := lockRunning || s.layerCtrl.IsSaverRunning()
 			if lockRunning && (!st.ScreensaverActive || !st.Locked) {
+				now := time.Now()
+				s.mu.Lock()
+				if s.saverStartedAt.IsZero() {
+					s.saverStartedAt = now
+				}
+				if s.lastSwitchAt.IsZero() {
+					s.lastSwitchAt = now
+				}
+				s.mu.Unlock()
 				s.idleMon.SetScreensaverActive(true, true)
 				st.ScreensaverActive = true
 				st.Locked = true
 			} else if saverRunning && !st.ScreensaverActive {
+				now := time.Now()
+				s.mu.Lock()
+				s.saverStartedAt = now
+				s.lastSwitchAt = now
+				s.mu.Unlock()
 				s.idleMon.SetScreensaverActive(true, false)
 				st.ScreensaverActive = true
 			} else if st.ScreensaverActive && !saverRunning {
+				s.mu.Lock()
+				s.saverStartedAt = time.Time{}
+				s.lastSwitchAt = time.Time{}
+				s.mu.Unlock()
 				s.idleMon.SetScreensaverActive(false, false)
 				s.idleMon.RecordActivity()
 				st.ScreensaverActive = false
 				st.Locked = false
 				st.IdleSeconds = 0
 			}
-			if st.Inhibited && !st.Locked {
-				s.idleMon.RecordActivity()
-				continue
-			}
-
-			timeoutSec := cfg.IdleTimeoutMinutes * 60
-			if !st.ScreensaverActive && st.IdleSeconds >= timeoutSec {
-				saverStartedAt = time.Now()
-				lastSwitchAt = saverStartedAt
-				_ = s.LaunchScreensaver("", false)
-			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled &&
-				int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
-				_ = s.LaunchScreensaver(s.lockSaverID(cfg), true)
-			} else if st.ScreensaverActive && !st.Locked && cfg.Mode == "cycle" &&
-				cfg.CycleTimeoutMinutes > 0 &&
-				time.Since(lastSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
-				// Cycling never restarts a locked overlay, so the lock surface is never torn down.
-				lastSwitchAt = time.Now()
-				_ = s.LaunchScreensaver("", false)
-			}
 
 			// Wallpaper rotation if set to random/per-monitor and cycle timeout configured
 			if cfg.WallpaperEnabled && !st.ScreensaverActive && cfg.CycleTimeoutMinutes > 0 {
-				if cfg.WallpaperMode == "per-monitor" || cfg.WallpaperSaver == "random" {
+				if cfg.WallpaperMode == "per-monitor" || cfg.WallpaperSaver == "random" || cfg.Mode == "random" || cfg.Mode == "cycle" {
 					if lastWallpaperSwitchAt.IsZero() {
 						lastWallpaperSwitchAt = time.Now()
 					} else if time.Since(lastWallpaperSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
 						lastWallpaperSwitchAt = time.Now()
 						if cfg.WallpaperMode == "per-monitor" {
-							_ = s.layerCtrl.StartWallpaper(s.baseURL, "")
+							_ = s.layerCtrl.StartWallpaper(s.baseURL, "random")
 						} else {
 							_ = s.layerCtrl.StartWallpaper(s.baseURL, s.PickRandomSaver())
 						}
 					}
 				}
+			}
+
+			if cfg.Mode == "disabled" || cfg.IdleTimeoutMinutes <= 0 {
+				continue
+			}
+			if st.Inhibited && !st.ScreensaverActive && !st.Locked {
+				s.idleMon.RecordActivity()
+				continue
+			}
+
+			s.mu.RLock()
+			saverStartedAt := s.saverStartedAt
+			lastSwitchAt := s.lastSwitchAt
+			s.mu.RUnlock()
+			if st.ScreensaverActive && (saverStartedAt.IsZero() || lastSwitchAt.IsZero()) {
+				now := time.Now()
+				s.mu.Lock()
+				if s.saverStartedAt.IsZero() {
+					s.saverStartedAt = now
+				}
+				if s.lastSwitchAt.IsZero() {
+					s.lastSwitchAt = now
+				}
+				saverStartedAt = s.saverStartedAt
+				lastSwitchAt = s.lastSwitchAt
+				s.mu.Unlock()
+			}
+
+			timeoutSec := cfg.IdleTimeoutMinutes * 60
+			if !st.ScreensaverActive && st.IdleSeconds >= timeoutSec {
+				_ = s.LaunchScreensaver("", false)
+			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled &&
+				int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
+				_ = s.LaunchScreensaver(s.lockSaverID(cfg), true)
+			} else if st.ScreensaverActive && !st.Locked && (cfg.Mode == "random" || cfg.Mode == "cycle") &&
+				cfg.CycleTimeoutMinutes > 0 &&
+				time.Since(lastSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
+				// Shut down the currently running unlocked screensaver overlay and launch
+				// a fresh set of randomized screensavers across all monitors.
+				_ = s.LaunchScreensaver("random", false)
 			}
 
 			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed

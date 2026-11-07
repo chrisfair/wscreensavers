@@ -671,7 +671,7 @@ const username = ref('user');
 const showSupportModal = ref(false);
 const showAboutModal = ref(false);
 const isSupporter = ref(false);
-const appVersion = ref('1.1.19');
+const appVersion = ref('1.1.20');
 const openMenu = ref(null);
 
 const themeOptions = {
@@ -1021,12 +1021,15 @@ async function resetSaverParams() {
 }
 
 async function launchWaylandOverlay(locked) {
+  const saverId = (config.value.mode === 'random' || config.value.mode === 'cycle')
+    ? 'random'
+    : config.value.selectedSaver;
   try {
     await fetch(`${apiBase.value}/api/action/launch-saver`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        saverId: config.value.selectedSaver,
+        saverId,
         locked
       })
     });
