@@ -92,7 +92,7 @@ sleep 3
 TAG_URL="https://github.com/chrisfair/wscreensavers/archive/refs/tags/v${NEW_VER}.tar.gz"
 echo "==> Fetching live tarball hash directly from GitHub (${TAG_URL})..."
 TARBALL_TMP=$(mktemp)
-curl -sL "${TAG_URL}" -o "${TARBALL_TMP}"
+curl -fsSL --retry 5 --retry-delay 2 "${TAG_URL}" -o "${TARBALL_TMP}"
 SUM=$(sha256sum "${TARBALL_TMP}" | awk '{print $1}')
 MD5=$(md5sum "${TARBALL_TMP}" | awk '{print $1}')
 rm -f "${TARBALL_TMP}"

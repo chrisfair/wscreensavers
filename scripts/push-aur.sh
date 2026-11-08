@@ -27,7 +27,7 @@ fi
 # Ensure sha256sums and .SRCINFO accurately match the published tag tarball
 echo "==> Verifying source checksum for v${VERSION} from GitHub..."
 TAG_URL="https://github.com/chrisfair/wscreensavers/archive/refs/tags/v${VERSION}.tar.gz"
-SUM=$(curl -sL "${TAG_URL}" | sha256sum | awk '{print $1}')
+SUM=$(curl -fsSL --retry 5 --retry-delay 2 "${TAG_URL}" | sha256sum | awk '{print $1}')
 
 if [ -z "${SUM}" ] || [ "${#SUM}" -ne 64 ]; then
     echo "ERROR: Failed to download or calculate sha256 for ${TAG_URL}" >&2
