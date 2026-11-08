@@ -84,7 +84,7 @@ const authError = ref(false);
 const errorMsg = ref('');
 const passInput = ref(null);
 
-const isDimmed = ref(false);
+const isDimmed = ref(true);
 const isDark = ref(false);
 
 let clockTimer = null;
@@ -94,6 +94,15 @@ let wakeChannel = null;
 let lastWakeNotifyMs = 0;
 let lastMouseX = -1;
 let lastMouseY = -1;
+let suppressWakeUntil = typeof performance !== 'undefined' ? performance.now() + 1500 : 0;
+
+function suppressWake(ms = 1800) {
+  if (typeof performance !== 'undefined') {
+    suppressWakeUntil = performance.now() + ms;
+  }
+  lastMouseX = -1;
+  lastMouseY = -1;
+}
 
 function updateClock() {
   const now = new Date();
@@ -159,6 +168,9 @@ function turnScreenDark() {
 }
 
 function wakeLocalOnly() {
+  if (typeof performance !== 'undefined' && performance.now() < suppressWakeUntil && !isDark.value) {
+    return;
+  }
   if (isDark.value) {
     isDark.value = false;
     emit('dark-change', false);
@@ -197,6 +209,11 @@ function broadcastWake(wasDark) {
 }
 
 function handleUserActivity(isKey = false, keyEvent = null, isClick = false) {
+  if (isKey || isClick) {
+    suppressWakeUntil = 0;
+  } else if (typeof performance !== 'undefined' && performance.now() < suppressWakeUntil && !isDark.value) {
+    return;
+  }
   const wasDark = isDark.value;
   const wasDimmed = isDimmed.value;
   const wasFocused = Boolean(passInput.value && document.activeElement === passInput.value);
@@ -276,12 +293,14 @@ function onWindowKeyDown(e) {
 }
 
 function onWindowMouseMove(e) {
+  if (typeof performance !== 'undefined' && performance.now() < suppressWakeUntil) {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    return;
+  }
   if (lastMouseX === -1) {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
-    if (isDimmed.value || isDark.value) {
-      handleUserActivity(false);
-    }
     return;
   }
   const dx = Math.abs(e.clientX - lastMouseX);
@@ -345,13 +364,10 @@ async function submitUnlock() {
 onMounted(() => {
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
-  setTimeout(focusInput, 150);
-
-  // Smoothly dim extras after 5s so screensaver stays visible when idle
-  resetDimTimer(5000);
   resetDarkTimer();
 
   window.__wssWake = wakeLocalOnly;
+  window.__wssSuppressWake = suppressWake;
   try {
     localStorage.removeItem('wscreensavers_pwd_sync');
     if (typeof BroadcastChannel !== 'undefined') {
@@ -383,6 +399,9 @@ onBeforeUnmount(() => {
   }
   if (window.__wssWake === wakeLocalOnly) {
     delete window.__wssWake;
+  }
+  if (window.__wssSuppressWake === suppressWake) {
+    delete window.__wssSuppressWake;
   }
 
   window.removeEventListener('storage', onStorageEvent);

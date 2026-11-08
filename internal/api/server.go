@@ -528,12 +528,6 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 			} else if st.ScreensaverActive && !st.Locked && cfg.LockEnabled &&
 				int(time.Since(saverStartedAt).Seconds()) >= cfg.LockGraceSeconds {
 				_ = s.LaunchScreensaver(s.lockSaverID(cfg), true)
-			} else if st.ScreensaverActive && !st.Locked && (cfg.Mode == "random" || cfg.Mode == "cycle") &&
-				cfg.CycleTimeoutMinutes > 0 &&
-				time.Since(lastSwitchAt) >= time.Duration(cfg.CycleTimeoutMinutes)*time.Minute {
-				// Shut down the currently running unlocked screensaver overlay and launch
-				// a fresh set of randomized screensavers across all monitors.
-				_ = s.LaunchScreensaver("random", false)
 			}
 
 			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed

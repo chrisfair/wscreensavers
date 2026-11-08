@@ -79,6 +79,40 @@ static void on_layer_window_destroy(GtkWidget *widget, gpointer user_data) {
 }
 
 static gint64 last_wake_eval_us = 0;
+static gint64 suppress_wake_until_us = 0;
+static gdouble last_lock_motion_x = -1.0;
+static gdouble last_lock_motion_y = -1.0;
+
+static void extract_query_param(const char *url, const char *key, char *out, size_t out_sz) {
+    if (out == NULL || out_sz == 0) return;
+    out[0] = '\0';
+    if (url == NULL || key == NULL) return;
+    const char *q = strchr(url, '?');
+    if (q == NULL) return;
+    q++;
+    size_t key_len = strlen(key);
+    while (*q != '\0') {
+        if (strncmp(q, key, key_len) == 0 && q[key_len] == '=') {
+            const char *val = q + key_len + 1;
+            size_t i = 0;
+            while (val[i] != '\0' && val[i] != '&' && i + 1 < out_sz) {
+                char c = val[i];
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                    (c >= '0' && c <= '9') || c == '_' || c == '-') {
+                    out[i] = c;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+            out[i] = '\0';
+            return;
+        }
+        const char *amp = strchr(q, '&');
+        if (amp == NULL) break;
+        q = amp + 1;
+    }
+}
 
 static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
     if (layer_is_wallpaper) return;
@@ -120,6 +154,9 @@ static void focus_lock_window(GtkWidget *target_win, GtkWidget *webview) {
 static void notify_all_webviews_wake(void) {
     if (layer_is_wallpaper) return;
     gint64 now = g_get_monotonic_time();
+    if (now < suppress_wake_until_us) {
+        return;
+    }
     if (now - last_wake_eval_us < 500000) {
         return;
     }
@@ -186,6 +223,9 @@ static gboolean reload_layer_windows_idle_cb(gpointer data) {
     ReloadPayload *payload = (ReloadPayload *)data;
     if (payload == NULL) return FALSE;
     if (gtk_loop_active && payload->count > 0) {
+        suppress_wake_until_us = g_get_monotonic_time() + 1800000;
+        last_lock_motion_x = -1.0;
+        last_lock_motion_y = -1.0;
         for (int i = 0; i < layer_webview_count; i++) {
             if (layer_motion_counters[i] != NULL) {
                 *(layer_motion_counters[i]) = 0;
@@ -195,7 +235,24 @@ static gboolean reload_layer_windows_idle_cb(gpointer data) {
                 if (i < payload->count && payload->urls[i] != NULL) {
                     target_url = payload->urls[i];
                 }
-                webkit_web_view_load_uri(WEBKIT_WEB_VIEW(layer_webviews[i]), target_url);
+                char saver_id[128];
+                extract_query_param(target_url, "saver", saver_id, sizeof(saver_id));
+                if (saver_id[0] != '\0') {
+                    char js_buf[256];
+                    snprintf(
+                        js_buf,
+                        sizeof(js_buf),
+                        "if(window.__wssSetSaver){window.__wssSetSaver('%s');}",
+                        saver_id
+                    );
+                    webkit_web_view_evaluate_javascript(
+                        WEBKIT_WEB_VIEW(layer_webviews[i]),
+                        js_buf,
+                        -1, NULL, NULL, NULL, NULL, NULL
+                    );
+                } else {
+                    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(layer_webviews[i]), target_url);
+                }
             }
         }
     }
@@ -239,9 +296,9 @@ static void on_window_map(GtkWidget *widget, gpointer user_data) {
 }
 
 static gboolean on_lock_enter(GtkWidget *widget, GdkEventCrossing *event, gpointer user_data) {
+    (void)event;
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, GTK_WIDGET(user_data));
-    notify_all_webviews_wake();
     return FALSE;
 }
 
@@ -253,21 +310,41 @@ static gboolean on_lock_motion(GtkWidget *widget, GdkEventMotion *event, gpointe
     } else if (webview != NULL && !gtk_widget_has_focus(webview)) {
         gtk_widget_grab_focus(webview);
     }
+    if (event != NULL) {
+        if (last_lock_motion_x < 0.0 || last_lock_motion_y < 0.0) {
+            last_lock_motion_x = event->x_root;
+            last_lock_motion_y = event->y_root;
+            return FALSE;
+        }
+        gdouble dx = event->x_root - last_lock_motion_x;
+        gdouble dy = event->y_root - last_lock_motion_y;
+        if (dx < 0.0) dx = -dx;
+        if (dy < 0.0) dy = -dy;
+        if (dx <= 3.0 && dy <= 3.0) {
+            return FALSE;
+        }
+        last_lock_motion_x = event->x_root;
+        last_lock_motion_y = event->y_root;
+    }
     notify_all_webviews_wake();
     return FALSE;
 }
 
 static gboolean on_lock_click(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
+    (void)event;
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, GTK_WIDGET(user_data));
+    suppress_wake_until_us = 0;
     notify_all_webviews_wake();
     return FALSE;
 }
 
 static gboolean on_lock_key(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
+    (void)event;
     GtkWidget *webview = GTK_WIDGET(user_data);
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, webview);
+    suppress_wake_until_us = 0;
     notify_all_webviews_wake();
     return FALSE;
 }
@@ -298,6 +375,9 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
     lock_window_count = 0;
     layer_window_count = 0;
     layer_webview_count = 0;
+    suppress_wake_until_us = g_get_monotonic_time() + 1800000;
+    last_lock_motion_x = -1.0;
+    last_lock_motion_y = -1.0;
 
     GdkDisplay *display = gdk_display_get_default();
     int n_monitors = 1;

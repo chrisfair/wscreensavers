@@ -175,13 +175,15 @@ func main() {
 						layershell.RequestQuit()
 					}
 				} else if *lockMode {
-					srv.RecordWake()
-					go func() {
-						_ = srv.SetDPMS(true)
-						layershell.WakeAllWindows()
-						time.Sleep(350 * time.Millisecond)
-						layershell.WakeAllWindows()
-					}()
+					if time.Now().UnixMilli()-startedAtMs.Load() > 1500 {
+						srv.RecordWake()
+						go func() {
+							_ = srv.SetDPMS(true)
+							layershell.WakeAllWindows()
+							time.Sleep(350 * time.Millisecond)
+							layershell.WakeAllWindows()
+						}()
+					}
 				}
 			})
 		}
@@ -203,7 +205,7 @@ func main() {
 						continue
 					}
 					interval := time.Duration(cfg.CycleTimeoutMinutes) * time.Minute
-					if *saverMode || *wallpaperMode {
+					if *wallpaperMode {
 						// Allow the primary daemon to replace the process at interval first;
 						// if running standalone without the daemon, rotate in-process after a brief grace window.
 						interval += 6 * time.Second

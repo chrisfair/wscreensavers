@@ -1182,10 +1182,26 @@ function exitInWindowFullscreen() {
 }
 
 let pollTimer = null;
+function setSurfaceSaverInPlace(nextSaverId) {
+  if (!nextSaverId) return;
+  if (typeof window !== 'undefined' && typeof window.__wssSuppressWake === 'function') {
+    window.__wssSuppressWake(1800);
+  }
+  if (surfaceSaverParam.value === nextSaverId) {
+    surfaceSaverParam.value = '';
+    setTimeout(() => {
+      surfaceSaverParam.value = nextSaverId;
+    }, 0);
+  } else {
+    surfaceSaverParam.value = nextSaverId;
+  }
+}
+
 onMounted(() => {
   document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('focus', onWindowFocus);
   window.addEventListener('blur', onWindowBlur);
+  window.__wssSetSaver = setSurfaceSaverInPlace;
   applyTheme(currentTheme.value);
   fetchInitialData();
   pollTimer = setInterval(refreshTelemetry, 3000);
@@ -1195,6 +1211,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange);
   window.removeEventListener('focus', onWindowFocus);
   window.removeEventListener('blur', onWindowBlur);
+  if (window.__wssSetSaver === setSurfaceSaverInPlace) {
+    delete window.__wssSetSaver;
+  }
   if (pollTimer) clearInterval(pollTimer);
 });
 </script>
