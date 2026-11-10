@@ -44,6 +44,7 @@ function createFake2DCanvas() {
     translate: vi.fn(),
     rotate: vi.fn(),
     scale: vi.fn(),
+    transform: vi.fn(),
     createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     createImageData: vi.fn((w, h) => ({ data: new Uint8ClampedArray(w * h * 4) })),
@@ -58,6 +59,7 @@ beforeEach(() => {
   HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
     fillRect: vi.fn(),
     clearRect: vi.fn(),
+    strokeRect: vi.fn(),
     beginPath: vi.fn(),
     closePath: vi.fn(),
     quadraticCurveTo: vi.fn(),
@@ -75,6 +77,7 @@ beforeEach(() => {
     translate: vi.fn(),
     rotate: vi.fn(),
     scale: vi.fn(),
+    transform: vi.fn(),
     createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     createImageData: vi.fn((w = 10, h = 10) => ({ data: new Uint8ClampedArray(w * h * 4) })),
@@ -410,6 +413,38 @@ describe('savers/index.js factory', () => {
       };
       for (let step = 0; step < 8; step++) {
         saver.render(2.5);
+      }
+    }
+
+    saver.destroy();
+  });
+
+  it('renders 5e Tabletop Dice & Battle Mat across metal/crystal dice, attack/save rolls, and damage waves', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      diceMaterial: 'mixed',
+      tableTheme: 'parchment_tavern',
+      rollSpeed: 2.2,
+      cameraMode: 'gentle_sway',
+      showHud: true
+    };
+    const saver = createSaverInstance('dnd5edice', cvs, () => params);
+    saver.resize(1280, 720);
+
+    const materials = ['mixed', 'metals_only', 'crystals_only'];
+    const themes = ['parchment_tavern', 'dungeon_slate', 'emerald_velvet'];
+    const cams = ['gentle_sway', 'orbit', 'locked'];
+
+    for (let m = 0; m < materials.length; m++) {
+      params = {
+        diceMaterial: materials[m],
+        tableTheme: themes[m % themes.length],
+        rollSpeed: 2.4,
+        cameraMode: cams[m % cams.length],
+        showHud: true
+      };
+      for (let step = 0; step < 65; step++) {
+        saver.render(0.25);
       }
     }
 

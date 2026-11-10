@@ -752,6 +752,37 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show True 360° Spin vs Perceived Swing HUD & Top-Down Radar", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "dnd5edice",
+			Name:        "5e Tabletop Dice & Battle Mat",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#eab308",
+			Tags:        []string{"RPG", "Dice", "5e", "Polyhedral", "Tabletop", "3D"},
+			Description: "Forged metallic and translucent gemstone/crystal polyhedral dice (d4, d6, d8, d10, d12, d20) tumbling across a 1-inch gridded RPG battlemat surrounded by generic tabletop paraphernalia—character sheets, #2 pencil, GM screen, miniatures, healing potion, candle, and coins—resolving continuous 5th Edition SRD attacks, advantage/disadvantage, critical hits, saving throws, and multi-dice weapon/spell damage in a live encounter log.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "diceMaterial", Label: "Polyhedral Dice Material Mix", Type: models.ParamSelect, Default: "mixed", Options: []models.SelectOption{
+					{Label: "Mixed Forged Metals & Translucent Crystals", Value: "mixed"},
+					{Label: "Forged Metals Only (Bronze, Gold, Silver Steel, Damascus)", Value: "metals_only"},
+					{Label: "Translucent Gemstone & Dichroic Glass Only", Value: "crystals_only"},
+				}},
+				{ID: "tableTheme", Label: "Battlemat & Tabletop Wood Theme", Type: models.ParamSelect, Default: "parchment_tavern", Options: []models.SelectOption{
+					{Label: "Parchment Tactical Mat & Tavern Oak", Value: "parchment_tavern"},
+					{Label: "Carved Dungeon Flagstone Mat & Dark Walnut", Value: "dungeon_slate"},
+					{Label: "Emerald Tactician Felt & Mahogany", Value: "emerald_velvet"},
+				}},
+				{ID: "rollSpeed", Label: "Combat & Dice Roll Tempo", Type: models.ParamRange, Default: 1.0, Min: 0.4, Max: 2.5, Step: 0.1, LowLabel: "Relaxed", HighLabel: "Rapid"},
+				{ID: "cameraMode", Label: "Tabletop Camera Motion", Type: models.ParamSelect, Default: "gentle_sway", Options: []models.SelectOption{
+					{Label: "Gentle Tabletop Sway", Value: "gentle_sway"},
+					{Label: "Wide Overhead Orbit", Value: "orbit"},
+					{Label: "Locked Tactical View", Value: "locked"},
+				}},
+				{ID: "showHud", Label: "Show 5e Attack, Damage & Encounter Log Window", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 

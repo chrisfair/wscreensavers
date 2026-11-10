@@ -36,4 +36,7 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	if !seen["ameswindow"] {
 		t.Errorf("expected ameswindow (Ames Window Optical Illusion) in builtin catalog")
 	}
+	if !seen["dnd5edice"] {
+		t.Errorf("expected dnd5edice (5e Tabletop Dice & Battle Mat) in builtin catalog")
+	}
 }
