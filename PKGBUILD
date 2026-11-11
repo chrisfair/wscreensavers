@@ -8,6 +8,7 @@ url="https://github.com/chrisfair/wscreensavers"
 license=('GPL-3.0-or-later')
 depends=('gtk3' 'webkit2gtk-4.1' 'gtk-layer-shell' 'pam' 'xscreensaver' 'xorg-server-xvfb' 'ffmpeg')
 optdepends=(
+  'celestia: Real-time 3D astronomy engine for Celestia 1.6 Solar System Grand Tour'
   'rss-glx: Really Slick Screensavers 3D OpenGL collection'
   'wlr-randr: Multi-monitor output detection on wlroots compositors'
   'hyprlock: Optional external Wayland lock provider'

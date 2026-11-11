@@ -13,10 +13,11 @@ import (
 )
 
 type Manager struct {
-	mu         sync.RWMutex
-	configPath string
-	lastMod    time.Time
-	cfg        models.AppConfig
+	mu              sync.RWMutex
+	configPath      string
+	isSystemDefault bool
+	lastMod         time.Time
+	cfg             models.AppConfig
 }
 
 func DefaultConfig() models.AppConfig {
@@ -59,6 +60,7 @@ func DefaultConfig() models.AppConfig {
 }
 
 func NewManager(customPath string) (*Manager, error) {
+	isDefault := customPath == ""
 	if customPath == "" {
 		cfgDir, err := os.UserConfigDir()
 		if err != nil {
@@ -68,8 +70,9 @@ func NewManager(customPath string) (*Manager, error) {
 	}
 
 	m := &Manager{
-		configPath: customPath,
-		cfg:        DefaultConfig(),
+		configPath:      customPath,
+		isSystemDefault: isDefault,
+		cfg:             DefaultConfig(),
 	}
 	_ = m.Load()
 	return m, nil
@@ -244,7 +247,23 @@ func (m *Manager) Update(next models.AppConfig) error {
 		next.SaverParams = m.cfg.SaverParams
 	}
 	m.cfg = next
-	return m.saveLocked()
+	err := m.saveLocked()
+	if err == nil && m.isSystemDefault {
+		go SyncNoctaliaIdle(next)
+	}
+	return err
+}
+
+// SyncHostIdleIfDefault reconciles conflicting desktop idle timers (such as Noctalia's
+// built-in [idle] section) when this Manager manages the primary user config.
+func (m *Manager) SyncHostIdleIfDefault() {
+	m.mu.RLock()
+	isDefault := m.isSystemDefault
+	cfg := m.cfg
+	m.mu.RUnlock()
+	if isDefault {
+		go SyncNoctaliaIdle(cfg)
+	}
 }
 
 func (m *Manager) SetSaverParams(saverID string, params map[string]any) error {

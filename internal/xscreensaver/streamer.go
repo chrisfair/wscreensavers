@@ -66,6 +66,7 @@ type session struct {
 	height        int
 	xvfbCmd       *exec.Cmd
 	hackCmd       *exec.Cmd
+	tempDir       string
 	activeSaver   string
 	activeArgs    string
 	activeStreams map[string]*clientStream
@@ -171,6 +172,28 @@ func xvfbEnv(disp string) []string {
 		"LP_NUM_THREADS=1",
 		"GALLIUM_THREAD=0",
 	)
+}
+
+func mergeEnv(base, overrides []string) []string {
+	if len(overrides) == 0 {
+		return base
+	}
+	overrideKeys := make(map[string]struct{}, len(overrides))
+	for _, kv := range overrides {
+		if eq := strings.IndexByte(kv, '='); eq > 0 {
+			overrideKeys[kv[:eq]] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(base)+len(overrides))
+	for _, kv := range base {
+		if eq := strings.IndexByte(kv, '='); eq > 0 {
+			if _, replaced := overrideKeys[kv[:eq]]; replaced {
+				continue
+			}
+		}
+		out = append(out, kv)
+	}
+	return append(out, overrides...)
 }
 
 func (sess *session) clearRootWindow() {
@@ -333,8 +356,70 @@ func (sess *session) stopHackLocked() {
 		_, _ = sess.hackCmd.Process.Wait()
 	}
 	sess.hackCmd = nil
+	if sess.tempDir != "" {
+		_ = os.RemoveAll(sess.tempDir)
+		sess.tempDir = ""
+	}
 	sess.activeSaver = ""
 	sess.activeArgs = ""
+}
+
+func (sess *session) startSaverProcessLocked(saver models.Screensaver, values map[string]any, width, height int) error {
+	binPath := saver.BinaryPath
+	var args []string
+	var argsKey string
+	var extraEnv []string
+	var tempDir string
+
+	if IsCelestiaTourSaver(saver) {
+		var err error
+		binPath, args, extraEnv, tempDir, err = PrepareCelestiaSession(sess.key, sess.displayNum, width, height, values)
+		if err != nil {
+			return err
+		}
+		argsKey = CelestiaConfigKey(width, height, values)
+	} else {
+		args = BuildCommandArgs(saver, values)
+		argsKey = fmt.Sprintf("%v", args)
+	}
+
+	cmd := exec.Command("nice", append([]string{"-n", "19", binPath}, args...)...)
+	cmd.Env = mergeEnv(xvfbEnv(sess.displayString()), extraEnv)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
+
+	if err := cmd.Start(); err != nil {
+		if tempDir != "" {
+			_ = os.RemoveAll(tempDir)
+		}
+		return fmt.Errorf("failed to start xscreensaver binary %s: %w", binPath, err)
+	}
+
+	sess.hackCmd = cmd
+	sess.tempDir = tempDir
+	sess.activeSaver = saver.ID
+	sess.activeArgs = argsKey
+
+	go func(targetCmd *exec.Cmd, restartSaver models.Screensaver, restartValues map[string]any) {
+		_ = targetCmd.Wait()
+		sess.mu.Lock()
+		defer sess.mu.Unlock()
+		if sess.hackCmd == targetCmd {
+			sess.hackCmd = nil
+			if sess.tempDir != "" {
+				_ = os.RemoveAll(sess.tempDir)
+				sess.tempDir = ""
+			}
+			sess.activeSaver = ""
+			sess.activeArgs = ""
+			if len(sess.activeStreams) > 0 {
+				// Restart the user's selected hack if it exited while viewers are still connected,
+				// rather than replacing it with glmatrix.
+				_ = sess.startSaverProcessLocked(restartSaver, restartValues, sess.width, sess.height)
+			}
+		}
+	}(cmd, saver, values)
+
+	return nil
 }
 
 // ensureRunning starts Xvfb and launches the requested XScreenSaver binary on the virtual root window.
@@ -350,8 +435,13 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 		return err
 	}
 
-	args := BuildCommandArgs(saver, values)
-	argsKey := fmt.Sprintf("%v", args)
+	var argsKey string
+	if IsCelestiaTourSaver(saver) {
+		argsKey = CelestiaConfigKey(width, height, values)
+	} else {
+		args := BuildCommandArgs(saver, values)
+		argsKey = fmt.Sprintf("%v", args)
+	}
 
 	if sess.activeSaver == saver.ID && sess.activeArgs == argsKey && sess.hackCmd != nil && sess.hackCmd.Process != nil {
 		if err := sess.hackCmd.Process.Signal(syscall.Signal(0)); err == nil {
@@ -362,41 +452,9 @@ func (sess *session) ensureRunning(saver models.Screensaver, values map[string]a
 	sess.stopHackLocked()
 	sess.clearRootWindow()
 
-	cmd := exec.Command("nice", append([]string{"-n", "19", saver.BinaryPath}, args...)...)
-	cmd.Env = xvfbEnv(sess.displayString())
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start xscreensaver binary %s: %w", saver.BinaryPath, err)
+	if err := sess.startSaverProcessLocked(saver, values, width, height); err != nil {
+		return err
 	}
-
-	sess.hackCmd = cmd
-	sess.activeSaver = saver.ID
-	sess.activeArgs = argsKey
-
-	go func(targetCmd *exec.Cmd, restartSaver models.Screensaver, restartValues map[string]any) {
-		_ = targetCmd.Wait()
-		sess.mu.Lock()
-		defer sess.mu.Unlock()
-		if sess.hackCmd == targetCmd {
-			sess.hackCmd = nil
-			sess.activeSaver = ""
-			sess.activeArgs = ""
-			if len(sess.activeStreams) > 0 {
-				// Restart the user's selected hack if it exited while viewers are still connected,
-				// rather than replacing it with glmatrix.
-				retryArgs := BuildCommandArgs(restartSaver, restartValues)
-				retryCmd := exec.Command("nice", append([]string{"-n", "19", restartSaver.BinaryPath}, retryArgs...)...)
-				retryCmd.Env = xvfbEnv(sess.displayString())
-				retryCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
-				if err := retryCmd.Start(); err == nil {
-					sess.hackCmd = retryCmd
-					sess.activeSaver = restartSaver.ID
-					sess.activeArgs = fmt.Sprintf("%v", retryArgs)
-				}
-			}
-		}
-	}(cmd, saver, values)
 
 	// Wait briefly while holding sess.mu so a concurrent viewer request on the same
 	// monitor cannot interleave and kill the newly launched hack during initialization.

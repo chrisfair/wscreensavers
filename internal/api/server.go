@@ -44,6 +44,7 @@ type Server struct {
 	lastSwitchAt   time.Time
 	lastWakeMs     int64
 	lastResumeMs   int64
+	screenDark     bool
 }
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
@@ -139,10 +140,17 @@ func (s *Server) RecordWake() int64 {
 	now := time.Now().UnixMilli()
 	s.mu.Lock()
 	s.lastWakeMs = now
+	s.screenDark = false
 	s.mu.Unlock()
 	s.idleMon.RecordActivity()
 	layershell.WakeAllWindows()
 	return now
+}
+
+func (s *Server) IsScreenDark() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.screenDark
 }
 
 func (s *Server) LastWakeMs() int64 {
@@ -158,10 +166,12 @@ func (s *Server) RefreshCatalog() []models.Screensaver {
 		nativeNames[strings.ToLower(b.ID)] = true
 		nativeNames[strings.ToLower(b.Name)] = true
 	}
+	extEngines := xscreensaver.DiscoverExternalEngines()
 	external := xscreensaver.DiscoverSystemXScreenSavers(nativeNames)
 
-	all := make([]models.Screensaver, 0, len(builtins)+len(external))
+	all := make([]models.Screensaver, 0, len(builtins)+len(extEngines)+len(external))
 	all = append(all, builtins...)
+	all = append(all, extEngines...)
 	all = append(all, external...)
 
 	s.mu.Lock()
@@ -431,6 +441,8 @@ func (s *Server) SetWallpaperActive(enabled bool, saverID string) error {
 }
 
 func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
+	s.cfgMgr.SyncHostIdleIfDefault()
+
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -800,12 +812,14 @@ func (s *Server) handleOverlayExited(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lastWakeMs": wakeMs})
 }
 
-// SetDPMS is intentionally a software-only no-op: screen blanking while locked
-// or idle uses the layer-shell black curtain and pauses canvas rendering so
-// Wayland wl_output globals, DRM/KMS CRTCs, and gtk-layer-shell keyboard focus
+// SetDPMS tracks software screen-blanking state without toggling hardware compositor DPMS:
+// screen blanking while locked or idle uses the layer-shell black curtain and pauses canvas
+// rendering so Wayland wl_output globals, DRM/KMS CRTCs, and gtk-layer-shell keyboard focus
 // are never unmapped or toggled via compositor IPC.
 func (s *Server) SetDPMS(on bool) error {
-	_ = on
+	s.mu.Lock()
+	s.screenDark = !on
+	s.mu.Unlock()
 	return nil
 }
 

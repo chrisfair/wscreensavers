@@ -658,7 +658,9 @@ const isWallpaperSurface = ref(urlParams.get('wallpaper') === '1');
 const isLockedSurface = ref(urlParams.get('locked') === '1');
 const surfaceSaverParam = ref(urlParams.get('saver') || '');
 const apiBase = ref(urlParams.get('api') || '');
-const dpmsMinutesParam = ref(parseInt(urlParams.get('dpms') || '30', 10));
+const rawDpmsParam = urlParams.get('dpms');
+const parsedDpmsParam = rawDpmsParam !== null ? parseInt(rawDpmsParam, 10) : 30;
+const dpmsMinutesParam = ref(Number.isNaN(parsedDpmsParam) ? 30 : parsedDpmsParam);
 const isScreenDark = ref(false);
 
 const inWindowFullscreen = ref(false);
@@ -776,7 +778,7 @@ const config = ref({
   xssMaxStreamDim: 1920,
   enabledSavers: [],
   saverParams: {},
-  dpmsOffMinutes: 30
+  dpmsOffMinutes: dpmsMinutesParam.value
 });
 
 const otherWallpapers = ref([]);

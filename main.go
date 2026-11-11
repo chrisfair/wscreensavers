@@ -221,6 +221,9 @@ func main() {
 						if cfg.Mode != "random" && cfg.Mode != "cycle" {
 							continue
 						}
+						if srv.IsScreenDark() {
+							continue
+						}
 						if *lockMode && time.Now().UnixMilli()-srv.LastWakeMs() < 12000 {
 							continue
 						}

@@ -465,6 +465,15 @@ describe('ParameterPanel.vue', () => {
       }
     });
     expect(wrapper.text()).toContain('no user-tunable parameters');
+    expect(wrapper.text()).toContain('Native Wayland WebGL2/Canvas');
+
+    const celWrapper = mount(ParameterPanel, {
+      props: {
+        saver: { id: 'xss_celestia_tour', name: 'Celestia 1.6: Solar System Grand Tour', engine: 'celestia', params: [] },
+        values: {}
+      }
+    });
+    expect(celWrapper.text()).toContain('Celestia 1.6 OpenGL Engine');
   });
 
   it('renders range, select, boolean, color, and text inputs and emits updates/reset', async () => {

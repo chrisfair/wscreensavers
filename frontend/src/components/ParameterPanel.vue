@@ -4,7 +4,7 @@
       <div>
         <h4>{{ saver.name }} Parameters</h4>
         <span class="engine-badge" :class="saver.engine">
-          {{ saver.engine === 'native' ? 'Native Wayland WebGL2/Canvas' : 'XScreenSaver XML Bridge' }}
+          {{ saver.engine === 'native' ? 'Native Wayland WebGL2/Canvas' : saver.engine === 'celestia' ? 'Celestia 1.6 OpenGL Engine' : 'XScreenSaver XML Bridge' }}
         </span>
       </div>
       <button class="reset-btn" @click="$emit('reset')">Reset Defaults</button>
@@ -135,6 +135,11 @@ function formatVal(v) {
   background: rgba(245, 158, 11, 0.16);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.engine-badge.celestia {
+  background: rgba(56, 189, 248, 0.16);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
 }
 .reset-btn {
   padding: 6px 11px;

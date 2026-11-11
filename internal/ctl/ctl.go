@@ -50,8 +50,13 @@ func allSavers() []models.Screensaver {
 		nativeNames[strings.ToLower(b.ID)] = true
 		nativeNames[strings.ToLower(b.Name)] = true
 	}
+	extEngines := xscreensaver.DiscoverExternalEngines()
 	ext := xscreensaver.DiscoverSystemXScreenSavers(nativeNames)
-	return append(builtins, ext...)
+	all := make([]models.Screensaver, 0, len(builtins)+len(extEngines)+len(ext))
+	all = append(all, builtins...)
+	all = append(all, extEngines...)
+	all = append(all, ext...)
+	return all
 }
 
 func isWallpaperProcessRunning() bool {

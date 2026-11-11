@@ -31,6 +31,8 @@ local TIMEOUTS = {
   { 15, "15 min" },
   { 30, "30 min" },
   { 60, "60 min" },
+  { 90, "90 min" },
+  { 120, "120 min" },
 }
 
 local CYCLE_TIMEOUTS = {
@@ -47,6 +49,8 @@ local DPMS_TIMEOUTS = {
   { 15, "15 min" },
   { 30, "30 min" },
   { 60, "60 min" },
+  { 90, "90 min" },
+  { 120, "120 min" },
 }
 
 local MONITOR_MODES = {
