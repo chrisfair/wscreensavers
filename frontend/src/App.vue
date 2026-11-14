@@ -692,7 +692,7 @@ const username = ref('user');
 const showSupportModal = ref(false);
 const showAboutModal = ref(false);
 const isSupporter = ref(false);
-const appVersion = ref('1.1.24');
+const appVersion = ref('1.1.25');
 const openMenu = ref(null);
 
 const themeOptions = {

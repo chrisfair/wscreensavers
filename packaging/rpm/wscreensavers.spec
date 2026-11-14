@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.24
+Version:        1.1.25
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Sat Nov 14 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.25-1
+- Release v1.1.25: pause/mute audio playback on lock, resume prior playback on unlock, and stop active recordings on lock
+
 * Tue Oct 27 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.9-1
 - Release v1.1.9: migrate desktop Control Center from Wails v2 to Wails v3 (v3.0.0) with GTK3/WebKit2GTK 4.1 service bindings
 
