@@ -151,6 +151,10 @@ savers, or clear the pool.
 .B gui
 Launch the Studio Control Center desktop window in the background.
 .TP
+.B media\-lock\fR, \fBmedia\-unlock
+Engage or release the screen-lock media and recording guard directly (for example,
+from external compositor or shell lock/unlock hooks).
+.TP
 .B nag \fR[\fBoff\fR|\fBdisable\fR|\fBstatus\fR]
 Permanently disable or inspect the startup community support reminder.
 .TP
@@ -196,11 +200,20 @@ Whether idle activation locks the screen (\fBtrue\fR/\fBfalse\fR).
 .TP
 .B lockProvider
 Lock implementation:
-.B internal
+.B native
 (built-in PAM overlay),
 .BR hyprlock ,
 or
 .BR swaylock .
+.TP
+.B pauseMediaOnLock
+Pause active MPRIS/CLI media players and mute PipeWire/PulseAudio outputs when
+the screen locks, restoring mute states and resuming previously playing media
+on unlock (\fBtrue\fR/\fBfalse\fR, default \fBtrue\fR).
+.TP
+.B stopRecordingOnLock
+Stop active screen, audio, and webcam recordings and mute capture sources while
+the screen is locked (\fBtrue\fR/\fBfalse\fR, default \fBtrue\fR).
 .TP
 .B showClockOnSaver
 Display a digital clock HUD overlay on active screensavers (\fBtrue\fR/\fBfalse\fR).

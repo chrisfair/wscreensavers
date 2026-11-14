@@ -41,6 +41,8 @@ func DefaultConfig() models.AppConfig {
 		LockEnabled:           true,
 		LockGraceSeconds:      5,
 		LockProvider:          "native",
+		PauseMediaOnLock:      true,
+		StopRecordingOnLock:   true,
 		ShowClockOnSaver:      true,
 		InhibitOnAudio:        true,
 		InhibitOnFullscreen:   true,
@@ -293,6 +295,11 @@ func (m *Manager) ResetSaverParams(saverID string, schema []models.SaverParam) m
 
 func (m *Manager) Path() string {
 	return m.configPath
+}
+
+// IsSystemDefault reports whether this Manager manages the primary user config.
+func (m *Manager) IsSystemDefault() bool {
+	return m.isSystemDefault
 }
 
 // ShufflePath is where the persistent random-rotation state lives, beside the config.

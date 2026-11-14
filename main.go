@@ -25,6 +25,7 @@ import (
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/idle"
 	"wscreensavers/internal/layershell"
+	"wscreensavers/internal/mediaguard"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/singleton"
 	"wscreensavers/internal/version"
@@ -140,6 +141,15 @@ func main() {
 		}
 		defer srv.ShutdownEmbedded()
 
+		var lockGuard *mediaguard.Guard
+		stopMediaGuard := func() {}
+		if *lockMode {
+			cfg := cfgMgr.Get()
+			lockGuard = mediaguard.New("")
+			lockGuard.Engage(cfg.PauseMediaOnLock, cfg.StopRecordingOnLock)
+			stopMediaGuard = lockGuard.StartWatchLoop(cfg.PauseMediaOnLock, cfg.StopRecordingOnLock)
+		}
+
 		// Overlays and wallpapers are stopped with SIGTERM; cleanly tear down
 		// GTK layer-shell surfaces and unmap Wayland windows before process exit.
 		var terminatedBySignal atomic.Bool
@@ -148,6 +158,10 @@ func main() {
 		go func() {
 			<-sigCh
 			terminatedBySignal.Store(true)
+			stopMediaGuard()
+			if lockGuard != nil {
+				lockGuard.Release()
+			}
 			srv.ShutdownEmbedded()
 			layershell.RequestQuit()
 			time.Sleep(150 * time.Millisecond)
@@ -239,6 +253,10 @@ func main() {
 
 		layershell.RunLayerShellWindows(urls, *wallpaperMode, *lockMode)
 		close(stopCycleCh)
+		stopMediaGuard()
+		if lockGuard != nil {
+			lockGuard.Release()
+		}
 
 		if stopSeatWake != nil {
 			stopSeatWake()

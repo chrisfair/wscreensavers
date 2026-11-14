@@ -395,6 +395,8 @@ render = function()
     local poolCount = #(cfg.enabledSavers or {})
 
     local toggleLock = callback("tLock", function() setConfig("lockEnabled", not cfg.lockEnabled) end)
+    local togglePauseLock = callback("tPauseLock", function() setConfig("pauseMediaOnLock", cfg.pauseMediaOnLock == false) end)
+    local toggleStopRecLock = callback("tStopRecLock", function() setConfig("stopRecordingOnLock", cfg.stopRecordingOnLock == false) end)
     local toggleAudio = callback("tAudio", function() setConfig("inhibitOnAudio", not cfg.inhibitOnAudio) end)
     local toggleFs = callback("tFs", function() setConfig("inhibitOnFullscreen", not cfg.inhibitOnFullscreen) end)
     local toggleClock = callback("tClock", function() setConfig("showClockOnSaver", not cfg.showClockOnSaver) end)
@@ -440,6 +442,8 @@ render = function()
       ui.row({ gap = 6, align = "center" }, {
         ui.label({ text = tr("security_inhibitors") .. ":", fontSize = 12, color = "on_surface_variant" }),
         ui.button({ text = tr("pam_lock"), controlSize = "sm", variant = cfg.lockEnabled and "primary" or "ghost", selected = cfg.lockEnabled, onClick = toggleLock }),
+        ui.button({ text = tr("pause_media_lock"), controlSize = "sm", variant = (cfg.pauseMediaOnLock ~= false) and "primary" or "ghost", selected = (cfg.pauseMediaOnLock ~= false), onClick = togglePauseLock }),
+        ui.button({ text = tr("stop_rec_lock"), controlSize = "sm", variant = (cfg.stopRecordingOnLock ~= false) and "primary" or "ghost", selected = (cfg.stopRecordingOnLock ~= false), onClick = toggleStopRecLock }),
         ui.button({ text = tr("audio_inhibit"), controlSize = "sm", variant = cfg.inhibitOnAudio and "primary" or "ghost", selected = cfg.inhibitOnAudio, onClick = toggleAudio }),
         ui.button({ text = tr("fullscreen_inhibit"), controlSize = "sm", variant = cfg.inhibitOnFullscreen and "primary" or "ghost", selected = cfg.inhibitOnFullscreen, onClick = toggleFs }),
         ui.button({ text = tr("hud_clock"), controlSize = "sm", variant = cfg.showClockOnSaver and "primary" or "ghost", selected = cfg.showClockOnSaver, onClick = toggleClock }),

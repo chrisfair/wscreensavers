@@ -751,6 +751,8 @@ describe('App.vue Control Center', () => {
       lockEnabled: true,
       lockGraceSeconds: 5,
       lockProvider: 'native',
+      pauseMediaOnLock: true,
+      stopRecordingOnLock: true,
       showClockOnSaver: true,
       inhibitOnAudio: true,
       inhibitOnFullscreen: true,

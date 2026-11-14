@@ -15,6 +15,7 @@ import (
 	"wscreensavers/internal/catalog"
 	"wscreensavers/internal/config"
 	"wscreensavers/internal/display"
+	"wscreensavers/internal/mediaguard"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/support"
@@ -67,6 +68,7 @@ func isWallpaperProcessRunning() bool {
 var (
 	daemonBaseURL      = "http://127.0.0.1:8642"
 	executablePathFunc = os.Executable
+	mediaGuardDir      = ""
 )
 
 func tryDaemonPost(endpoint string, reqBody any) bool {
@@ -234,6 +236,10 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			cfg.LockEnabled = val == "true" || val == "1" || val == "on"
 		case "lockProvider":
 			cfg.LockProvider = val
+		case "pauseMediaOnLock":
+			cfg.PauseMediaOnLock = val == "true" || val == "1" || val == "on"
+		case "stopRecordingOnLock":
+			cfg.StopRecordingOnLock = val == "true" || val == "1" || val == "on"
 		case "showClockOnSaver":
 			cfg.ShowClockOnSaver = val == "true" || val == "1" || val == "on"
 		case "inhibitOnAudio":
@@ -528,6 +534,16 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			}
 		}
 		return printStatus(cfgMgr)
+
+	case "media-lock":
+		g := mediaguard.New(mediaGuardDir)
+		g.EngageWithSource("ctl", cfg.PauseMediaOnLock, cfg.StopRecordingOnLock)
+		return nil
+
+	case "media-unlock":
+		g := mediaguard.New(mediaGuardDir)
+		g.Release()
+		return nil
 
 	case "gui":
 		if err := spawnDetached(); err != nil {

@@ -36,6 +36,10 @@ func TestCtlCommands(t *testing.T) {
 	daemonBaseURL = "http://127.0.0.1:1"
 	defer func() { daemonBaseURL = origDaemon }()
 
+	origGuardDir := mediaGuardDir
+	mediaGuardDir = tmpDir
+	defer func() { mediaGuardDir = origGuardDir }()
+
 	if err := Run(cfgMgr, nil); err != nil {
 		t.Fatalf("expected empty args status to succeed, got: %v", err)
 	}
@@ -60,6 +64,8 @@ func TestCtlCommands(t *testing.T) {
 		{"set", "cycleTimeoutMinutes", "10"},
 		{"set", "lockEnabled", "false"},
 		{"set", "lockProvider", "hyprlock"},
+		{"set", "pauseMediaOnLock", "false"},
+		{"set", "stopRecordingOnLock", "false"},
 		{"set", "showClockOnSaver", "false"},
 		{"set", "inhibitOnAudio", "false"},
 		{"set", "inhibitOnFullscreen", "false"},
@@ -109,6 +115,8 @@ func TestCtlCommands(t *testing.T) {
 		{"wallpaper", "toggle"},
 		{"wallpaper", "shuffle"},
 		{"gui"},
+		{"media-lock"},
+		{"media-unlock"},
 		{"nag", "off"},
 		{"nag", "status"},
 	}

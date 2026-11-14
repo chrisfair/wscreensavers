@@ -20,6 +20,8 @@
   "mon_per_monitor": "Per-Monitor",
   "security_inhibitors": "Lock & Media Inhibitors",
   "pam_lock": "PAM Lock",
+  "pause_media_lock": "Pause Audio on Lock",
+  "stop_rec_lock": "Stop Recording on Lock",
   "audio_inhibit": "Audio Inhibit",
   "fullscreen_inhibit": "Fullscreen Inhibit",
   "hud_clock": "Clock HUD",

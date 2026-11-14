@@ -116,6 +116,14 @@
               <span class="menu-check">{{ config.inhibitOnFullscreen ? '✓' : '' }}</span>
               <span>Inhibit When Fullscreen App Active</span>
             </button>
+            <button class="menu-entry" type="button" @click="toggleBoolConfig('pauseMediaOnLock')">
+              <span class="menu-check">{{ config.pauseMediaOnLock ? '✓' : '' }}</span>
+              <span>Pause &amp; Mute Audio on Lock</span>
+            </button>
+            <button class="menu-entry" type="button" @click="toggleBoolConfig('stopRecordingOnLock')">
+              <span class="menu-check">{{ config.stopRecordingOnLock ? '✓' : '' }}</span>
+              <span>Stop All Recordings on Lock</span>
+            </button>
             <div class="menu-divider"></div>
             <div class="menu-section-label">Activation Mode</div>
             <button
@@ -443,6 +451,17 @@
                 <span>Inhibit when Fullscreen Game or Video is Active</span>
               </label>
             </div>
+
+            <div class="setting-box checkboxes">
+              <label class="chk">
+                <input type="checkbox" v-model="config.pauseMediaOnLock" @change="persistConfig" />
+                <span>Pause &amp; Mute All Audio on Lock (Resume on Unlock)</span>
+              </label>
+              <label class="chk">
+                <input type="checkbox" v-model="config.stopRecordingOnLock" @change="persistConfig" />
+                <span>Stop Active Audio/Video Recordings on Lock</span>
+              </label>
+            </div>
           </div>
 
           <!-- Tab 2: Multi-Monitor Topology -->
@@ -766,6 +785,8 @@ const config = ref({
   lockEnabled: true,
   lockGraceSeconds: 5,
   lockProvider: 'native',
+  pauseMediaOnLock: true,
+  stopRecordingOnLock: true,
   showClockOnSaver: true,
   inhibitOnAudio: true,
   inhibitOnFullscreen: true,

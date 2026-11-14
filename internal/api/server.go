@@ -18,6 +18,7 @@ import (
 	"wscreensavers/internal/display"
 	"wscreensavers/internal/idle"
 	"wscreensavers/internal/layershell"
+	"wscreensavers/internal/mediaguard"
 	"wscreensavers/internal/models"
 	"wscreensavers/internal/shuffle"
 	"wscreensavers/internal/support"
@@ -447,10 +448,17 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 	defer ticker.Stop()
 
 	var lastWallpaperSwitchAt time.Time
+	var extLockGuard *mediaguard.Guard
+	extWatchActive := false
+	stopExtWatch := func() {}
+	if s.cfgMgr.IsSystemDefault() {
+		extLockGuard = mediaguard.New("")
+	}
 
 	for {
 		select {
 		case <-stopCh:
+			stopExtWatch()
 			s.layerCtrl.StopAll()
 			s.xssRunner.StopAll()
 			return
@@ -458,6 +466,25 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 			cfg := s.cfgMgr.Get()
 			st := s.idleMon.Status(cfg.InhibitOnAudio, cfg.InhibitOnFullscreen)
 			lockRunning := s.layerCtrl.IsLockRunning()
+			if extLockGuard != nil {
+				extLocker := !lockRunning && mediaguard.IsExternalLockerRunning()
+				if extLocker {
+					extLockGuard.EngageWithSource("daemon", cfg.PauseMediaOnLock, cfg.StopRecordingOnLock)
+					if !extWatchActive {
+						stopExtWatch = extLockGuard.StartWatchLoop(cfg.PauseMediaOnLock, cfg.StopRecordingOnLock)
+						extWatchActive = true
+					}
+				} else if !lockRunning {
+					if extWatchActive {
+						stopExtWatch()
+						stopExtWatch = func() {}
+						extWatchActive = false
+						extLockGuard.Release()
+					} else if mediaguard.HasActiveState("") {
+						mediaguard.RecoverIfUnlocked("")
+					}
+				}
+			}
 			saverRunning := lockRunning || s.layerCtrl.IsSaverRunning()
 			if lockRunning && (!st.ScreensaverActive || !st.Locked) {
 				now := time.Now()

@@ -97,6 +97,8 @@ type AppConfig struct {
 	LockEnabled         bool                      `json:"lockEnabled"`
 	LockGraceSeconds    int                       `json:"lockGraceSeconds"`
 	LockProvider        string                    `json:"lockProvider"` // "native", "hyprlock", "swaylock"
+	PauseMediaOnLock    bool                      `json:"pauseMediaOnLock"`
+	StopRecordingOnLock bool                      `json:"stopRecordingOnLock"`
 	ShowClockOnSaver    bool                      `json:"showClockOnSaver"`
 	InhibitOnAudio      bool                      `json:"inhibitOnAudio"`
 	InhibitOnFullscreen bool                      `json:"inhibitOnFullscreen"`
