@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.25
+Version:        1.1.26
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Sun Nov 15 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.26-1
+- Release v1.1.26: power off monitor backlights via compositor DPMS standby on blank and hide pointer cursor on lock/saver overlays
+
 * Sat Nov 14 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.25-1
 - Release v1.1.25: pause/mute audio playback on lock, resume prior playback on unlock, and stop active recordings on lock
 
