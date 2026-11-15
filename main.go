@@ -158,6 +158,7 @@ func main() {
 		go func() {
 			<-sigCh
 			terminatedBySignal.Store(true)
+			_ = srv.SetDPMS(true)
 			stopMediaGuard()
 			if lockGuard != nil {
 				lockGuard.Release()
@@ -183,13 +184,17 @@ func main() {
 		var stopSeatWake func()
 		if *saverMode || *lockMode {
 			stopSeatWake = idle.StartSeatWakeListener(func() {
+				nowMs := time.Now().UnixMilli()
+				if nowMs-srv.LastDPMSOffMs() < 650 {
+					return
+				}
 				if *saverMode {
-					if time.Now().UnixMilli()-startedAtMs.Load() > 900 {
+					if nowMs-startedAtMs.Load() > 900 {
 						_ = srv.SetDPMS(true)
 						layershell.RequestQuit()
 					}
 				} else if *lockMode {
-					if time.Now().UnixMilli()-startedAtMs.Load() > 1500 {
+					if nowMs-startedAtMs.Load() > 1500 {
 						srv.RecordWake()
 						go func() {
 							_ = srv.SetDPMS(true)

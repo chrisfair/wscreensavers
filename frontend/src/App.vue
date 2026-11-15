@@ -1,6 +1,12 @@
 <template>
   <!-- Mode A: Fullscreen Wayland Layer-Shell Surface (Screensaver, Lock Screen, or Live Wallpaper) -->
-  <div v-if="isFullscreenSurface || inWindowFullscreen" class="fullscreen-surface" @keydown.esc="exitInWindowFullscreen" tabindex="0">
+  <div
+    v-if="isFullscreenSurface || inWindowFullscreen"
+    class="fullscreen-surface"
+    :class="{ 'hide-cursor': isFullscreenSurface && !isWallpaperSurface && (!isLockedSurface || isScreenDark || isOverlayCursorHidden) }"
+    @keydown.esc="exitInWindowFullscreen"
+    tabindex="0"
+  >
     <SaverCanvas
       :saver-id="activeSaverId"
       :params="activeSaverParams"
@@ -20,6 +26,7 @@
       :api-base="apiBase"
       :dpms-minutes="config.dpmsOffMinutes ?? dpmsMinutesParam"
       @dark-change="isScreenDark = $event"
+      @cursor-hide-change="isOverlayCursorHidden = $event"
       @unlocked="handleUnlocked"
     />
     <button
@@ -681,6 +688,7 @@ const rawDpmsParam = urlParams.get('dpms');
 const parsedDpmsParam = rawDpmsParam !== null ? parseInt(rawDpmsParam, 10) : 30;
 const dpmsMinutesParam = ref(Number.isNaN(parsedDpmsParam) ? 30 : parsedDpmsParam);
 const isScreenDark = ref(false);
+const isOverlayCursorHidden = ref(true);
 
 const inWindowFullscreen = ref(false);
 const savers = ref([]);
@@ -1497,6 +1505,11 @@ html, body, #app {
   height: 100vh;
   background: #000;
   z-index: 9999;
+}
+
+.fullscreen-surface.hide-cursor,
+.fullscreen-surface.hide-cursor * {
+  cursor: none !important;
 }
 .exit-preview-btn {
   position: absolute;

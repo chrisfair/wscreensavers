@@ -2,6 +2,8 @@ package display
 
 import (
 	"encoding/json"
+	"flag"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -178,4 +180,87 @@ func detectXrandr() []models.MonitorOutput {
 		}
 	}
 	return res
+}
+
+var dpmsCommandRunner = defaultDPMSCommandRunner
+
+func defaultDPMSCommandRunner(name string, args ...string) error {
+	if os.Getenv("WSCREENSAVERS_DISABLE_HW_DPMS") == "1" {
+		return nil
+	}
+	// Never toggle physical display backlights on the host during `go test`
+	// unless a test explicitly opts in with isolated fake binaries in PATH.
+	if flag.Lookup("test.v") != nil && os.Getenv("WSCREENSAVERS_TEST_EXEC_DPMS") != "1" {
+		return nil
+	}
+	return exec.Command(name, args...).Run()
+}
+
+// SetMonitorsDPMS toggles hardware display power standby (DPMS) across outputs
+// so monitor backlights turn completely off while blanked, without calling
+// `wlr-randr --off` (which disconnects Wayland wl_output globals and unmaps layer-shell surfaces).
+func SetMonitorsDPMS(on bool) error {
+	onOff := "off"
+	if on {
+		onOff = "on"
+	}
+
+	if os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") != "" {
+		if _, err := exec.LookPath("hyprctl"); err == nil {
+			return dpmsCommandRunner("hyprctl", "dispatch", "dpms", onOff)
+		}
+	}
+
+	if os.Getenv("NIRI_SOCKET") != "" {
+		if _, err := exec.LookPath("niri"); err == nil {
+			action := "power-off-monitors"
+			if on {
+				action = "power-on-monitors"
+			}
+			return dpmsCommandRunner("niri", "msg", "action", action)
+		}
+	}
+
+	if os.Getenv("SWAYSOCK") != "" {
+		if _, err := exec.LookPath("swaymsg"); err == nil {
+			return dpmsCommandRunner("swaymsg", "output", "*", "power", onOff)
+		}
+	}
+
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		if _, err := exec.LookPath("wlopm"); err == nil {
+			flagArg := "--off"
+			if on {
+				flagArg = "--on"
+			}
+			return dpmsCommandRunner("wlopm", flagArg, "*")
+		}
+		if _, err := exec.LookPath("hyprctl"); err == nil {
+			if err := dpmsCommandRunner("hyprctl", "dispatch", "dpms", onOff); err == nil {
+				return nil
+			}
+		}
+		if _, err := exec.LookPath("niri"); err == nil {
+			action := "power-off-monitors"
+			if on {
+				action = "power-on-monitors"
+			}
+			if err := dpmsCommandRunner("niri", "msg", "action", action); err == nil {
+				return nil
+			}
+		}
+		if _, err := exec.LookPath("swaymsg"); err == nil {
+			if err := dpmsCommandRunner("swaymsg", "output", "*", "power", onOff); err == nil {
+				return nil
+			}
+		}
+	}
+
+	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		if _, err := exec.LookPath("xset"); err == nil {
+			return dpmsCommandRunner("xset", "dpms", "force", onOff)
+		}
+	}
+
+	return nil
 }

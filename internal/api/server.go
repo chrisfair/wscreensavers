@@ -45,7 +45,9 @@ type Server struct {
 	lastSwitchAt   time.Time
 	lastWakeMs     int64
 	lastResumeMs   int64
+	lastDPMSOffMs  int64
 	screenDark     bool
+	hwDPMSOff      bool
 }
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
@@ -61,10 +63,22 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 		lastWakeMs:  time.Now().UnixMilli(),
 	}
 	idleMon.OnResume(func() {
+		now := time.Now().UnixMilli()
 		srv.mu.Lock()
-		srv.lastWakeMs = time.Now().UnixMilli()
+		recentOff := now-srv.lastDPMSOffMs < 650
+		needHWOn := !recentOff && srv.hwDPMSOff
+		if !recentOff {
+			srv.lastWakeMs = now
+			srv.screenDark = false
+			srv.hwDPMSOff = false
+		}
 		srv.mu.Unlock()
-		layershell.WakeAllWindows()
+		if needHWOn {
+			_ = display.SetMonitorsDPMS(true)
+		}
+		if !recentOff {
+			layershell.WakeAllWindows()
+		}
 	})
 	srv.layerCtrl = layershell.NewProcessController(func() {
 		_ = srv.SetDPMS(true)
@@ -140,9 +154,14 @@ func (s *Server) ResumeWallpaperAfterOverlay() {
 func (s *Server) RecordWake() int64 {
 	now := time.Now().UnixMilli()
 	s.mu.Lock()
+	needHWOn := s.hwDPMSOff
 	s.lastWakeMs = now
 	s.screenDark = false
+	s.hwDPMSOff = false
 	s.mu.Unlock()
+	if needHWOn {
+		go func() { _ = display.SetMonitorsDPMS(true) }()
+	}
 	s.idleMon.RecordActivity()
 	layershell.WakeAllWindows()
 	return now
@@ -158,6 +177,12 @@ func (s *Server) LastWakeMs() int64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.lastWakeMs
+}
+
+func (s *Server) LastDPMSOffMs() int64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.lastDPMSOffMs
 }
 
 func (s *Server) RefreshCatalog() []models.Screensaver {
@@ -839,14 +864,35 @@ func (s *Server) handleOverlayExited(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lastWakeMs": wakeMs})
 }
 
-// SetDPMS tracks software screen-blanking state without toggling hardware compositor DPMS:
-// screen blanking while locked or idle uses the layer-shell black curtain and pauses canvas
-// rendering so Wayland wl_output globals, DRM/KMS CRTCs, and gtk-layer-shell keyboard focus
-// are never unmapped or toggled via compositor IPC.
+// SetDPMS manages both software blanking state and compositor hardware DPMS standby.
+// Hardware DPMS transitions are deduplicated so IPC is invoked only on actual state changes
+// (and never via `wlr-randr --off`, preserving Wayland wl_output globals and layer-shell focus).
 func (s *Server) SetDPMS(on bool) error {
+	if !on {
+		layershell.SetCursorHidden(true)
+		now := time.Now().UnixMilli()
+		s.mu.Lock()
+		needOff := !s.hwDPMSOff
+		s.screenDark = true
+		s.hwDPMSOff = true
+		if needOff {
+			s.lastDPMSOffMs = now
+		}
+		s.mu.Unlock()
+		if needOff {
+			return display.SetMonitorsDPMS(false)
+		}
+		return nil
+	}
+
 	s.mu.Lock()
-	s.screenDark = !on
+	needOn := s.hwDPMSOff || s.screenDark
+	s.screenDark = false
+	s.hwDPMSOff = false
 	s.mu.Unlock()
+	if needOn {
+		return display.SetMonitorsDPMS(true)
+	}
 	return nil
 }
 

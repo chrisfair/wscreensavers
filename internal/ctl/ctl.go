@@ -379,6 +379,7 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		return printStatus(cfgMgr)
 
 	case "stop", "unlock":
+		_ = display.SetMonitorsDPMS(true)
 		_ = tryDaemonPost("/api/action/stop-saver", map[string]any{})
 		stopSaverProcesses()
 		stopLockProcesses()

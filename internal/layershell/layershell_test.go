@@ -40,6 +40,8 @@ func TestProcessControllerLifecycle(t *testing.T) {
 	ReloadLayerShellWindows([]string{"http://127.0.0.1:8642/?mode=fullscreen&saver=flurry"})
 	RequestQuit()
 	WakeAllWindows()
+	SetCursorHidden(true)
+	SetCursorHidden(false)
 
 	ctrl.stopSaverOnly()
 	ctrl.StopSaverOverlay()

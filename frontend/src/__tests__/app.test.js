@@ -646,14 +646,25 @@ describe('LockScreenOverlay.vue', () => {
     });
 
     expect(wrapper.text()).toContain('christopher');
+    // Cursor starts hidden on lock overlay until actual mouse movement/click
+    expect(wrapper.find('.lock-overlay').classes()).toContain('hide-cursor');
     expect(typeof window.__wssWake).toBe('function');
+    expect(typeof window.__wssSetCursorHidden).toBe('function');
     window.__wssWake();
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }));
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
-    window.dispatchEvent(new KeyboardEvent('mousemove', { clientX: 20, clientY: 30 }));
-    window.dispatchEvent(new KeyboardEvent('mousemove', { clientX: 60, clientY: 90 }));
+    // Keyboard typing alone keeps cursor hidden; mouse click/move unhides it
+    expect(wrapper.find('.lock-overlay').classes()).toContain('hide-cursor');
+    await wrapper.find('.lock-overlay').trigger('click');
+    expect(wrapper.find('.lock-overlay').classes()).not.toContain('hide-cursor');
+    window.__wssSetCursorHidden(true);
+    await nextTick();
+    expect(wrapper.find('.lock-overlay').classes()).toContain('hide-cursor');
+    window.dispatchEvent(new MouseEvent('mousedown'));
+    await nextTick();
+    expect(wrapper.find('.lock-overlay').classes()).not.toContain('hide-cursor');
 
     // Failed unlock attempt
     await wrapper.find('form.pam-form').trigger('submit.prevent');

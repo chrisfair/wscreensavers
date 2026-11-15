@@ -201,6 +201,16 @@ func TestAPIServerEndpoints(t *testing.T) {
 			t.Errorf("expected 200 OK on %s, got %d", ep, res.StatusCode)
 		}
 	}
+	_ = srv.SetDPMS(false)
+	if !srv.IsScreenDark() || srv.LastDPMSOffMs() <= 0 {
+		t.Errorf("expected IsScreenDark=true and LastDPMSOffMs>0 after SetDPMS(false)")
+	}
+	// Duplicate SetDPMS(false) must remain dark without error
+	_ = srv.SetDPMS(false)
+	_ = srv.RecordWake()
+	if srv.IsScreenDark() {
+		t.Errorf("expected IsScreenDark=false after RecordWake()")
+	}
 
 	lockRes, err := http.Post(baseURL+"/api/action/lock", "application/json", strings.NewReader(`{"saverId":"random"}`))
 	if err != nil {

@@ -11,6 +11,10 @@ package layershell
 
 static int gtk_loop_active = 0;
 static int layer_is_wallpaper = 0;
+static int layer_is_locked = 0;
+static int cursor_currently_hidden = 0;
+static GdkCursor *blank_cursor = NULL;
+static guint cursor_hide_timer_id = 0;
 static GtkWidget *lock_windows[16];
 static int lock_window_count = 0;
 static GtkWidget *layer_windows[16];
@@ -19,6 +23,105 @@ static GtkWidget *layer_webviews[16];
 static int layer_webview_count = 0;
 static int *layer_motion_counters[16];
 static int active_monitor_idx = 0;
+
+static GdkCursor *ensure_blank_cursor(void) {
+    if (blank_cursor != NULL) {
+        return blank_cursor;
+    }
+    GdkDisplay *display = gdk_display_get_default();
+    if (display == NULL) {
+        return NULL;
+    }
+    blank_cursor = gdk_cursor_new_from_name(display, "none");
+    if (blank_cursor == NULL) {
+        blank_cursor = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
+    }
+    return blank_cursor;
+}
+
+static void set_gdk_window_tree_cursor(GdkWindow *gdk_win, GdkCursor *cursor) {
+    if (gdk_win == NULL) return;
+    gdk_window_set_cursor(gdk_win, cursor);
+    GList *children = gdk_window_peek_children(gdk_win);
+    for (GList *l = children; l != NULL; l = l->next) {
+        set_gdk_window_tree_cursor(GDK_WINDOW(l->data), cursor);
+    }
+}
+
+static void cancel_cursor_autohide_timer(void) {
+    if (cursor_hide_timer_id != 0) {
+        g_source_remove(cursor_hide_timer_id);
+        cursor_hide_timer_id = 0;
+    }
+}
+
+static void apply_all_layer_cursors(gboolean hidden) {
+    if (layer_is_wallpaper) return;
+    GdkCursor *cur = hidden ? ensure_blank_cursor() : NULL;
+    cursor_currently_hidden = hidden ? 1 : 0;
+    for (int i = 0; i < layer_window_count; i++) {
+        if (layer_windows[i] != NULL) {
+            set_gdk_window_tree_cursor(gtk_widget_get_window(layer_windows[i]), cur);
+        }
+    }
+    for (int i = 0; i < layer_webview_count; i++) {
+        if (layer_webviews[i] != NULL) {
+            set_gdk_window_tree_cursor(gtk_widget_get_window(layer_webviews[i]), cur);
+            webkit_web_view_evaluate_javascript(
+                WEBKIT_WEB_VIEW(layer_webviews[i]),
+                hidden
+                    ? "if(window.__wssSetCursorHidden)window.__wssSetCursorHidden(true);"
+                    : "if(window.__wssSetCursorHidden)window.__wssSetCursorHidden(false);",
+                -1, NULL, NULL, NULL, NULL, NULL
+            );
+        }
+    }
+    GdkDisplay *display = gdk_display_get_default();
+    if (display != NULL) {
+        gdk_display_flush(display);
+    }
+}
+
+static gboolean cursor_autohide_timeout_cb(gpointer data) {
+    (void)data;
+    cursor_hide_timer_id = 0;
+    if (gtk_loop_active && !layer_is_wallpaper) {
+        apply_all_layer_cursors(TRUE);
+    }
+    return FALSE;
+}
+
+static void schedule_lock_cursor_autohide(guint delay_ms) {
+    cancel_cursor_autohide_timer();
+    if (gtk_loop_active && !layer_is_wallpaper) {
+        cursor_hide_timer_id = g_timeout_add(delay_ms, cursor_autohide_timeout_cb, NULL);
+    }
+}
+
+static gboolean cursor_state_idle_cb(gpointer data) {
+    int hidden = GPOINTER_TO_INT(data);
+    if (gtk_loop_active && !layer_is_wallpaper) {
+        if (hidden) {
+            cancel_cursor_autohide_timer();
+        }
+        apply_all_layer_cursors(hidden ? TRUE : FALSE);
+    }
+    return FALSE;
+}
+
+static void request_gtk_cursor_hidden(int hidden) {
+    if (gtk_loop_active && !layer_is_wallpaper) {
+        g_idle_add(cursor_state_idle_cb, GINT_TO_POINTER(hidden ? 1 : 0));
+    }
+}
+
+static void apply_overlay_initial_blank_cursor(GtkWidget *widget, gpointer user_data) {
+    (void)user_data;
+    if (widget == NULL || layer_is_wallpaper) return;
+    if (cursor_currently_hidden) {
+        set_gdk_window_tree_cursor(gtk_widget_get_window(widget), ensure_blank_cursor());
+    }
+}
 
 static void apply_wallpaper_pass_through(GtkWidget *widget, gpointer user_data) {
     (void)user_data;
@@ -34,6 +137,14 @@ static void apply_wallpaper_pass_through(GtkWidget *widget, gpointer user_data) 
 }
 
 static void destroy_all_layer_windows(void) {
+    cancel_cursor_autohide_timer();
+    if (!layer_is_wallpaper) {
+        for (int i = 0; i < layer_window_count; i++) {
+            if (layer_windows[i] != NULL) {
+                set_gdk_window_tree_cursor(gtk_widget_get_window(layer_windows[i]), NULL);
+            }
+        }
+    }
     for (int i = 0; i < layer_webview_count; i++) {
         layer_webviews[i] = NULL;
     }
@@ -48,6 +159,10 @@ static void destroy_all_layer_windows(void) {
     }
     layer_window_count = 0;
     lock_window_count = 0;
+    if (blank_cursor != NULL) {
+        g_object_unref(blank_cursor);
+        blank_cursor = NULL;
+    }
     GdkDisplay *display = gdk_display_get_default();
     if (display != NULL) {
         gdk_display_flush(display);
@@ -290,6 +405,14 @@ static void on_window_map(GtkWidget *widget, gpointer user_data) {
         gtk_window_set_keep_above(GTK_WINDOW(widget), TRUE);
         gtk_window_present(GTK_WINDOW(widget));
     }
+    if (!layer_is_wallpaper && cursor_currently_hidden) {
+        if (widget != NULL) {
+            set_gdk_window_tree_cursor(gtk_widget_get_window(widget), ensure_blank_cursor());
+        }
+        if (webview != NULL) {
+            set_gdk_window_tree_cursor(gtk_widget_get_window(webview), ensure_blank_cursor());
+        }
+    }
     if (webview != NULL) {
         gtk_widget_grab_focus(webview);
     }
@@ -326,6 +449,10 @@ static gboolean on_lock_motion(GtkWidget *widget, GdkEventMotion *event, gpointe
         last_lock_motion_x = event->x_root;
         last_lock_motion_y = event->y_root;
     }
+    if (layer_is_locked && g_get_monotonic_time() >= suppress_wake_until_us) {
+        apply_all_layer_cursors(FALSE);
+        schedule_lock_cursor_autohide(5000);
+    }
     notify_all_webviews_wake();
     return FALSE;
 }
@@ -335,6 +462,10 @@ static gboolean on_lock_click(GtkWidget *widget, GdkEventButton *event, gpointer
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     focus_lock_window(win, GTK_WIDGET(user_data));
     suppress_wake_until_us = 0;
+    if (layer_is_locked) {
+        apply_all_layer_cursors(FALSE);
+        schedule_lock_cursor_autohide(5000);
+    }
     notify_all_webviews_wake();
     return FALSE;
 }
@@ -369,9 +500,20 @@ static gboolean on_button_dismiss(GtkWidget *widget, GdkEventButton *event, gpoi
     return TRUE;
 }
 
+static gboolean post_launch_cursor_hide_cb(gpointer data) {
+    (void)data;
+    if (gtk_loop_active && !layer_is_wallpaper && cursor_currently_hidden) {
+        apply_all_layer_cursors(TRUE);
+    }
+    return FALSE;
+}
+
 static void launch_layer_windows(const char **urls, int url_count, int is_wallpaper, int is_locked) {
     gtk_init(NULL, NULL);
     layer_is_wallpaper = is_wallpaper ? 1 : 0;
+    layer_is_locked = is_locked ? 1 : 0;
+    cursor_currently_hidden = is_wallpaper ? 0 : 1;
+    cancel_cursor_autohide_timer();
     lock_window_count = 0;
     layer_window_count = 0;
     layer_webview_count = 0;
@@ -500,6 +642,8 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             }
             gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
             gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_PRESS_MASK);
+            g_signal_connect(window, "realize", G_CALLBACK(apply_overlay_initial_blank_cursor), NULL);
+            g_signal_connect(webview, "realize", G_CALLBACK(apply_overlay_initial_blank_cursor), NULL);
             g_signal_connect(window, "map", G_CALLBACK(on_window_map), webview);
             g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
@@ -511,6 +655,8 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
         } else if (is_locked) {
             gtk_widget_add_events(window, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
             gtk_widget_add_events(webview, GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
+            g_signal_connect(window, "realize", G_CALLBACK(apply_overlay_initial_blank_cursor), NULL);
+            g_signal_connect(webview, "realize", G_CALLBACK(apply_overlay_initial_blank_cursor), NULL);
             g_signal_connect(window, "map", G_CALLBACK(on_window_map), webview);
             g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
@@ -527,16 +673,25 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
         if (is_wallpaper) {
             apply_wallpaper_pass_through(window, NULL);
             apply_wallpaper_pass_through(webview, NULL);
-        } else if (i == primary_idx) {
-            gtk_widget_grab_focus(webview);
+        } else {
+            apply_overlay_initial_blank_cursor(window, NULL);
+            apply_overlay_initial_blank_cursor(webview, NULL);
+            if (i == primary_idx) {
+                gtk_widget_grab_focus(webview);
+            }
         }
     }
 
     if (!is_wallpaper && layer_window_count > 0) {
+        apply_all_layer_cursors(TRUE);
         focus_lock_window(layer_windows[primary_idx], layer_webviews[primary_idx]);
     }
 
     gtk_loop_active = 1;
+    if (!is_wallpaper) {
+        g_timeout_add(250, post_launch_cursor_hide_cb, NULL);
+        g_timeout_add(900, post_launch_cursor_hide_cb, NULL);
+    }
     gtk_main();
     gtk_loop_active = 0;
 }
@@ -560,6 +715,15 @@ var executablePathFunc = os.Executable
 // RequestQuit signals the GTK main loop to destroy all layer-shell windows and exit cleanly.
 func RequestQuit() {
 	C.request_gtk_quit()
+}
+
+// SetCursorHidden hides or restores the pointer cursor across all active overlay windows.
+func SetCursorHidden(hidden bool) {
+	flag := C.int(0)
+	if hidden {
+		flag = 1
+	}
+	C.request_gtk_cursor_hidden(flag)
 }
 
 // WakeAllWindows signals all active layer-shell webviews across all monitors to wake up immediately.

@@ -1,5 +1,9 @@
 <template>
-  <div class="lock-overlay" @click="onOverlayClick">
+  <div
+    class="lock-overlay"
+    :class="{ 'hide-cursor': !locked || isDark || isCursorHidden }"
+    @click="onOverlayClick"
+  >
     <!-- Pitch black screen blanking curtain when inactive for dpmsMinutes -->
     <div v-if="isDark" class="dark-curtain"></div>
 
@@ -73,7 +77,7 @@ const props = defineProps({
   dpmsMinutes: { type: Number, default: 30 }
 });
 
-const emit = defineEmits(['unlocked', 'dark-change']);
+const emit = defineEmits(['unlocked', 'dark-change', 'cursor-hide-change']);
 
 const timeStr = ref('');
 const dateStr = ref('');
@@ -86,6 +90,15 @@ const passInput = ref(null);
 
 const isDimmed = ref(true);
 const isDark = ref(false);
+const isCursorHidden = ref(true);
+
+function setCursorHiddenState(hidden) {
+  const next = !props.locked ? true : Boolean(hidden);
+  if (isCursorHidden.value !== next) {
+    isCursorHidden.value = next;
+    emit('cursor-hide-change', next);
+  }
+}
 
 let clockTimer = null;
 let dimTimer = null;
@@ -117,6 +130,9 @@ function focusInput() {
 }
 
 function onOverlayClick() {
+  if (props.locked) {
+    setCursorHiddenState(false);
+  }
   handleUserActivity(false, null, true);
 }
 
@@ -124,6 +140,7 @@ function dimLockCard() {
   password.value = '';
   showPassword.value = false;
   isDimmed.value = true;
+  setCursorHiddenState(true);
   if (passInput.value && document.activeElement === passInput.value) {
     passInput.value.blur();
   }
@@ -161,6 +178,8 @@ function resetDarkTimer() {
 function turnScreenDark() {
   if (isDark.value) return;
   isDark.value = true;
+  setCursorHiddenState(true);
+  suppressWake(1200);
   emit('dark-change', true);
   if (props.apiBase) {
     fetch(`${props.apiBase}/api/action/dpms-off`, { method: 'POST' }).catch(() => {});
@@ -308,11 +327,17 @@ function onWindowMouseMove(e) {
   if (dx > 2 || dy > 2) {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+    if (props.locked) {
+      setCursorHiddenState(false);
+    }
     handleUserActivity(false);
   }
 }
 
 function onWindowMouseDown(e) {
+  if (props.locked) {
+    setCursorHiddenState(false);
+  }
   handleUserActivity(false, null, true);
 }
 
@@ -365,9 +390,11 @@ onMounted(() => {
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
   resetDarkTimer();
+  emit('cursor-hide-change', isCursorHidden.value);
 
   window.__wssWake = wakeLocalOnly;
   window.__wssSuppressWake = suppressWake;
+  window.__wssSetCursorHidden = setCursorHiddenState;
   try {
     localStorage.removeItem('wscreensavers_pwd_sync');
     if (typeof BroadcastChannel !== 'undefined') {
@@ -403,6 +430,9 @@ onBeforeUnmount(() => {
   if (window.__wssSuppressWake === suppressWake) {
     delete window.__wssSuppressWake;
   }
+  if (window.__wssSetCursorHidden === setCursorHiddenState) {
+    delete window.__wssSetCursorHidden;
+  }
 
   window.removeEventListener('storage', onStorageEvent);
   window.removeEventListener('keydown', onWindowKeyDown);
@@ -426,12 +456,18 @@ onBeforeUnmount(() => {
   z-index: 20;
 }
 
+.lock-overlay.hide-cursor,
+.lock-overlay.hide-cursor * {
+  cursor: none !important;
+}
+
 .dark-curtain {
   position: fixed;
   inset: 0;
   background: #000000;
   z-index: 99999;
   pointer-events: all;
+  cursor: none !important;
 }
 
 .extras-wrap {
