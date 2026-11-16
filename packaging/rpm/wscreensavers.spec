@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.26
+Version:        1.1.27
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
