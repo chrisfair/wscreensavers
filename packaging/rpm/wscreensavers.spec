@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Mon Nov 16 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.27-1
+- Release v1.1.27: support Hyprland 0.57+ Lua hl.dsp.dpms IPC for hardware backlight standby and discover live Wayland/compositor sockets in systemd daemon
+
 * Sun Nov 15 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.26-1
 - Release v1.1.26: power off monitor backlights via compositor DPMS standby on blank and hide pointer cursor on lock/saver overlays
 

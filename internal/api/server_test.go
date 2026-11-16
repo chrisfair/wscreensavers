@@ -339,3 +339,82 @@ func TestLockSaverIDAndIdleLoopStop(t *testing.T) {
 		t.Fatal("StartIdleDaemonLoop did not exit on stopCh close")
 	}
 }
+
+func TestSetDPMSRetryOnFailureAndVerifyFollowup(t *testing.T) {
+	tmpBin := t.TempDir()
+	logFile := filepath.Join(tmpBin, "dpms-retry.log")
+	failFlag := filepath.Join(tmpBin, "fail-once")
+	if err := os.WriteFile(failFlag, []byte("1"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	hyprScript := `#!/bin/sh
+printf 'hyprctl %s\n' "$*" >> "` + logFile + `"
+if [ -f "` + failFlag + `" ]; then
+  exit 7
+fi
+printf 'ok\n'
+exit 0
+`
+	if err := os.WriteFile(filepath.Join(tmpBin, "hyprctl"), []byte(hyprScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	origPath := os.Getenv("PATH")
+	origHypr := os.Getenv("HYPRLAND_INSTANCE_SIGNATURE")
+	origWayland := os.Getenv("WAYLAND_DISPLAY")
+	origTestExec := os.Getenv("WSCREENSAVERS_TEST_EXEC_DPMS")
+	origDisable := os.Getenv("WSCREENSAVERS_DISABLE_HW_DPMS")
+	origDelay := dpmsVerifyDelay
+	origForce := dpmsForceVerifyInTest
+	defer func() {
+		dpmsVerifyDelay = origDelay
+		dpmsForceVerifyInTest = origForce
+		_ = os.Setenv("PATH", origPath)
+		_ = os.Setenv("HYPRLAND_INSTANCE_SIGNATURE", origHypr)
+		_ = os.Setenv("WAYLAND_DISPLAY", origWayland)
+		_ = os.Setenv("WSCREENSAVERS_TEST_EXEC_DPMS", origTestExec)
+		_ = os.Setenv("WSCREENSAVERS_DISABLE_HW_DPMS", origDisable)
+	}()
+
+	_ = os.Setenv("PATH", tmpBin)
+	_ = os.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "hypr-retry")
+	_ = os.Setenv("WAYLAND_DISPLAY", "wayland-1")
+	_ = os.Setenv("WSCREENSAVERS_TEST_EXEC_DPMS", "1")
+	_ = os.Unsetenv("WSCREENSAVERS_DISABLE_HW_DPMS")
+	dpmsVerifyDelay = 30 * time.Millisecond
+	dpmsForceVerifyInTest = true
+
+	cfgMgr, err := config.NewManager(filepath.Join(t.TempDir(), "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := NewServer(cfgMgr, nil)
+	defer srv.Shutdown()
+
+	// 1. First SetDPMS(false) fails; hwDPMSOff must stay false so retry runs.
+	if err := srv.SetDPMS(false); err == nil {
+		t.Fatal("expected error when hyprctl fails")
+	}
+	srv.mu.RLock()
+	hwOffAfterFail := srv.hwDPMSOff
+	srv.mu.RUnlock()
+	if hwOffAfterFail {
+		t.Fatal("expected hwDPMSOff=false when SetMonitorsDPMS fails")
+	}
+
+	// 2. Remove failure flag; immediate retry must succeed and schedule follow-up verify.
+	_ = os.Remove(failFlag)
+	if err := srv.SetDPMS(false); err != nil {
+		t.Fatalf("expected retry SetDPMS(false) to succeed: %v", err)
+	}
+	time.Sleep(55 * time.Millisecond)
+
+	// 3. Wake cancels dark state and turns DPMS back on.
+	if err := srv.SetDPMS(true); err != nil {
+		t.Fatalf("expected SetDPMS(true) to succeed: %v", err)
+	}
+	if srv.IsScreenDark() {
+		t.Fatal("expected IsScreenDark=false after SetDPMS(true)")
+	}
+}

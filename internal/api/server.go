@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/fs"
 	"math/rand"
@@ -46,9 +47,15 @@ type Server struct {
 	lastWakeMs     int64
 	lastResumeMs   int64
 	lastDPMSOffMs  int64
+	dpmsSeq        uint64
 	screenDark     bool
 	hwDPMSOff      bool
 }
+
+var (
+	dpmsVerifyDelay       = 900 * time.Millisecond
+	dpmsForceVerifyInTest bool
+)
 
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	idleMon := idle.NewMonitor()
@@ -68,6 +75,7 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 		recentOff := now-srv.lastDPMSOffMs < 650
 		needHWOn := !recentOff && srv.hwDPMSOff
 		if !recentOff {
+			srv.dpmsSeq++
 			srv.lastWakeMs = now
 			srv.screenDark = false
 			srv.hwDPMSOff = false
@@ -154,6 +162,7 @@ func (s *Server) ResumeWallpaperAfterOverlay() {
 func (s *Server) RecordWake() int64 {
 	now := time.Now().UnixMilli()
 	s.mu.Lock()
+	s.dpmsSeq++
 	needHWOn := s.hwDPMSOff
 	s.lastWakeMs = now
 	s.screenDark = false
@@ -865,27 +874,54 @@ func (s *Server) handleOverlayExited(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetDPMS manages both software blanking state and compositor hardware DPMS standby.
-// Hardware DPMS transitions are deduplicated so IPC is invoked only on actual state changes
-// (and never via `wlr-randr --off`, preserving Wayland wl_output globals and layer-shell focus).
+// Hardware DPMS transitions are deduplicated once confirmed off, retried on error or
+// staggered multi-monitor blanking, and never use `wlr-randr --off` (preserving Wayland
+// wl_output globals and layer-shell focus).
 func (s *Server) SetDPMS(on bool) error {
 	if !on {
 		layershell.SetCursorHidden(true)
 		now := time.Now().UnixMilli()
 		s.mu.Lock()
-		needOff := !s.hwDPMSOff
+		wasOff := s.hwDPMSOff
+		prevOffMs := s.lastDPMSOffMs
 		s.screenDark = true
-		s.hwDPMSOff = true
+		needOff := !wasOff || (now-prevOffMs >= 250 && now-prevOffMs <= 3000)
+		if !wasOff {
+			s.dpmsSeq++
+		}
+		seq := s.dpmsSeq
 		if needOff {
 			s.lastDPMSOffMs = now
 		}
 		s.mu.Unlock()
-		if needOff {
-			return display.SetMonitorsDPMS(false)
+		if !needOff {
+			return nil
 		}
-		return nil
+		err := display.SetMonitorsDPMS(false)
+		s.mu.Lock()
+		if s.dpmsSeq == seq && s.screenDark {
+			s.hwDPMSOff = (err == nil)
+		}
+		s.mu.Unlock()
+		if err == nil && !wasOff && dpmsVerifyDelay > 0 && (flag.Lookup("test.v") == nil || dpmsForceVerifyInTest) {
+			go func(expectedSeq uint64) {
+				time.Sleep(dpmsVerifyDelay)
+				s.mu.Lock()
+				stillDark := s.screenDark && s.dpmsSeq == expectedSeq
+				if stillDark {
+					s.lastDPMSOffMs = time.Now().UnixMilli()
+				}
+				s.mu.Unlock()
+				if stillDark {
+					_ = display.SetMonitorsDPMS(false)
+				}
+			}(seq)
+		}
+		return err
 	}
 
 	s.mu.Lock()
+	s.dpmsSeq++
 	needOn := s.hwDPMSOff || s.screenDark
 	s.screenDark = false
 	s.hwDPMSOff = false

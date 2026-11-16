@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wscreensavers/internal/display"
 	"wscreensavers/internal/models"
 )
 
@@ -47,6 +48,7 @@ func (m *Monitor) connectWaylandListener() {
 	}
 	m.mu.Unlock()
 
+	display.EnsureWaylandSessionEnv()
 	l := startWaylandIdleListener(1000, func() {
 		m.mu.Lock()
 		m.waylandIdle = true
@@ -94,6 +96,7 @@ func (m *Monitor) OnResume(fn func()) {
 // StartSeatWakeListener attaches a fast Wayland ext-idle-notify-v1 listener (250ms)
 // that fires onResume whenever any keyboard or pointer activity occurs on the seat.
 func StartSeatWakeListener(onResume func()) func() {
+	display.EnsureWaylandSessionEnv()
 	l := startWaylandIdleListener(250, func() {}, func() {
 		if onResume != nil {
 			onResume()
@@ -155,6 +158,7 @@ func (m *Monitor) SetWallpaperActive(active bool) {
 // PollCursorActivity checks Hyprland cursorpos to detect pointer motion on Wayland.
 // Used as a fallback when ext-idle-notify-v1 is unavailable.
 func (m *Monitor) PollCursorActivity() {
+	display.EnsureWaylandSessionEnv()
 	out, err := exec.Command("hyprctl", "cursorpos").Output()
 	if err != nil {
 		return
@@ -195,6 +199,7 @@ func (m *Monitor) IsAudioPlaying() bool {
 }
 
 func (m *Monitor) IsFullscreenAppActive() bool {
+	display.EnsureWaylandSessionEnv()
 	out, err := exec.Command("hyprctl", "activewindow", "-j").Output()
 	if err != nil || len(out) == 0 {
 		return false

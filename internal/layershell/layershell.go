@@ -708,6 +708,7 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+	"wscreensavers/internal/display"
 )
 
 var executablePathFunc = os.Executable
@@ -749,6 +750,7 @@ func RunLayerShellWindows(urls []string, isWallpaper bool, isLocked bool) {
 	if len(urls) == 0 {
 		return
 	}
+	display.EnsureWaylandSessionEnv()
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
 		_ = os.Setenv("GDK_BACKEND", "wayland")
 	}
@@ -836,6 +838,7 @@ func (p *ProcessController) StartSaverOverlay(baseURL string, saverID string, lo
 		args = append(args, "--saver-id", saverID)
 	}
 
+	display.EnsureWaylandSessionEnv()
 	cmd := exec.Command(exe, args...)
 	cmd.Env = os.Environ()
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -994,6 +997,7 @@ func (p *ProcessController) StartWallpaper(baseURL string, saverID string) error
 		args = append(args, "--saver-id", saverID)
 	}
 
+	display.EnsureWaylandSessionEnv()
 	cmd := exec.Command(exe, args...)
 	cmd.Env = os.Environ()
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
