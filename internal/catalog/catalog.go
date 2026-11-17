@@ -783,10 +783,39 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show 5e Attack, Damage & Encounter Log Window", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "zourcegit",
+			Name:        "Zource: Git Self-Hosting History",
+			Category:    "Matrix & Cyber",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#f97316",
+			Tags:        []string{"Git", "Zource", "3D", "Tree", "Code", "Linus", "History"},
+			Description: "Zource 3D rotating Fresnel bubble clusters and 2D force-relaxed radial directory trees replaying 21+ years of Git developing Git itself—from Linus Torvalds's April 7, 2005 initial revision (e83c51633) through builtin/, Documentation/, t/, refs/, reftable/, scalar/, and rust/.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "viewMode", Label: "Zource Topology & Projection Mode", Type: models.ParamSelect, Default: "bubbles_3d", Options: []models.SelectOption{
+					{Label: "3D Rotating Directory Bubbles (Fibonacci Shells)", Value: "bubbles_3d"},
+					{Label: "2D Classic Radial Directory Tree (Gource Layout)", Value: "tree_2d"},
+					{Label: "Auto-Morph 3D Bubbles ↔ 2D Tree Every 26s", Value: "auto_morph"},
+				}},
+				{ID: "eraMode", Label: "Git Self-Hosting Chronicle Window", Type: models.ParamSelect, Default: "full_chronicle", Options: []models.SelectOption{
+					{Label: "Full 2005–2026 Chronicle (e83c51633 → Present)", Value: "full_chronicle"},
+					{Label: "2005 Genesis Era (Linus Torvalds & Junio Hamano Bootstrap)", Value: "genesis_2005"},
+					{Label: "Modern Subsystems (commit-graph, reftable, scalar & rust/)", Value: "modern_subsystems"},
+				}},
+				{ID: "simSpeed", Label: "Commit Playback & Orbit Speed", Type: models.ParamRange, Default: 1.0, Min: 0.25, Max: 3.0, Step: 0.25, LowLabel: "0.25x", HighLabel: "3x"},
+				{ID: "autoOrbit", Label: "Automatic 3D Camera Orbit", Type: models.ParamBoolean, Default: true},
+				{ID: "showLabels", Label: "Show Directory & Contributor Names", Type: models.ParamBoolean, Default: true},
+				{ID: "enableBloom", Label: "Commit Beam & File Sphere Bloom Halos", Type: models.ParamBoolean, Default: true},
+				{ID: "showHud", Label: "Show Commit Hash, Author & Timeline HUD", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 
-// BuiltinScreensavers returns all 25 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
+// BuiltinScreensavers returns all 32 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
 func BuiltinScreensavers() []models.Screensaver {
 	list := BuiltinSavers()
 	for i := range list {

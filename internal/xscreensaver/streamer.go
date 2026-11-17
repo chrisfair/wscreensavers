@@ -556,15 +556,24 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 	streamCtx, cancelStream := sess.registerClientStream(clientID, r.Context())
 	defer cancelStream()
 
-	if err := sess.ensureRunning(saver, values, width, height); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	if fps <= 0 {
 		fps = 15
 	} else if fps > 24 {
 		fps = 24
+	}
+
+	if IsZourceSaver(saver) {
+		sess.mu.Lock()
+		sess.stopHackLocked()
+		sess.stopXvfbLocked()
+		sess.mu.Unlock()
+		s.serveZourceMJPEG(w, streamCtx, saver, values, fps, width, height)
+		return
+	}
+
+	if err := sess.ensureRunning(saver, values, width, height); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=ffmpeg")
@@ -621,6 +630,110 @@ func (s *Streamer) ServeMJPEG(w http.ResponseWriter, r *http.Request, saver mode
 	}()
 
 	_, _ = io.Copy(w, stdout)
+}
+
+func (s *Streamer) serveZourceMJPEG(w http.ResponseWriter, streamCtx context.Context, saver models.Screensaver, values map[string]any, fps, width, height int) {
+	binPath, zourceArgs, tempDir, err := PrepareZourceStreamSession(saver.BinaryPath, width, height, fps, values)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if tempDir != "" {
+			_ = os.RemoveAll(tempDir)
+		}
+	}()
+
+	ppmRead, ppmWrite, err := os.Pipe()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	zourceCmd := exec.CommandContext(streamCtx, "nice", append([]string{"-n", "19", binPath}, zourceArgs...)...)
+	zourceCmd.Stdout = ppmWrite
+	zourceCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	rate := strconv.Itoa(fps)
+	ffCmd := exec.CommandContext(streamCtx,
+		"nice", "-n", "19", "ffmpeg",
+		"-loglevel", "error",
+		"-re",
+		"-f", "image2pipe",
+		"-vcodec", "ppm",
+		"-framerate", rate,
+		"-i", "-",
+		"-pix_fmt", "yuvj420p",
+		"-threads", "1",
+		"-f", "mpjpeg",
+		"-q:v", "7",
+		"-",
+	)
+	ffCmd.Stdin = ppmRead
+	ffCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ffStdout, err := ffCmd.StdoutPipe()
+	if err != nil {
+		_ = ppmRead.Close()
+		_ = ppmWrite.Close()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := zourceCmd.Start(); err != nil {
+		_ = ppmRead.Close()
+		_ = ppmWrite.Close()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = ppmWrite.Close()
+
+	if err := ffCmd.Start(); err != nil {
+		_ = ppmRead.Close()
+		if zourceCmd.Process != nil {
+			_ = syscall.Kill(-zourceCmd.Process.Pid, syscall.SIGKILL)
+			_ = zourceCmd.Process.Kill()
+		}
+		_ = zourceCmd.Wait()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = ppmRead.Close()
+
+	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=ffmpeg")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Connection", "close")
+
+	doneCh := make(chan struct{})
+	go func() {
+		select {
+		case <-streamCtx.Done():
+			if zourceCmd.Process != nil {
+				_ = syscall.Kill(-zourceCmd.Process.Pid, syscall.SIGKILL)
+				_ = zourceCmd.Process.Kill()
+			}
+			if ffCmd.Process != nil {
+				_ = syscall.Kill(-ffCmd.Process.Pid, syscall.SIGKILL)
+				_ = ffCmd.Process.Kill()
+			}
+		case <-doneCh:
+		}
+	}()
+
+	defer func() {
+		close(doneCh)
+		if zourceCmd.Process != nil {
+			_ = syscall.Kill(-zourceCmd.Process.Pid, syscall.SIGKILL)
+			_ = zourceCmd.Process.Kill()
+		}
+		if ffCmd.Process != nil {
+			_ = syscall.Kill(-ffCmd.Process.Pid, syscall.SIGKILL)
+			_ = ffCmd.Process.Kill()
+		}
+		_ = ffCmd.Wait()
+		_ = zourceCmd.Wait()
+	}()
+
+	_, _ = io.Copy(w, ffStdout)
 }
 
 // StopAll terminates every running XScreenSaver hack and Xvfb server.

@@ -4,7 +4,15 @@
       <div>
         <h4>{{ saver.name }} Parameters</h4>
         <span class="engine-badge" :class="saver.engine">
-          {{ saver.engine === 'native' ? 'Native Wayland WebGL2/Canvas' : saver.engine === 'celestia' ? 'Celestia 1.6 OpenGL Engine' : 'XScreenSaver XML Bridge' }}
+          {{
+            saver.engine === 'native'
+              ? 'Native Wayland WebGL2/Canvas'
+              : saver.engine === 'celestia'
+                ? 'Celestia 1.6 OpenGL Engine'
+                : saver.engine === 'zource'
+                  ? 'Zource Zig 2D/3D Engine'
+                  : 'XScreenSaver XML Bridge'
+          }}
         </span>
       </div>
       <button class="reset-btn" @click="$emit('reset')">Reset Defaults</button>
@@ -140,6 +148,11 @@ function formatVal(v) {
   background: rgba(56, 189, 248, 0.16);
   color: #38bdf8;
   border: 1px solid rgba(56, 189, 248, 0.35);
+}
+.engine-badge.zource {
+  background: rgba(249, 115, 22, 0.16);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.35);
 }
 .reset-btn {
   padding: 6px 11px;

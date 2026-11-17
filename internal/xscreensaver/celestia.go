@@ -27,6 +27,7 @@ var (
 		"/usr/share/celestia",
 		"/usr/local/share/celestia",
 	}
+	celestiaLookPath = exec.LookPath
 )
 
 type celestiaStop struct {
@@ -79,8 +80,10 @@ func findCelestiaBinary() string {
 			return p
 		}
 	}
-	if p, err := exec.LookPath("celestia"); err == nil && p != "" {
-		return p
+	if celestiaLookPath != nil {
+		if p, err := celestiaLookPath("celestia"); err == nil && p != "" {
+			return p
+		}
 	}
 	return ""
 }
@@ -100,13 +103,16 @@ func IsCelestiaTourSaver(saver models.Screensaver) bool {
 	return saver.ID == CelestiaTourSaverID || saver.Engine == "celestia"
 }
 
-// DiscoverExternalEngines probes for non-XML external 3D engines such as Celestia (/usr/bin/celestia).
+// DiscoverExternalEngines probes for non-XML external engines such as Celestia (/usr/bin/celestia) and Zource (/usr/bin/zource).
 func DiscoverExternalEngines() []models.Screensaver {
-	sv := DiscoverCelestiaSaver()
-	if sv == nil {
-		return nil
+	var out []models.Screensaver
+	if sv := DiscoverCelestiaSaver(); sv != nil {
+		out = append(out, *sv)
 	}
-	return []models.Screensaver{*sv}
+	if zv := DiscoverZourceSaver(); zv != nil {
+		out = append(out, *zv)
+	}
+	return out
 }
 
 // DiscoverCelestiaSaver returns a catalog entry for the native Celestia 1.6 engine when installed.

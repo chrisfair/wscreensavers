@@ -4,8 +4,8 @@ import "testing"
 
 func TestBuiltinScreensaversCatalog(t *testing.T) {
 	savers := BuiltinScreensavers()
-	if len(savers) < 25 {
-		t.Fatalf("expected at least 25 builtin screensavers, got %d", len(savers))
+	if len(savers) < 32 {
+		t.Fatalf("expected at least 32 builtin screensavers, got %d", len(savers))
 	}
 
 	seen := make(map[string]bool)
@@ -38,5 +38,8 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	}
 	if !seen["dnd5edice"] {
 		t.Errorf("expected dnd5edice (5e Tabletop Dice & Battle Mat) in builtin catalog")
+	}
+	if !seen["zourcegit"] {
+		t.Errorf("expected zourcegit (Zource: Git Self-Hosting History) in builtin catalog")
 	}
 }

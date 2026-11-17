@@ -48,12 +48,21 @@ func setupFakeCelestiaEnv(t *testing.T) (binPath, dataDir string, restore func()
 
 	origBins := DefaultCelestiaBinaryPaths
 	origDirs := DefaultCelestiaDataDirs
+	origLook := celestiaLookPath
+	origZourceBins := DefaultZourceBinaryPaths
+	origZourceLook := zourceLookPath
 	DefaultCelestiaBinaryPaths = []string{binPath}
 	DefaultCelestiaDataDirs = []string{dataDir}
+	celestiaLookPath = nil
+	DefaultZourceBinaryPaths = []string{filepath.Join(tmp, "missing-zource")}
+	zourceLookPath = nil
 
 	return binPath, dataDir, func() {
 		DefaultCelestiaBinaryPaths = origBins
 		DefaultCelestiaDataDirs = origDirs
+		celestiaLookPath = origLook
+		DefaultZourceBinaryPaths = origZourceBins
+		zourceLookPath = origZourceLook
 	}
 }
 

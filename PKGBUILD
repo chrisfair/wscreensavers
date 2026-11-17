@@ -2,13 +2,14 @@
 pkgname=wscreensavers
 pkgver=1.1.27
 pkgrel=1
-pkgdesc="Native Wayland version of XScreenSaver with 25 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
+pkgdesc="Native Wayland version of XScreenSaver with 32 built-in WebGL/Canvas ports, XScreenSaver XML bridge, PAM lock screen, and live desktop wallpaper mode"
 arch=('x86_64' 'aarch64')
 url="https://github.com/chrisfair/wscreensavers"
 license=('GPL-3.0-or-later')
 depends=('gtk3' 'webkit2gtk-4.1' 'gtk-layer-shell' 'pam' 'xscreensaver' 'xorg-server-xvfb' 'ffmpeg')
 optdepends=(
   'celestia: Real-time 3D astronomy engine for Celestia 1.6 Solar System Grand Tour'
+  'zource: Native Zig 2D/3D repository history visualizer engine'
   'rss-glx: Really Slick Screensavers 3D OpenGL collection'
   'wlr-randr: Multi-monitor output detection on wlroots compositors'
   'hyprlock: Optional external Wayland lock provider'

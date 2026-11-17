@@ -454,6 +454,56 @@ describe('savers/index.js factory', () => {
 
     saver.destroy();
   });
+
+  it('renders Zource: Git Self-Hosting History across 3D bubbles, 2D radial tree, auto-morph, and all git eras', () => {
+    const cvs = createFake2DCanvas();
+    let params = {
+      viewMode: 'bubbles_3d',
+      eraMode: 'genesis_2005',
+      simSpeed: 3.0,
+      autoOrbit: true,
+      showLabels: true,
+      enableBloom: true,
+      showHud: true
+    };
+    const saver = createSaverInstance('zourcegit', cvs, () => params);
+    saver.resize(1280, 720);
+
+    // Advance genesis_2005 all the way through its 165 commits and past the 6s post-finish hold to exercise loop reset
+    for (let step = 0; step < 340; step++) {
+      saver.render(0.08);
+    }
+
+    // Exercise 2D tree mode + modern_subsystems era
+    params = {
+      viewMode: 'tree_2d',
+      eraMode: 'modern_subsystems',
+      simSpeed: 2.5,
+      autoOrbit: false,
+      showLabels: true,
+      enableBloom: false,
+      showHud: true
+    };
+    for (let step = 0; step < 60; step++) {
+      saver.render(0.08);
+    }
+
+    // Exercise auto_morph past the 26s morph flip + full_chronicle era
+    params = {
+      viewMode: 'auto_morph',
+      eraMode: 'full_chronicle',
+      simSpeed: 3.0,
+      autoOrbit: true,
+      showLabels: false,
+      enableBloom: true,
+      showHud: false
+    };
+    for (let step = 0; step < 360; step++) {
+      saver.render(0.08);
+    }
+
+    saver.destroy();
+  });
 });
 
 describe('ParameterPanel.vue', () => {
@@ -474,6 +524,14 @@ describe('ParameterPanel.vue', () => {
       }
     });
     expect(celWrapper.text()).toContain('Celestia 1.6 OpenGL Engine');
+
+    const zourceWrapper = mount(ParameterPanel, {
+      props: {
+        saver: { id: 'xss_zource_git', name: 'Zource Engine (Zig): Git Self-Hosting', engine: 'zource', params: [] },
+        values: {}
+      }
+    });
+    expect(zourceWrapper.text()).toContain('Zource Zig 2D/3D Engine');
   });
 
   it('renders range, select, boolean, color, and text inputs and emits updates/reset', async () => {

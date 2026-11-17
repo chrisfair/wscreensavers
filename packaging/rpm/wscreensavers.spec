@@ -26,7 +26,7 @@ Recommends:     ffmpeg
 
 %description
 WScreenSavers is a native Wayland screensaver and live desktop wallpaper
-suite featuring 24 built-in WebGL/Canvas visualizers, an XScreenSaver XML
+suite featuring 32 built-in WebGL/Canvas visualizers, an XScreenSaver XML
 bridge, PAM-authenticated screen locking, and layer-shell integration
 compatible with Hyprland, Sway, River, and Wayfire.
 
@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Mon Nov 16 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.28-1
+- Release v1.1.28: add Zource Git self-hosting history screensaver (built-in 3D bubbles/2D tree port and native /usr/bin/zource Zig engine bridge)
+
 * Mon Nov 16 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.27-1
 - Release v1.1.27: support Hyprland 0.57+ Lua hl.dsp.dpms IPC for hardware backlight standby and discover live Wayland/compositor sockets in systemd daemon
 

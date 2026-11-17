@@ -48,6 +48,12 @@ func (r *Runner) Launch(saver models.Screensaver, values map[string]any, key str
 		}
 		filtered = append(filtered, "--fullscreen")
 		env = mergeEnv(env, extraEnv)
+	} else if IsZourceSaver(saver) {
+		var err error
+		binPath, filtered, tempDir, err = PrepareZourceWaylandSession(saver.BinaryPath, 1920, 1080, values)
+		if err != nil {
+			return 0, err
+		}
 	} else {
 		args := BuildCommandArgs(saver, values)
 		// Strip -root when launching standalone window on XWayland so the compositor can fullscreen it
