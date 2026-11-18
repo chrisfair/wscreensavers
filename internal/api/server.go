@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/fs"
 	"math/rand"
@@ -52,11 +51,6 @@ type Server struct {
 	hwDPMSOff      bool
 }
 
-var (
-	dpmsVerifyDelay       = 900 * time.Millisecond
-	dpmsForceVerifyInTest bool
-)
-
 func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	idleMon := idle.NewMonitor()
 	suppMgr, _ := support.NewManager("")
@@ -72,7 +66,7 @@ func NewServer(cfgMgr *config.Manager, frontendFS fs.FS) *Server {
 	idleMon.OnResume(func() {
 		now := time.Now().UnixMilli()
 		srv.mu.Lock()
-		recentOff := now-srv.lastDPMSOffMs < 650
+		recentOff := now-srv.lastDPMSOffMs < 1200
 		needHWOn := !recentOff && srv.hwDPMSOff
 		if !recentOff {
 			srv.dpmsSeq++
@@ -603,9 +597,15 @@ func (s *Server) StartIdleDaemonLoop(stopCh <-chan struct{}) {
 				_ = s.LaunchScreensaver(s.lockSaverID(cfg), true)
 			}
 
-			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed
+			// Screen sleep / DPMS off if screensaver active and dpmsOffMinutes elapsed.
+			// When a native layer-shell overlay (--saver / --lock) is running, let its own
+			// LockScreenOverlay blanking timer transition isDark + /api/action/dpms-off first;
+			// the daemon acts as a fallback (e.g. external lockers) after a 15s grace buffer.
 			if cfg.DPMSOffMinutes > 0 && st.ScreensaverActive {
 				dpmsSec := (cfg.IdleTimeoutMinutes + cfg.DPMSOffMinutes) * 60
+				if saverRunning {
+					dpmsSec += cfg.LockGraceSeconds + 15
+				}
 				if st.IdleSeconds >= dpmsSec {
 					_ = s.SetDPMS(false)
 				}
@@ -874,49 +874,31 @@ func (s *Server) handleOverlayExited(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetDPMS manages both software blanking state and compositor hardware DPMS standby.
-// Hardware DPMS transitions are deduplicated once confirmed off, retried on error or
-// staggered multi-monitor blanking, and never use `wlr-randr --off` (preserving Wayland
-// wl_output globals and layer-shell focus).
+// Once hardware DPMS standby succeeds (`hwDPMSOff == true`), repeated calls are strict
+// no-ops so periodic daemon ticks or secondary monitor notifications never re-trigger
+// compositor DPMS commands while displays are asleep.
 func (s *Server) SetDPMS(on bool) error {
 	if !on {
 		layershell.SetCursorHidden(true)
+		layershell.SuppressWake(1800)
 		now := time.Now().UnixMilli()
 		s.mu.Lock()
-		wasOff := s.hwDPMSOff
-		prevOffMs := s.lastDPMSOffMs
 		s.screenDark = true
-		needOff := !wasOff || (now-prevOffMs >= 250 && now-prevOffMs <= 3000)
-		if !wasOff {
-			s.dpmsSeq++
-		}
-		seq := s.dpmsSeq
-		if needOff {
-			s.lastDPMSOffMs = now
-		}
-		s.mu.Unlock()
-		if !needOff {
+		if s.hwDPMSOff {
+			s.mu.Unlock()
 			return nil
 		}
+		s.dpmsSeq++
+		seq := s.dpmsSeq
+		s.lastDPMSOffMs = now
+		s.mu.Unlock()
+
 		err := display.SetMonitorsDPMS(false)
 		s.mu.Lock()
 		if s.dpmsSeq == seq && s.screenDark {
 			s.hwDPMSOff = (err == nil)
 		}
 		s.mu.Unlock()
-		if err == nil && !wasOff && dpmsVerifyDelay > 0 && (flag.Lookup("test.v") == nil || dpmsForceVerifyInTest) {
-			go func(expectedSeq uint64) {
-				time.Sleep(dpmsVerifyDelay)
-				s.mu.Lock()
-				stillDark := s.screenDark && s.dpmsSeq == expectedSeq
-				if stillDark {
-					s.lastDPMSOffMs = time.Now().UnixMilli()
-				}
-				s.mu.Unlock()
-				if stillDark {
-					_ = display.SetMonitorsDPMS(false)
-				}
-			}(seq)
-		}
 		return err
 	}
 

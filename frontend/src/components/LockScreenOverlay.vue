@@ -175,24 +175,37 @@ function resetDarkTimer() {
   }, ms);
 }
 
-function turnScreenDark() {
+function turnScreenDark(fromBroadcast = false) {
   if (isDark.value) return;
   isDark.value = true;
   setCursorHiddenState(true);
-  suppressWake(1200);
+  suppressWake(1800);
   emit('dark-change', true);
-  if (props.apiBase) {
-    fetch(`${props.apiBase}/api/action/dpms-off`, { method: 'POST' }).catch(() => {});
+  if (!fromBroadcast) {
+    try {
+      if (wakeChannel) {
+        wakeChannel.postMessage({ type: 'dark' });
+      }
+      localStorage.setItem('wscreensavers_dark_ts', String(Date.now()));
+    } catch (_) {}
+    if (props.apiBase) {
+      fetch(`${props.apiBase}/api/action/dpms-off`, { method: 'POST' }).catch(() => {});
+    }
   }
 }
 
-function wakeLocalOnly() {
-  if (typeof performance !== 'undefined' && performance.now() < suppressWakeUntil && !isDark.value) {
+function wakeLocalOnly(force = false) {
+  if (force) {
+    suppressWakeUntil = 0;
+  } else if (typeof performance !== 'undefined' && performance.now() < suppressWakeUntil) {
     return;
   }
   if (isDark.value) {
     isDark.value = false;
     emit('dark-change', false);
+    if (force && props.apiBase) {
+      fetch(`${props.apiBase}/api/action/dpms-on`, { method: 'POST' }).catch(() => {});
+    }
   }
   isDimmed.value = false;
   resetDimTimer(props.locked && password.value ? 15000 : 5000);
@@ -342,8 +355,10 @@ function onWindowMouseDown(e) {
 }
 
 function onStorageEvent(e) {
-  if (e.key === 'wscreensavers_wake_ts') {
-    wakeLocalOnly();
+  if (e.key === 'wscreensavers_dark_ts') {
+    turnScreenDark(true);
+  } else if (e.key === 'wscreensavers_wake_ts') {
+    wakeLocalOnly(true);
   }
 }
 
@@ -392,7 +407,8 @@ onMounted(() => {
   resetDarkTimer();
   emit('cursor-hide-change', isCursorHidden.value);
 
-  window.__wssWake = wakeLocalOnly;
+  const forceWakeLocal = () => wakeLocalOnly(true);
+  window.__wssWake = forceWakeLocal;
   window.__wssSuppressWake = suppressWake;
   window.__wssSetCursorHidden = setCursorHiddenState;
   try {
@@ -400,12 +416,16 @@ onMounted(() => {
     if (typeof BroadcastChannel !== 'undefined') {
       wakeChannel = new BroadcastChannel('wscreensavers_wake');
       wakeChannel.onmessage = (ev) => {
+        if (ev && ev.data && ev.data.type === 'dark') {
+          turnScreenDark(true);
+          return;
+        }
         if (ev && ev.data && ev.data.type === 'pwd' && typeof ev.data.value === 'string') {
           if (!passInput.value || document.activeElement !== passInput.value) {
             password.value = ev.data.value;
           }
         }
-        wakeLocalOnly();
+        wakeLocalOnly(true);
       };
     }
   } catch (_) {}
@@ -424,9 +444,7 @@ onBeforeUnmount(() => {
     try { wakeChannel.close(); } catch (_) {}
     wakeChannel = null;
   }
-  if (window.__wssWake === wakeLocalOnly) {
-    delete window.__wssWake;
-  }
+  delete window.__wssWake;
   if (window.__wssSuppressWake === suppressWake) {
     delete window.__wssSuppressWake;
   }

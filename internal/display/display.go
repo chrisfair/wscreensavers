@@ -313,9 +313,11 @@ func runHyprlandDPMS(onOff string) error {
 	if err := dpmsCommandRunner("hyprctl", "dispatch", "dpms", onOff); err == nil {
 		return nil
 	}
-	// Hyprland 0.57+ with Lua configuration evaluates `hyprctl dispatch` as `hl.dispatch(...)`,
-	// where `dpms off` is a syntax error and `hl.dispatch(hl.dsp.dpms("off"|"on"))` via `eval` is required.
-	luaExpr := fmt.Sprintf("hl.dispatch(hl.dsp.dpms(%q))", onOff)
+	// Hyprland 0.57+ Lua parses `hl.dsp.dpms` via `tableToggleAction(L, 1, "action")`:
+	// passing a bare string ("off"/"on") falls back to TOGGLE_ACTION_TOGGLE (0), which
+	// blinks monitor backlights on and off on repeated calls. Passing `{ action = ... }`
+	// selects TOGGLE_ACTION_DISABLE / TOGGLE_ACTION_ENABLE idempotently.
+	luaExpr := fmt.Sprintf("hl.dispatch(hl.dsp.dpms({ action = %q }))", onOff)
 	return dpmsCommandRunner("hyprctl", "eval", luaExpr)
 }
 

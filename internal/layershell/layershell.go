@@ -287,9 +287,40 @@ static void notify_all_webviews_wake(void) {
     }
 }
 
+static gboolean suppress_wake_idle_cb(gpointer data) {
+    int delay_ms = GPOINTER_TO_INT(data);
+    if (delay_ms < 0) {
+        delay_ms = 0;
+    }
+    suppress_wake_until_us = g_get_monotonic_time() + ((gint64)delay_ms * 1000);
+    last_lock_motion_x = -1.0;
+    last_lock_motion_y = -1.0;
+    if (gtk_loop_active && !layer_is_wallpaper && delay_ms > 0) {
+        char js_buf[128];
+        snprintf(js_buf, sizeof(js_buf), "if(window.__wssSuppressWake)window.__wssSuppressWake(%d);", delay_ms);
+        for (int i = 0; i < layer_webview_count; i++) {
+            if (layer_webviews[i] != NULL) {
+                webkit_web_view_evaluate_javascript(
+                    WEBKIT_WEB_VIEW(layer_webviews[i]),
+                    js_buf,
+                    -1, NULL, NULL, NULL, NULL, NULL
+                );
+            }
+        }
+    }
+    return FALSE;
+}
+
+static void request_gtk_suppress_wake(int delay_ms) {
+    if (gtk_loop_active && !layer_is_wallpaper) {
+        g_idle_add(suppress_wake_idle_cb, GINT_TO_POINTER(delay_ms));
+    }
+}
+
 static gboolean wake_idle_cb(gpointer data) {
     (void)data;
     if (gtk_loop_active && !layer_is_wallpaper) {
+        suppress_wake_until_us = 0;
         if (layer_window_count > 0) {
             int idx = active_monitor_idx;
             if (idx < 0 || idx >= layer_window_count) {
@@ -426,6 +457,11 @@ static gboolean on_lock_enter(GtkWidget *widget, GdkEventCrossing *event, gpoint
 }
 
 static gboolean on_lock_motion(GtkWidget *widget, GdkEventMotion *event, gpointer user_data) {
+    if (g_get_monotonic_time() < suppress_wake_until_us) {
+        last_lock_motion_x = -1.0;
+        last_lock_motion_y = -1.0;
+        return FALSE;
+    }
     GtkWidget *webview = GTK_WIDGET(user_data);
     GtkWidget *win = gtk_widget_get_toplevel(widget);
     if (win != NULL && layer_windows[active_monitor_idx] != win) {
@@ -725,6 +761,13 @@ func SetCursorHidden(hidden bool) {
 		flag = 1
 	}
 	C.request_gtk_cursor_hidden(flag)
+}
+
+// SuppressWake ignores synthetic compositor pointer-recheck motion events across all
+// overlay windows for delayMs milliseconds (for example while outputs enter DPMS standby).
+// Explicit key presses and mouse clicks still wake immediately.
+func SuppressWake(delayMs int) {
+	C.request_gtk_suppress_wake(C.int(delayMs))
 }
 
 // WakeAllWindows signals all active layer-shell webviews across all monitors to wake up immediately.

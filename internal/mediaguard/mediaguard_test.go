@@ -168,9 +168,15 @@ func TestEngageEnforceAndRelease(t *testing.T) {
 		t.Fatalf("missing expected process signals: %+v", signals)
 	}
 
-	// Verify pw-cli destroy ran for nodes 89 & 90, NOT 88 (Peak detect).
+	// Verify pw-cli destroy ran for nodes 89 & 90, NOT 88 (Peak detect),
+	// and verify per-app stream mutes (set-sink-input-mute / set-source-output-mute)
+	// are NEVER invoked so PipeWire/WirePlumber stream-properties are not poisoned
+	// when paused browsers close their transient sink-inputs.
 	var destroyed88, destroyed89, destroyed90 bool
 	for _, c := range cmdCalls {
+		if strings.HasPrefix(c, "pactl set-sink-input-mute") || strings.HasPrefix(c, "pactl set-source-output-mute") {
+			t.Fatalf("must not mutate per-app stream mute state in PipeWire/WirePlumber: %s", c)
+		}
 		switch c {
 		case "pw-cli destroy 88":
 			destroyed88 = true
@@ -225,6 +231,11 @@ func TestEngageEnforceAndRelease(t *testing.T) {
 	}
 	if !got200Cont {
 		t.Fatalf("expected SIGCONT on pid 200")
+	}
+	for _, c := range cmdCalls {
+		if strings.HasPrefix(c, "pactl set-sink-input-mute") || strings.HasPrefix(c, "pactl set-source-output-mute") {
+			t.Fatalf("unexpected per-app stream mute command during Enforce/Release: %s", c)
+		}
 	}
 }
 

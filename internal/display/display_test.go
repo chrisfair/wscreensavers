@@ -189,7 +189,7 @@ func TestSetMonitorsDPMSHyprlandLuaFallbackAndOutputValidation(t *testing.T) {
 	logFile := filepath.Join(tmpBin, "dpms-lua.log")
 
 	// Simulate Hyprland 0.57+ Lua config where `hyprctl dispatch dpms off` exits 7
-	// and `hyprctl eval 'hl.dispatch(hl.dsp.dpms("off"))'` succeeds with "ok".
+	// and `hyprctl eval 'hl.dispatch(hl.dsp.dpms({ action = "off" }))'` succeeds with "ok".
 	hyprLuaScript := `#!/bin/sh
 printf 'hyprctl %s\n' "$*" >> "` + logFile + `"
 if [ "$1" = "dispatch" ]; then
@@ -242,9 +242,9 @@ exit 1
 	got := string(raw)
 	for _, want := range []string{
 		"hyprctl dispatch dpms off",
-		`hyprctl eval hl.dispatch(hl.dsp.dpms("off"))`,
+		`hyprctl eval hl.dispatch(hl.dsp.dpms({ action = "off" }))`,
 		"hyprctl dispatch dpms on",
-		`hyprctl eval hl.dispatch(hl.dsp.dpms("on"))`,
+		`hyprctl eval hl.dispatch(hl.dsp.dpms({ action = "on" }))`,
 	} {
 		if !containsLine(got, want) {
 			t.Errorf("missing expected Hyprland Lua fallback command %q in:\n%s", want, got)

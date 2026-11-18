@@ -759,6 +759,47 @@ describe('LockScreenOverlay.vue', () => {
     );
     wrapper.unmount();
   });
+
+  it('blanks once into steady DPMS standby without blinking and wakes on keyboard or mouse input', async () => {
+    vi.useFakeTimers();
+    const calls = [];
+    globalThis.fetch = vi.fn(async (url) => {
+      calls.push(String(url));
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+
+    const wrapper = mount(LockScreenOverlay, {
+      props: {
+        locked: true,
+        showClock: true,
+        isWallpaper: false,
+        username: 'christopher',
+        apiBase: 'http://127.0.0.1:8642',
+        dpmsMinutes: 1
+      }
+    });
+
+    vi.advanceTimersByTime(61000);
+    await nextTick();
+    expect(wrapper.find('.dark-curtain').exists()).toBe(true);
+    expect(calls.filter((u) => u.endsWith('/api/action/dpms-off'))).toHaveLength(1);
+
+    // Advance several minutes while idle — must remain dark with zero extra dpms-off or dpms-on calls
+    vi.advanceTimersByTime(180000);
+    await nextTick();
+    expect(wrapper.find('.dark-curtain').exists()).toBe(true);
+    expect(calls.filter((u) => u.endsWith('/api/action/dpms-off'))).toHaveLength(1);
+    expect(calls.filter((u) => u.endsWith('/api/action/dpms-on'))).toHaveLength(0);
+
+    // Pressing any key wakes immediately from pitch-black standby
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    await nextTick();
+    expect(wrapper.find('.dark-curtain').exists()).toBe(false);
+    expect(calls.filter((u) => u.endsWith('/api/action/dpms-on')).length).toBeGreaterThanOrEqual(1);
+
+    wrapper.unmount();
+    vi.useRealTimers();
+  });
 });
 
 describe('SaverCanvas.vue', () => {

@@ -561,10 +561,11 @@ func (g *Guard) stopAllRecordingsLocked() int {
 		}
 	}
 
-	for _, so := range g.pactlList("source-outputs") {
-		_, _ = g.runCmd(time.Second, "pactl", "set-source-output-mute", strconv.Itoa(so.Index), "1")
-	}
-
+	// Do not run `pactl set-source-output-mute`: muting a per-app stream writes
+	// `mute: true` into PipeWire/WirePlumber's persistent stream-properties table
+	// right before `pw-cli destroy` tears the stream down, leaving the application's
+	// microphone permanently muted on future launches. Hardware sources are muted
+	// directly via `set-source-mute`.
 	pwOut, err := g.runCmd(2*time.Second, "pw-dump")
 	if err == nil && strings.TrimSpace(pwOut) != "" {
 		var nodes []pwDumpNode
@@ -719,6 +720,11 @@ func (g *Guard) EngageWithSource(source string, pauseMedia, stopRecording bool) 
 			}
 		}
 
+		// Mute hardware sinks only (`set-sink-mute`), never per-app `sink-inputs`.
+		// PipeWire/WirePlumber persists `set-sink-input-mute` by application name, and
+		// browsers (Vivaldi/Chromium/Firefox) close their idle `sink-input` a few seconds
+		// after MPRIS Pause—leaving no stream index for Release() to unmute and stranding
+		// the browser permanently muted after unlock.
 		for _, sink := range g.pactlList("sinks") {
 			if sink.Name == "" {
 				continue
@@ -727,14 +733,6 @@ func (g *Guard) EngageWithSource(source string, pauseMedia, stopRecording bool) 
 				g.state.SinkMutes[sink.Name] = sink.Mute
 			}
 			_, _ = g.runCmd(1200*time.Millisecond, "pactl", "set-sink-mute", sink.Name, "1")
-		}
-
-		for _, si := range sinkInputs {
-			key := strconv.Itoa(si.Index)
-			if _, exists := g.state.SinkInputMutes[key]; !exists {
-				g.state.SinkInputMutes[key] = si.Mute
-			}
-			_, _ = g.runCmd(time.Second, "pactl", "set-sink-input-mute", key, "1")
 		}
 	}
 
@@ -793,17 +791,6 @@ func (g *Guard) Enforce(pauseMedia, stopRecording bool) {
 					dirty = true
 				}
 				_, _ = g.runCmd(time.Second, "pactl", "set-sink-mute", sink.Name, "1")
-			}
-		}
-
-		for _, si := range g.pactlList("sink-inputs") {
-			if !si.Mute {
-				key := strconv.Itoa(si.Index)
-				if _, exists := g.state.SinkInputMutes[key]; !exists {
-					g.state.SinkInputMutes[key] = false
-					dirty = true
-				}
-				_, _ = g.runCmd(time.Second, "pactl", "set-sink-input-mute", key, "1")
 			}
 		}
 	}

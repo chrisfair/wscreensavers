@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Wed Nov 18 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.29-1
+- Release v1.1.29: pass table { action = "off"|"on" } to Hyprland 0.57+ Lua hl.dsp.dpms and deduplicate SetDPMS standby so locked monitors stay pitch black without backlight toggling
+
 * Mon Nov 16 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.28-1
 - Release v1.1.28: add Zource Git self-hosting history screensaver (built-in 3D bubbles/2D tree port and native /usr/bin/zource Zig engine bridge)
 

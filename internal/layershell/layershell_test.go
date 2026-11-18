@@ -42,6 +42,7 @@ func TestProcessControllerLifecycle(t *testing.T) {
 	WakeAllWindows()
 	SetCursorHidden(true)
 	SetCursorHidden(false)
+	SuppressWake(1500)
 
 	ctrl.stopSaverOnly()
 	ctrl.StopSaverOverlay()

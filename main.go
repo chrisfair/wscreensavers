@@ -185,7 +185,7 @@ func main() {
 		if *saverMode || *lockMode {
 			stopSeatWake = idle.StartSeatWakeListener(func() {
 				nowMs := time.Now().UnixMilli()
-				if nowMs-srv.LastDPMSOffMs() < 650 {
+				if nowMs-srv.LastDPMSOffMs() < 1200 {
 					return
 				}
 				if *saverMode {
