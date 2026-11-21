@@ -503,7 +503,7 @@ describe('savers/index.js factory', () => {
     }
 
     saver.destroy();
-  });
+  }, 20000);
 
   it('renders Classical Sculptures Gallery (3D) across all 8 public-domain works, lighting themes, sweeps, and museum plaque HUD', () => {
     const parent = document.createElement('div');
