@@ -791,14 +791,14 @@ func BuiltinSavers() []models.Screensaver {
 			Author:      "Christopher Patrick Fair (2026)",
 			Year:        "2026",
 			AccentColor: "#f97316",
-			Tags:        []string{"Git", "Zource", "3D", "Tree", "Code", "Linus", "History"},
-			Description: "Zource 3D rotating Fresnel bubble clusters and 2D force-relaxed radial directory trees replaying 21+ years of Git developing Git itself—from Linus Torvalds's April 7, 2005 initial revision (e83c51633) through builtin/, Documentation/, t/, refs/, reftable/, scalar/, and rust/.",
+			Tags:        []string{"Git", "Zource", "3D", "Polyhedra", "Tree", "Code", "Linus", "History"},
+			Description: "Zource v0.1.4 3D rotating file-count-driven faceted polyhedron shells and 2D force-relaxed radial directory trees replaying 21+ years of Git developing Git itself—from Linus Torvalds's April 7, 2005 initial revision (e83c51633) through builtin/, Documentation/, t/, refs/, reftable/, scalar/, and rust/.",
 			Installed:   true,
 			Params: []models.SaverParam{
 				{ID: "viewMode", Label: "Zource Topology & Projection Mode", Type: models.ParamSelect, Default: "bubbles_3d", Options: []models.SelectOption{
-					{Label: "3D Rotating Directory Bubbles (Fibonacci Shells)", Value: "bubbles_3d"},
+					{Label: "3D Rotating Faceted Polyhedra (v0.1.4 Shells)", Value: "bubbles_3d"},
 					{Label: "2D Classic Radial Directory Tree (Gource Layout)", Value: "tree_2d"},
-					{Label: "Auto-Morph 3D Bubbles ↔ 2D Tree Every 26s", Value: "auto_morph"},
+					{Label: "Auto-Morph 3D Polyhedra ↔ 2D Tree Every 26s", Value: "auto_morph"},
 				}},
 				{ID: "eraMode", Label: "Git Self-Hosting Chronicle Window", Type: models.ParamSelect, Default: "full_chronicle", Options: []models.SelectOption{
 					{Label: "Full 2005–2026 Chronicle (e83c51633 → Present)", Value: "full_chronicle"},
@@ -812,10 +812,49 @@ func BuiltinSavers() []models.Screensaver {
 				{ID: "showHud", Label: "Show Commit Hash, Author & Timeline HUD", Type: models.ParamBoolean, Default: true},
 			},
 		},
+		{
+			ID:          "sculptures3d",
+			Name:        "Classical Sculptures Gallery (3D)",
+			Category:    "3D OpenGL Classics",
+			Source:      models.SourceNative,
+			Author:      "Christopher Patrick Fair (2026)",
+			Year:        "2026",
+			AccentColor: "#d4a946",
+			Tags:        []string{"Sculptures", "Marble", "David", "Pieta", "Louvre", "Museum", "3D", "Art"},
+			Description: "360-degree 3D museum gallery orbiting eight public-domain ancient and Renaissance sculptures—Michelangelo's David and Pietà, Venus de Milo, Winged Victory of Samothrace, Rodin's The Thinker, Myron's Discobolus, the Bust of Nefertiti, and a Rapa Nui Moai—with museum location plaques.",
+			Installed:   true,
+			Params: []models.SaverParam{
+				{ID: "sculpturePreset", Label: "Sculpture Selection", Type: models.ParamSelect, Default: "cycle", Options: []models.SelectOption{
+					{Label: "Curated Gallery Tour (Cycle All 8)", Value: "cycle"},
+					{Label: "Random Order Tour", Value: "random"},
+					{Label: "David — Galleria dell'Accademia, Florence", Value: "david"},
+					{Label: "Pietà — St. Peter's Basilica, Vatican City", Value: "pieta"},
+					{Label: "Venus de Milo — Musée du Louvre, Paris", Value: "venus_de_milo"},
+					{Label: "Winged Victory of Samothrace — Musée du Louvre, Paris", Value: "winged_victory"},
+					{Label: "The Thinker — Musée Rodin, Paris", Value: "the_thinker"},
+					{Label: "Discobolus — Museo Nazionale Romano, Rome", Value: "discobolus"},
+					{Label: "Bust of Nefertiti — Neues Museum, Berlin", Value: "nefertiti"},
+					{Label: "Moai (Hoa Hakananai'a) — Rapa Nui / British Museum", Value: "moai"},
+				}},
+				{ID: "orbitSpeed", Label: "Camera Orbit Speed", Type: models.ParamRange, Default: 1.0, Min: 0.3, Max: 2.5, Step: 0.1, LowLabel: "Slow", HighLabel: "Brisk"},
+				{ID: "dwellSeconds", Label: "Seconds Per Sculpture (Tour Modes)", Type: models.ParamRange, Default: 24.0, Min: 12.0, Max: 60.0, Step: 4.0, LowLabel: "12s", HighLabel: "60s"},
+				{ID: "lightingTheme", Label: "Gallery Lighting Theme", Type: models.ParamSelect, Default: "louvre_warm", Options: []models.SelectOption{
+					{Label: "Louvre Warm Spotlight", Value: "louvre_warm"},
+					{Label: "Marble Rotunda Daylight", Value: "marble_rotunda"},
+					{Label: "Dramatic Chiaroscuro", Value: "chiaroscuro"},
+				}},
+				{ID: "cameraSweep", Label: "360° Camera Trajectory", Type: models.ParamSelect, Default: "full_orbit", Options: []models.SelectOption{
+					{Label: "Full 360° Elevation Sweep", Value: "full_orbit"},
+					{Label: "Classic Eye-Level 360° Orbit", Value: "eye_level"},
+					{Label: "Close-Up Detail Study", Value: "close_study"},
+				}},
+				{ID: "showPlaque", Label: "Show Museum Location & Provenance Plaque", Type: models.ParamBoolean, Default: true},
+			},
+		},
 	}
 }
 
-// BuiltinScreensavers returns all 32 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
+// BuiltinScreensavers returns all 33 built-in native screensavers with normalized Engine, PreviewGrad, and Option IDs.
 func BuiltinScreensavers() []models.Screensaver {
 	list := BuiltinSavers()
 	for i := range list {

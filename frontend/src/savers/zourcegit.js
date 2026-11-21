@@ -1,15 +1,17 @@
 // Zource: Git Self-Hosting History Screensaver (zourcegit.js)
 //
-// Faithful Wayland WebGL/Canvas port of `zource` (3D Rotating Fresnel Bubbles + 2D Radial Tree)
-// replaying authentic chronological commits from `git/git` — starting at Linus Torvalds's
-// April 7, 2005 initial commit (e83c51633: 'Initial revision of "git", the information manager
-// from hell') through 21+ years of Git developing Git (builtin/, Documentation/, t/, refs/,
-// reftable/, scalar/, compat/, rust/).
+// Faithful Wayland WebGL/Canvas port of `zource` v0.1.4 (File-Count-Driven Faceted
+// Polyhedron Directory Shells + 2D Radial Tree) replaying authentic chronological commits
+// from `git/git` — starting at Linus Torvalds's April 7, 2005 initial commit (e83c51633:
+// 'Initial revision of "git", the information manager from hell') through 21+ years of
+// Git developing Git (builtin/, Documentation/, t/, refs/, reftable/, scalar/, compat/, rust/).
 
 import { GIT_AUTHORS, GIT_PATHS, GIT_COMMITS } from './zourceGitData.js';
 
 const GOLDEN_ANGLE = 2.39996323;
 const TAU = Math.PI * 2;
+const POLY_MIN_VERTS = 4;
+const POLY_MAX_VERTS = 42;
 
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
@@ -54,6 +56,260 @@ function hslToRgb(hDeg, s, l) {
     Math.round(clamp((g1 + m) * 255, 0, 255)),
     Math.round(clamp((b1 + m) * 255, 0, 255))
   ];
+}
+
+function rgbToHsl(rgb) {
+  const r = rgb[0] / 255;
+  const g = rgb[1] / 255;
+  const b = rgb[2] / 255;
+  const maxV = Math.max(r, g, b);
+  const minV = Math.min(r, g, b);
+  const l = (maxV + minV) * 0.5;
+  const d = maxV - minV;
+  if (d < 0.0001) return { h: 205, s: 0.25, l };
+  const s = l > 0.5 ? d / (2 - maxV - minV) : d / (maxV + minV);
+  let h = 0;
+  if (maxV === r) {
+    h = (g - b) / d + (g < b ? 6 : 0);
+  } else if (maxV === g) {
+    h = (b - r) / d + 2;
+  } else {
+    h = (r - g) / d + 4;
+  }
+  return { h: h * 60, s, l };
+}
+
+function facetColor(baseRgb, faceIdx, dirSeed) {
+  const hsl = rgbToHsl(baseRgb);
+  const seedF = (dirSeed % 997) * 0.001003;
+  const u = (faceIdx * 0.6180339887 + seedF) % 1;
+  const v = (faceIdx * 0.3819660113 + seedF * 1.7) % 1;
+  const hueShift = (u * 2 - 1) * 32;
+  const sat = clamp(hsl.s * (0.85 + v * 0.30), 0.28, 0.78);
+  const light = clamp(hsl.l * (0.86 + (1 - v) * 0.24), 0.36, 0.74);
+  return hslToRgb(hsl.h + hueShift, sat, light);
+}
+
+function createPolyMesh() {
+  const verts = [];
+  const faces = [];
+  const edges = [];
+  const edgeSet = new Set();
+
+  function addVert(x, y, z) {
+    const len = Math.hypot(x, y, z);
+    const idx = verts.length;
+    if (len > 1e-6) {
+      verts.push({ x: x / len, y: y / len, z: z / len });
+    } else {
+      verts.push({ x: 0, y: 1, z: 0 });
+    }
+    return idx;
+  }
+
+  function addEdge(a, b) {
+    const u = a < b ? a : b;
+    const v = a < b ? b : a;
+    const key = u * 64 + v;
+    if (edgeSet.has(key)) return;
+    edgeSet.add(key);
+    edges.push([u, v]);
+  }
+
+  function addFace(a, b, c) {
+    const va = verts[a];
+    const vb = verts[b];
+    const vc = verts[c];
+    const e1x = vb.x - va.x;
+    const e1y = vb.y - va.y;
+    const e1z = vb.z - va.z;
+    const e2x = vc.x - va.x;
+    const e2y = vc.y - va.y;
+    const e2z = vc.z - va.z;
+    const cx = e1y * e2z - e1z * e2y;
+    const cy = e1z * e2x - e1x * e2z;
+    const cz = e1x * e2y - e1y * e2x;
+    const dotOut = cx * (va.x + vb.x + vc.x) + cy * (va.y + vb.y + vc.y) + cz * (va.z + vb.z + vc.z);
+    if (dotOut >= 0) {
+      faces.push([a, b, c]);
+    } else {
+      faces.push([a, c, b]);
+    }
+    addEdge(a, b);
+    addEdge(b, c);
+    addEdge(c, a);
+  }
+
+  return { verts, faces, edges, addVert, addFace };
+}
+
+function buildTetrahedron() {
+  const m = createPolyMesh();
+  m.addVert(1, 1, 1);
+  m.addVert(1, -1, -1);
+  m.addVert(-1, 1, -1);
+  m.addVert(-1, -1, 1);
+  m.addFace(0, 1, 2);
+  m.addFace(0, 2, 3);
+  m.addFace(0, 3, 1);
+  m.addFace(1, 3, 2);
+  return m;
+}
+
+function buildSquareAntiprism() {
+  const m = createPolyMesh();
+  const yOff = 0.56;
+  const rad = Math.sqrt(1 - yOff * yOff);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU;
+    m.addVert(Math.cos(a) * rad, yOff, Math.sin(a) * rad);
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = ((i + 0.5) / 4) * TAU;
+    m.addVert(Math.cos(a) * rad, -yOff, Math.sin(a) * rad);
+  }
+  m.addFace(0, 2, 1);
+  m.addFace(0, 3, 2);
+  for (let i = 0; i < 4; i++) {
+    const next = (i + 1) % 4;
+    m.addFace(i, next, 4 + i);
+    m.addFace(next, 4 + next, 4 + i);
+  }
+  m.addFace(4, 5, 6);
+  m.addFace(4, 6, 7);
+  return m;
+}
+
+function buildIcosahedron() {
+  const m = createPolyMesh();
+  const phi = 1.618033988749895;
+  const raw = [
+    [-1, phi, 0], [1, phi, 0], [-1, -phi, 0], [1, -phi, 0],
+    [0, -1, phi], [0, 1, phi], [0, -1, -phi], [0, 1, -phi],
+    [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1]
+  ];
+  for (let i = 0; i < raw.length; i++) {
+    m.addVert(raw[i][0], raw[i][1], raw[i][2]);
+  }
+  const tris = [
+    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
+  ];
+  for (let i = 0; i < tris.length; i++) {
+    m.addFace(tris[i][0], tris[i][1], tris[i][2]);
+  }
+  return m;
+}
+
+function buildPolarRingPolyhedron(vTotal) {
+  const m = createPolyMesh();
+  const rem = vTotal - 2;
+  const ringCount = rem <= 5 ? 1 : rem <= 14 ? 2 : rem <= 26 ? 3 : 4;
+  const ringSizes = new Array(ringCount).fill(0);
+  const weights = new Array(ringCount).fill(0);
+  let weightSum = 0;
+  for (let r = 0; r < ringCount; r++) {
+    const theta = Math.PI * ((r + 1) / (ringCount + 1));
+    weights[r] = Math.sin(theta);
+    weightSum += weights[r];
+  }
+  let assigned = 0;
+  for (let r = 0; r < ringCount; r++) {
+    ringSizes[r] = Math.max(3, Math.round(rem * (weights[r] / weightSum)));
+    assigned += ringSizes[r];
+  }
+  while (assigned < rem) {
+    let bestR = 0;
+    let bestDef = -1e9;
+    for (let r = 0; r < ringCount; r++) {
+      const def = rem * (weights[r] / weightSum) - ringSizes[r];
+      if (def > bestDef) {
+        bestDef = def;
+        bestR = r;
+      }
+    }
+    ringSizes[bestR]++;
+    assigned++;
+  }
+  while (assigned > rem) {
+    let bestR = 0;
+    let bestSur = -1e9;
+    for (let r = 0; r < ringCount; r++) {
+      if (ringSizes[r] <= 3) continue;
+      const sur = ringSizes[r] - rem * (weights[r] / weightSum);
+      if (sur > bestSur) {
+        bestSur = sur;
+        bestR = r;
+      }
+    }
+    ringSizes[bestR]--;
+    assigned--;
+  }
+
+  const northIdx = m.addVert(0, 1, 0);
+  const ringStarts = new Array(ringCount).fill(0);
+  for (let r = 0; r < ringCount; r++) {
+    ringStarts[r] = m.verts.length;
+    const theta = Math.PI * ((r + 1) / (ringCount + 1));
+    const y = Math.cos(theta);
+    const rad = Math.sin(theta);
+    const k = ringSizes[r];
+    const phase = (r & 1) === 1 ? Math.PI / k : 0;
+    for (let j = 0; j < k; j++) {
+      const ang = phase + (j / k) * TAU;
+      m.addVert(Math.cos(ang) * rad, y, Math.sin(ang) * rad);
+    }
+  }
+  const southIdx = m.addVert(0, -1, 0);
+
+  const k0 = ringSizes[0];
+  const s0 = ringStarts[0];
+  for (let j = 0; j < k0; j++) {
+    m.addFace(northIdx, s0 + ((j + 1) % k0), s0 + j);
+  }
+  for (let r = 0; r < ringCount - 1; r++) {
+    const ka = ringSizes[r];
+    const kb = ringSizes[r + 1];
+    const sa = ringStarts[r];
+    const sb = ringStarts[r + 1];
+    let ia = 0;
+    let ib = 0;
+    while (ia < ka || ib < kb) {
+      const progA = (ia + 0.5) / ka;
+      const progB = (ib + 0.5) / kb;
+      const a0 = sa + (ia % ka);
+      const b0 = sb + (ib % kb);
+      if (ia < ka && (ib === kb || progA <= progB)) {
+        m.addFace(a0, sa + ((ia + 1) % ka), b0);
+        ia++;
+      } else {
+        m.addFace(a0, sb + ((ib + 1) % kb), b0);
+        ib++;
+      }
+    }
+  }
+  const kl = ringSizes[ringCount - 1];
+  const sl = ringStarts[ringCount - 1];
+  for (let j = 0; j < kl; j++) {
+    m.addFace(southIdx, sl + j, sl + ((j + 1) % kl));
+  }
+  return m;
+}
+
+const POLY_MESH_CACHE = new Map();
+function meshForFileCount(fileCount) {
+  const v = clamp(Math.floor(fileCount || POLY_MIN_VERTS), POLY_MIN_VERTS, POLY_MAX_VERTS);
+  let cached = POLY_MESH_CACHE.get(v);
+  if (!cached) {
+    if (v === 4) cached = buildTetrahedron();
+    else if (v === 8) cached = buildSquareAntiprism();
+    else if (v === 12) cached = buildIcosahedron();
+    else cached = buildPolarRingPolyhedron(v);
+    POLY_MESH_CACHE.set(v, cached);
+  }
+  return cached;
 }
 
 function colorForPath(path) {
@@ -187,6 +443,7 @@ export function createZourceGit(canvas, getParams) {
         vel3z: 0,
         bubbleRadius: 28.0,
         heat: 0.6,
+        seed: 7,
         tint: [90, 155, 235]
       }
     ];
@@ -264,6 +521,7 @@ export function createZourceGit(canvas, getParams) {
       vel3z: 0,
       bubbleRadius: 18.0,
       heat: 1.0,
+      seed,
       tint: [90, 155, 235]
     });
     parent.childDirs.push(newIdx);
@@ -651,34 +909,132 @@ export function createZourceGit(canvas, getParams) {
     };
   }
 
-  function drawFresnelBubble(sx, sy, radius, rgb, heat, alphaScale) {
-    if (radius < 2.0) return;
-    const rimAlpha = (0.28 + heat * 0.26) * alphaScale;
-    const coreAlpha = (0.045 + heat * 0.06) * alphaScale;
-    const grad = ctx.createRadialGradient(
-      sx - radius * 0.28,
-      sy - radius * 0.32,
-      radius * 0.06,
-      sx,
-      sy,
-      radius
-    );
-    grad.addColorStop(0.0, `rgba(255,255,255,${clamp(0.20 + heat * 0.18, 0, 0.55).toFixed(3)})`);
-    grad.addColorStop(0.28, rgbaStr(rgb, coreAlpha));
-    grad.addColorStop(0.82, rgbaStr(rgb, coreAlpha * 1.4));
-    grad.addColorStop(0.96, rgbaStr(rgb, rimAlpha));
-    grad.addColorStop(1.0, rgbaStr(rgb, 0.0));
+  function drawPolyhedronShell(sx, sy, radius, rgb, heat, alphaScale, fileCount, dirSeed) {
+    if (radius < 2.5 || alphaScale <= 0.01) return;
+    const mesh = meshForFileCount(fileCount);
+    const vCount = mesh.verts.length;
+    const effRadius = radius * (1.0 + 0.26 / Math.sqrt(Math.max(1.0, vCount - 3.0)));
 
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(sx, sy, radius, 0, TAU);
-    ctx.fill();
+    const phase = (dirSeed % 360) * (Math.PI / 180);
+    const tilt = (((dirSeed / 7) % 100) / 100 - 0.5) * 0.55;
+    const localYaw = phase + phaseClock * 0.14;
+    const cl = Math.cos(localYaw);
+    const sl = Math.sin(localYaw);
+    const ct = Math.cos(tilt);
+    const st = Math.sin(tilt);
 
-    ctx.strokeStyle = rgbaStr(rgb, clamp(0.26 + heat * 0.34, 0, 0.85) * alphaScale);
-    ctx.lineWidth = Math.max(1.0, radius * 0.035);
-    ctx.beginPath();
-    ctx.arc(sx, sy, radius * 0.97, 0, TAU);
-    ctx.stroke();
+    const cyCam = Math.cos(camYaw);
+    const syCam = Math.sin(camYaw);
+    const cpCam = Math.cos(camPitch);
+    const spCam = Math.sin(camPitch);
+
+    const camV = new Array(vCount);
+    const scrV = new Array(vCount);
+    for (let i = 0; i < vCount; i++) {
+      const p = mesh.verts[i];
+      const lx = p.x * cl + p.z * sl;
+      const lz0 = -p.x * sl + p.z * cl;
+      const ly = p.y * ct - lz0 * st;
+      const lz = p.y * st + lz0 * ct;
+
+      const rx = lx * cyCam + lz * syCam;
+      const rz0 = -lx * syCam + lz * cyCam;
+      const ry = ly * cpCam - rz0 * spCam;
+      const rz = ly * spCam + rz0 * cpCam;
+
+      camV[i] = { x: rx, y: ry, z: rz };
+      scrV[i] = [sx + rx * effRadius, sy - ry * effRadius];
+    }
+
+    const vertFront = new Uint8Array(vCount);
+    const lxDir = -0.45;
+    const lyDir = 0.55;
+    const lzDir = -0.70;
+    const projFaces = [];
+
+    for (let fi = 0; fi < mesh.faces.length; fi++) {
+      const f = mesh.faces[fi];
+      const v0 = camV[f[0]];
+      const v1 = camV[f[1]];
+      const v2 = camV[f[2]];
+      const e1x = v1.x - v0.x;
+      const e1y = v1.y - v0.y;
+      const e1z = v1.z - v0.z;
+      const e2x = v2.x - v0.x;
+      const e2y = v2.y - v0.y;
+      const e2z = v2.z - v0.z;
+      let nx = e1y * e2z - e1z * e2y;
+      let ny = e1z * e2x - e1x * e2z;
+      let nz = e1x * e2y - e1y * e2x;
+      const nLen = Math.hypot(nx, ny, nz);
+      if (nLen > 1e-6) {
+        nx /= nLen; ny /= nLen; nz /= nLen;
+      } else {
+        nx = 0; ny = 0; nz = -1;
+      }
+
+      const front = nz < 0;
+      if (front) {
+        vertFront[f[0]] = 1;
+        vertFront[f[1]] = 1;
+        vertFront[f[2]] = 1;
+      }
+
+      const fc = facetColor(rgb, fi, dirSeed);
+      const omz = 1.0 - Math.abs(nz);
+      const fresnel = omz * omz;
+      const lDot = Math.max(0, nx * lxDir + ny * lyDir + nz * lzDir);
+      const l2 = lDot * lDot;
+      const l4 = l2 * l2;
+      const spec = front ? l4 * l4 * 0.42 : 0;
+
+      const shade = front ? (0.60 + lDot * 0.44 + heat * 0.18) : (0.36 + heat * 0.10);
+      const baseAlpha = front
+        ? (0.11 + fresnel * (0.24 + heat * 0.14) + spec * 0.30)
+        : (0.05 + fresnel * 0.055);
+
+      const fr = Math.min(255, Math.round(fc[0] * shade + spec * 225));
+      const fg = Math.min(255, Math.round(fc[1] * shade + spec * 235));
+      const fb = Math.min(255, Math.round(fc[2] * shade + spec * 250));
+
+      projFaces.push({
+        p0: scrV[f[0]],
+        p1: scrV[f[1]],
+        p2: scrV[f[2]],
+        depth: (v0.z + v1.z + v2.z) / 3,
+        rgb: [fr, fg, fb],
+        alpha: clamp(baseAlpha * alphaScale, 0, 0.72)
+      });
+    }
+
+    projFaces.sort((a, b) => b.depth - a.depth);
+    for (let i = 0; i < projFaces.length; i++) {
+      const pf = projFaces[i];
+      ctx.fillStyle = rgbaStr(pf.rgb, pf.alpha);
+      ctx.beginPath();
+      ctx.moveTo(pf.p0[0], pf.p0[1]);
+      ctx.lineTo(pf.p1[0], pf.p1[1]);
+      ctx.lineTo(pf.p2[0], pf.p2[1]);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    const edgeRgb = [
+      Math.min(255, rgb[0] + 56),
+      Math.min(255, rgb[1] + 56),
+      Math.min(255, rgb[2] + 56)
+    ];
+    ctx.lineWidth = Math.max(0.9, Math.min(1.6, radius * 0.028));
+    for (let ei = 0; ei < mesh.edges.length; ei++) {
+      const e = mesh.edges[ei];
+      const front = vertFront[e[0]] && vertFront[e[1]];
+      const ea = clamp((front ? (0.24 + heat * 0.22) : 0.075) * alphaScale, 0, 0.65);
+      ctx.strokeStyle = rgbaStr(edgeRgb, ea);
+      ctx.beginPath();
+      ctx.moveTo(scrV[e[0]][0], scrV[e[0]][1]);
+      ctx.lineTo(scrV[e[1]][0], scrV[e[1]][1]);
+      ctx.stroke();
+    }
   }
 
   function drawLitOrb(sx, sy, radius, rgb, alpha, heat, enableBloom) {
@@ -727,7 +1083,7 @@ export function createZourceGit(canvas, getParams) {
     const pad = 22;
     const dateStr = formatUtcDate(simTime);
     const progress = clamp((simTime - startTime) / Math.max(1, endTime - startTime), 0, 1);
-    const modeBadge = blend3D > 0.65 ? '3D BUBBLES' : blend3D < 0.35 ? '2D TREE' : 'MORPHING';
+    const modeBadge = blend3D > 0.65 ? '3D POLYHEDRA' : blend3D < 0.35 ? '2D TREE' : 'MORPHING';
     const eraLabel = activeEra === 'genesis_2005'
       ? '2005 Genesis'
       : activeEra === 'modern_subsystems'
@@ -911,7 +1267,7 @@ export function createZourceGit(canvas, getParams) {
         const pr = dirProj[i];
         if (!pr.visible) continue;
         renderItems.push({
-          kind: 0, // dir bubble
+          kind: 0, // dir polyhedron shell
           idx: i,
           x: pr.x,
           y: pr.y,
@@ -919,7 +1275,9 @@ export function createZourceGit(canvas, getParams) {
           depth: pr.depth + 4.0,
           rgb: d.tint,
           alpha: 0.42 + blend3D * 0.58,
-          heat: d.heat
+          heat: d.heat,
+          fileCount: Math.max(d.aliveFiles, d.files.length, 4),
+          dirSeed: d.seed || (i * 97 + 13)
         });
       }
 
@@ -968,7 +1326,7 @@ export function createZourceGit(canvas, getParams) {
       for (let i = 0; i < renderItems.length; i++) {
         const it = renderItems[i];
         if (it.kind === 0) {
-          drawFresnelBubble(it.x, it.y, it.r, it.rgb, it.heat, it.alpha);
+          drawPolyhedronShell(it.x, it.y, it.r, it.rgb, it.heat, it.alpha, it.fileCount, it.dirSeed);
         } else {
           drawLitOrb(it.x, it.y, it.r, it.rgb, it.alpha, it.heat, enableBloom);
         }

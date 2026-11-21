@@ -504,6 +504,60 @@ describe('savers/index.js factory', () => {
 
     saver.destroy();
   });
+
+  it('renders Classical Sculptures Gallery (3D) across all 8 public-domain works, lighting themes, sweeps, and museum plaque HUD', () => {
+    const parent = document.createElement('div');
+    const cvs = createFake2DCanvas();
+    parent.appendChild(cvs);
+    document.body.appendChild(parent);
+
+    let params = {
+      sculpturePreset: 'cycle',
+      orbitSpeed: 1.5,
+      dwellSeconds: 12,
+      lightingTheme: 'louvre_warm',
+      cameraSweep: 'full_orbit',
+      showPlaque: true
+    };
+    const saver = createSaverInstance('sculptures3d', cvs, () => params);
+    saver.resize(1280, 720);
+
+    // Advance past a full dwell transition in cycle mode
+    for (let step = 0; step < 30; step++) {
+      saver.render(0.5);
+    }
+
+    const presets = [
+      'david',
+      'pieta',
+      'venus_de_milo',
+      'winged_victory',
+      'the_thinker',
+      'discobolus',
+      'nefertiti',
+      'moai',
+      'random'
+    ];
+    const themes = ['louvre_warm', 'marble_rotunda', 'chiaroscuro'];
+    const sweeps = ['full_orbit', 'eye_level', 'close_study'];
+
+    for (let i = 0; i < presets.length; i++) {
+      params = {
+        sculpturePreset: presets[i],
+        orbitSpeed: 1.4,
+        dwellSeconds: 12,
+        lightingTheme: themes[i % themes.length],
+        cameraSweep: sweeps[i % sweeps.length],
+        showPlaque: i % 2 === 0
+      };
+      for (let step = 0; step < 6; step++) {
+        saver.render(0.25);
+      }
+    }
+
+    saver.destroy();
+    parent.remove();
+  });
 });
 
 describe('ParameterPanel.vue', () => {

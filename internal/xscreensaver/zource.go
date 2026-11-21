@@ -69,7 +69,7 @@ func DiscoverZourceSaver() *models.Screensaver {
 		AccentColor: "#f97316",
 		PreviewGrad: "linear-gradient(135deg, #070b15 0%, #c2410c 55%, #38bdf8 100%)",
 		Tags:        []string{"Zource", "Git", "Zig", "3D", "Tree", "Linus", "History"},
-		Description: "Runs the native Zig zource engine replaying Git's own 2005–2026 self-hosting commit log (or any local Git/Mercurial repository path) in 3D rotating Fresnel bubble clusters or 2D radial trees.",
+		Description: "Runs the native Zig zource v0.1.4 engine replaying Git's own 2005–2026 self-hosting commit log (or any local Git/Mercurial repository path) in 3D file-count-driven faceted polyhedron directory shells or 2D radial trees.",
 		Installed:   true,
 		Params: []models.SaverParam{
 			{
@@ -78,7 +78,7 @@ func DiscoverZourceSaver() *models.Screensaver {
 				Type:    models.ParamSelect,
 				Default: "3d",
 				Options: []models.SelectOption{
-					{ID: "3d", Value: "3d", Label: "3D Rotating Directory Bubbles"},
+					{ID: "3d", Value: "3d", Label: "3D Rotating Faceted Polyhedra"},
 					{ID: "2d", Value: "2d", Label: "2D Classic Radial Directory Tree"},
 				},
 			},

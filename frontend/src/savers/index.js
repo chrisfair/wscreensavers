@@ -42,6 +42,7 @@ import { createFractals3D } from './fractals3d.js';
 import { createAmesWindow } from './ameswindow.js';
 import { createDnD5eDice } from './dnd5edice.js';
 import { createZourceGit } from './zourcegit.js';
+import { createSculptures3D } from './sculptures3d.js';
 
 const SAVER_FACTORIES = {
   glmatrix: createGLMatrix,
@@ -75,7 +76,8 @@ const SAVER_FACTORIES = {
   fractals3d: createFractals3D,
   ameswindow: createAmesWindow,
   dnd5edice: createDnD5eDice,
-  zourcegit: createZourceGit
+  zourcegit: createZourceGit,
+  sculptures3d: createSculptures3D
 };
 
 export function hasNativeSaver(saverId) {

@@ -20,7 +20,8 @@ export default defineConfig({
         'src/components/**/*.vue',
         'src/savers/index.js',
         'src/savers/functionPlotter3d.js',
-        'src/savers/zourcegit.js'
+        'src/savers/zourcegit.js',
+        'src/savers/sculptures3d.js'
       ]
     }
   }

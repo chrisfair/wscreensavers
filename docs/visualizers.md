@@ -1,6 +1,6 @@
 # Native Visualizers Catalog
 
-WScreenSavers includes **32 built-in WebGL2 and Canvas visualizers** with zero external dependencies. Each visualizer runs smoothly at native display refresh rates (60–144Hz+) and features customizable parameters in the Control Center Studio.
+WScreenSavers includes **33 built-in WebGL2 and Canvas visualizers** with zero external dependencies. Each visualizer runs smoothly at native display refresh rates (60–144Hz+) and features customizable parameters in the Control Center Studio.
 
 ---
 
@@ -8,7 +8,8 @@ WScreenSavers includes **32 built-in WebGL2 and Canvas visualizers** with zero e
 
 | Visualizer | Category | Engine | Description |
 | :--- | :--- | :--- | :--- |
-| **Zource: Git Self-Hosting History** | Matrix & Cyber | Canvas / 3D | Zource 3D rotating Fresnel directory bubbles and 2D force-relaxed radial trees replaying Git developing Git itself from Linus Torvalds's 2005 initial revision (`e83c51633`) through `reftable/`, `scalar/`, and `rust/`. |
+| **Classical Sculptures Gallery (3D)** | 3D OpenGL Classics | WebGL2 / Three.js | 360-degree orbital tour of eight public-domain ancient and Renaissance sculptures (David, Pietà, Venus de Milo, Winged Victory, The Thinker, Discobolus, Bust of Nefertiti, and Moai) with museum location plaques. |
+| **Zource: Git Self-Hosting History** | Matrix & Cyber | Canvas / 3D | Zource v0.1.4 3D rotating file-count-driven faceted polyhedron directory shells and 2D force-relaxed radial trees replaying Git developing Git itself from Linus Torvalds's 2005 initial revision (`e83c51633`) through `reftable/`, `scalar/`, and `rust/`. |
 | **Apex 3D Chess** | Board Games & 3D | WebGL2 / Three.js | 8x8x5 spatial 3D chess arena from **bughouse-online.com** with 5 multi-tiered glass boards (320 cells), 3D Staunton pieces, Royal Princesses and Princes, dimensional portal corridors, forcefields, and real-time engine battles. |
 | **Chess Openings (3D)** | Board Games | WebGL2 / Three.js | Grandmaster openings (Najdorf, Berlin, Queen's Gambit, King's Indian) with 3D Staunton pieces, specular board, parabolic lift arcs, and smooth camera orbit matching classic `endgame`. |
 | **GLMatrix** | Matrix & Cyber | WebGL2 | 3D Matrix katakana glyph digital rain with depth fog, volumetric glow, and camera drift. |
