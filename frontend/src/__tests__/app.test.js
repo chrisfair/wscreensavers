@@ -982,7 +982,7 @@ describe('App.vue Control Center', () => {
         return {
           ok: true,
           json: async () => ({
-            version: '1.1.31',
+            version: '1.1.32',
             username: 'christopher',
             otherWallpapers: ['hyprpaper'],
             lastWakeMs: 1000,
