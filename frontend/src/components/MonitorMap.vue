@@ -50,7 +50,7 @@
               :value="s.id"
               :disabled="isWallpaperUsedByOther(s.id, mon.name)"
             >
-              {{ s.name }} ({{ s.category }}){{ isWallpaperUsedByOther(s.id, mon.name) ? ' 🔒 (In use on ' + getWallpaperOtherMon(s.id, mon.name) + ')' : '' }}
+              {{ s.name }} ({{ s.category }}){{ isWallpaperUsedByOther(s.id, mon.name) ? ' (In use on ' + getWallpaperOtherMon(s.id, mon.name) + ')' : '' }}
             </option>
           </select>
         </div>

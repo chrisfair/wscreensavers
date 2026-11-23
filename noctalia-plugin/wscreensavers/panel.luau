@@ -518,7 +518,7 @@ render = function()
           runCmd("set wallpaperPerMonitor " .. mon.name .. "=" .. shellQuote(cfg.selectedSaver), "Set " .. mon.name .. ": " .. (stateData.selectedName or cfg.selectedSaver))
         end)
         table.insert(wpColChildren, ui.row({ gap = 8, align = "center" }, {
-          ui.label({ text = "🖥 " .. mon.name .. ":", fontSize = 11, fontWeight = "bold", color = "primary" }),
+          ui.label({ text = mon.name .. ":", fontSize = 11, fontWeight = "bold", color = "primary" }),
           ui.label({ text = curSaver, fontSize = 11, color = "on_surface" }),
           ui.spacer({ flexGrow = 1 }),
           ui.button({
@@ -532,7 +532,7 @@ render = function()
       end
       table.insert(wpColChildren, ui.row({ gap = 8, align = "center" }, {
         ui.button({
-          text = "🎲 Randomize Unique Set",
+          text = "Randomize Unique Set",
           glyph = "refresh",
           controlSize = "sm",
           variant = "ghost",

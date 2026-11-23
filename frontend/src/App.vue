@@ -162,7 +162,7 @@
           </button>
           <div v-if="openMenu === 'appearance'" class="menu-dropdown">
             <button class="menu-entry" type="button" @click="runMenuAction(toggleLightDark)">
-              <span class="menu-check">{{ isCurrentThemeLight ? '🌙' : '☀️' }}</span>
+              <span class="menu-check"></span>
               <span>{{ isCurrentThemeLight ? 'Switch to Dark Mode' : 'Switch to Light Mode' }}</span>
             </button>
             <div class="menu-divider"></div>
@@ -547,7 +547,7 @@
               <div v-if="(config.wallpaperMode || 'single') === 'single'" class="setting-box">
                 <label>Wallpaper Screensaver</label>
                 <select v-model="config.wallpaperSaver" @change="updateWallpaperSaver">
-                  <option value="random">🎲 Random (Shuffle All)</option>
+                  <option value="random">Random (Shuffle All)</option>
                   <option v-for="s in savers" :key="s.id" :value="s.id">
                     {{ s.name }} ({{ s.category }})
                   </option>
@@ -575,7 +575,7 @@
                   <p class="subbar-desc">Each screen must run a distinct live wallpaper. Duplicate screensavers are locked out to ensure strict visual uniqueness.</p>
                 </div>
                 <button class="btn btn-secondary btn-sm" @click="randomizeUniqueWallpapers">
-                  🎲 Randomize Unique Set
+                  Randomize Unique Set
                 </button>
               </div>
 
@@ -603,7 +603,7 @@
                         :value="s.id"
                         :disabled="isSaverAssignedToOther(s.id, mon.name)"
                       >
-                        {{ s.name }} ({{ s.category }}){{ isSaverAssignedToOther(s.id, mon.name) ? ' 🔒 (In use on ' + getMonitorUsingSaver(s.id, mon.name) + ')' : '' }}
+                        {{ s.name }} ({{ s.category }}){{ isSaverAssignedToOther(s.id, mon.name) ? ' (In use on ' + getMonitorUsingSaver(s.id, mon.name) + ')' : '' }}
                       </option>
                     </select>
                   </div>
