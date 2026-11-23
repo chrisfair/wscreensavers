@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Mon Nov 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.31-1
+- Release v1.1.31: add Safe for Work mode (safeForWork) across daemon, CLI, Desktop Control Center, and Noctalia plugin to hide and exclude rude/NSFW hacks (handsy, webcollage, vidwhacker, noseguy, stonerview)
+
 * Fri Nov 20 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.30-1
 - Release v1.1.30: upgrade zourcegit to zource v0.1.4 file-count-driven faceted polyhedra and add Classical Sculptures Gallery (3D) featuring 8 public-domain works with 360-degree orbits and museum location plaques
 

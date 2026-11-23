@@ -131,6 +131,10 @@
               <span class="menu-check">{{ config.stopRecordingOnLock ? '✓' : '' }}</span>
               <span>Stop All Recordings on Lock</span>
             </button>
+            <button class="menu-entry" type="button" @click="toggleSafeForWork">
+              <span class="menu-check">{{ config.safeForWork ? '✓' : '' }}</span>
+              <span>Safe for Work (Hide Rude / NSFW Hacks)</span>
+            </button>
             <div class="menu-divider"></div>
             <div class="menu-section-label">Activation Mode</div>
             <button
@@ -285,6 +289,16 @@
             type="text"
             :placeholder="`Search ${savers.length} screensavers...`"
           />
+          <button
+            class="cat-chip"
+            :class="{ active: config.safeForWork }"
+            type="button"
+            style="margin-top: 6px; width: 100%;"
+            @click="toggleSafeForWork"
+            title="Hide and exclude rude/NSFW hacks (e.g. handsy, webcollage, vidwhacker, noseguy, stonerview)"
+          >
+            {{ config.safeForWork ? '✓ Safe for Work: ON' : 'Safe for Work: OFF' }}
+          </button>
         </div>
 
         <div class="category-chips">
@@ -467,6 +481,10 @@
               <label class="chk">
                 <input type="checkbox" v-model="config.stopRecordingOnLock" @change="persistConfig" />
                 <span>Stop Active Audio/Video Recordings on Lock</span>
+              </label>
+              <label class="chk">
+                <input type="checkbox" v-model="config.safeForWork" @change="persistSafeForWork" />
+                <span>Safe for Work Mode (Exclude handsy, webcollage, vidwhacker, noseguy &amp; stonerview)</span>
               </label>
             </div>
           </div>
@@ -749,6 +767,19 @@ function toggleBoolConfig(key) {
   persistConfig();
 }
 
+async function persistSafeForWork() {
+  await persistConfig();
+  try {
+    const res = await fetch(`${apiBase.value}/api/savers`);
+    if (res.ok) savers.value = await res.json();
+  } catch (_) {}
+}
+
+function toggleSafeForWork() {
+  config.value.safeForWork = !config.value.safeForWork;
+  persistSafeForWork();
+}
+
 function setActivationMode(mode) {
   config.value.mode = mode;
   openMenu.value = null;
@@ -807,7 +838,8 @@ const config = ref({
   xssMaxStreamDim: 1920,
   enabledSavers: [],
   saverParams: {},
-  dpmsOffMinutes: dpmsMinutesParam.value
+  dpmsOffMinutes: dpmsMinutesParam.value,
+  safeForWork: false
 });
 
 const otherWallpapers = ref([]);

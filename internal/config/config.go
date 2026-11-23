@@ -116,6 +116,9 @@ func (m *Manager) loadLocked() error {
 	if loaded.PreferNativeOverX11 {
 		normalizeNativeSaverIDs(&loaded)
 	}
+	if loaded.SafeForWork {
+		sanitizeSafeForWork(&loaded)
+	}
 	loaded.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(loaded.WallpaperPerMonitor)
 	if loaded.SaverParams == nil {
 		loaded.SaverParams = make(map[string]map[string]any)
@@ -198,6 +201,26 @@ func normalizeNativeSaverIDs(cfg *models.AppConfig) {
 	}
 }
 
+func sanitizeSafeForWork(cfg *models.AppConfig) {
+	if catalog.IsNSFW(cfg.SelectedSaver) {
+		cfg.SelectedSaver = "glmatrix"
+	}
+	if catalog.IsNSFW(cfg.WallpaperSaver) {
+		cfg.WallpaperSaver = "flurry"
+	}
+	for k, v := range cfg.PerMonitorSaver {
+		if catalog.IsNSFW(v) {
+			delete(cfg.PerMonitorSaver, k)
+		}
+	}
+	for k, v := range cfg.WallpaperPerMonitor {
+		if catalog.IsNSFW(v) {
+			delete(cfg.WallpaperPerMonitor, k)
+		}
+	}
+	cfg.EnabledSavers = catalog.FilterSafeForWorkIDs(cfg.EnabledSavers, true)
+}
+
 // SanitizeWallpaperPerMonitor ensures that no two monitor outputs share the same saver ID.
 // If a duplicate is encountered, earlier assignments keep their value and the duplicate is cleared,
 // guaranteeing that each monitor is assigned a strictly unique screensaver.
@@ -243,6 +266,9 @@ func (m *Manager) Update(next models.AppConfig) error {
 	}
 	if next.PreferNativeOverX11 {
 		normalizeNativeSaverIDs(&next)
+	}
+	if next.SafeForWork {
+		sanitizeSafeForWork(&next)
 	}
 	next.WallpaperPerMonitor = SanitizeWallpaperPerMonitor(next.WallpaperPerMonitor)
 	if next.SaverParams == nil {

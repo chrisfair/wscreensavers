@@ -114,6 +114,7 @@ type AppConfig struct {
 	DPMSOffMinutes      int                       `json:"dpmsOffMinutes"`
 	PreferNativeOverX11 bool                      `json:"preferNativeOverX11"`
 	XSSMaxStreamDim     int                       `json:"xssMaxStreamDim"` // long-edge pixel cap for OpenGL saver streams
+	SafeForWork         bool                      `json:"safeForWork"`     // hide and exclude NSFW/rude hacks (e.g. handsy, webcollage)
 }
 
 // SystemBlip represents a real host or process blip displayed by the Sonar and Phosphor savers.

@@ -211,8 +211,9 @@ func (s *Server) RefreshCatalog() []models.Screensaver {
 
 func (s *Server) GetSavers() []models.Screensaver {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.savers
+	list := s.savers
+	s.mu.RUnlock()
+	return catalog.FilterSafeForWorkSavers(list, s.cfgMgr.Get().SafeForWork)
 }
 
 func (s *Server) FindSaver(id string) (models.Screensaver, bool) {
@@ -238,12 +239,12 @@ func (s *Server) PickRandomSaver() string {
 	}
 	var pool []string
 	for _, id := range rawPool {
-		if id != "xshadertoy" {
+		if id != "xshadertoy" && (!cfg.SafeForWork || !catalog.IsNSFW(id)) {
 			pool = append(pool, id)
 		}
 	}
 	if len(pool) == 0 {
-		pool = rawPool
+		pool = catalog.FilterSafeForWorkIDs(rawPool, cfg.SafeForWork)
 	}
 	if len(pool) == 0 {
 		return "glmatrix"
@@ -264,7 +265,7 @@ func (s *Server) PickUniqueRandomSaver(exclude map[string]bool) string {
 	var nativeAvailable []string
 	var available []string
 	for _, id := range pool {
-		if !exclude[id] && id != "xshadertoy" && id != "xss_xshadertoy" {
+		if !exclude[id] && id != "xshadertoy" && id != "xss_xshadertoy" && (!cfg.SafeForWork || !catalog.IsNSFW(id)) {
 			available = append(available, id)
 			if !strings.HasPrefix(id, "xss_") {
 				nativeAvailable = append(nativeAvailable, id)
@@ -385,6 +386,9 @@ func (s *Server) LaunchScreensaver(saverID string, locked bool) error {
 	}
 
 	cfg := s.cfgMgr.Get()
+	if cfg.SafeForWork && catalog.IsNSFW(saverID) {
+		saverID = s.PickRandomSaver()
+	}
 	overlaySaverID := saverID
 	if saverID == "" || saverID == "random" {
 		if cfg.Mode == "random" || cfg.Mode == "cycle" || saverID == "random" {

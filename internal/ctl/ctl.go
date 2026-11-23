@@ -138,7 +138,7 @@ func spawnDetached(args ...string) error {
 
 func buildStatus(cfgMgr *config.Manager) StatusPayload {
 	cfg := cfgMgr.Get()
-	savers := allSavers()
+	savers := catalog.FilterSafeForWorkSavers(allSavers(), cfg.SafeForWork)
 	compact := make([]CompactSaver, 0, len(savers))
 	selName := cfg.SelectedSaver
 	wpName := cfg.WallpaperSaver
@@ -246,6 +246,8 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			cfg.InhibitOnAudio = val == "true" || val == "1" || val == "on"
 		case "inhibitOnFullscreen":
 			cfg.InhibitOnFullscreen = val == "true" || val == "1" || val == "on"
+		case "safeForWork":
+			cfg.SafeForWork = val == "true" || val == "1" || val == "on"
 		case "wallpaperSaver":
 			cfg.WallpaperSaver = val
 			if isWallpaperProcessRunning() {
@@ -391,9 +393,9 @@ func Run(cfgMgr *config.Manager, args []string) error {
 		return printStatus(cfgMgr)
 
 	case "randomize":
-		pool := cfg.EnabledSavers
+		pool := catalog.FilterSafeForWorkIDs(cfg.EnabledSavers, cfg.SafeForWork)
 		if len(pool) == 0 {
-			for _, s := range allSavers() {
+			for _, s := range catalog.FilterSafeForWorkSavers(allSavers(), cfg.SafeForWork) {
 				pool = append(pool, s.ID)
 			}
 		}
@@ -439,7 +441,7 @@ func Run(cfgMgr *config.Manager, args []string) error {
 			cfg.EnabledSavers = next
 		case "all":
 			cfg.EnabledSavers = cfg.EnabledSavers[:0:0]
-			for _, s := range allSavers() {
+			for _, s := range catalog.FilterSafeForWorkSavers(allSavers(), cfg.SafeForWork) {
 				cfg.EnabledSavers = append(cfg.EnabledSavers, s.ID)
 			}
 		case "none":

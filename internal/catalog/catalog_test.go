@@ -46,3 +46,23 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 		t.Errorf("expected sculptures3d (Classical Sculptures Gallery (3D)) in builtin catalog")
 	}
 }
+
+func TestSafeForWorkFilter(t *testing.T) {
+	if !IsNSFW("handsy") || !IsNSFW("xss_handsy") || !IsNSFW("XSS_WEBCOLLAGE") {
+		t.Fatalf("expected handsy and webcollage to be flagged NSFW")
+	}
+	if IsNSFW("glmatrix") || IsNSFW("sculptures3d") {
+		t.Fatalf("expected glmatrix and sculptures3d to be safe for work")
+	}
+	if NSFWReason("xss_handsy") == "" {
+		t.Fatalf("expected non-empty reason for xss_handsy")
+	}
+	ids := FilterSafeForWorkIDs([]string{"glmatrix", "xss_handsy", "xss_webcollage", "flurry"}, true)
+	if len(ids) != 2 || ids[0] != "glmatrix" || ids[1] != "flurry" {
+		t.Fatalf("unexpected filtered IDs: %v", ids)
+	}
+	raw := FilterSafeForWorkIDs([]string{"glmatrix", "xss_handsy"}, false)
+	if len(raw) != 2 {
+		t.Fatalf("expected unfiltered IDs when safeForWork=false")
+	}
+}
