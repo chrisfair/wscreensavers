@@ -224,13 +224,14 @@ func (m *Monitor) StatusLight() models.DaemonStatus {
 		if m.waylandIdle && !m.idleStartedAt.IsZero() {
 			idleSec = int(time.Since(m.idleStartedAt).Seconds())
 		} else {
-			idleSec = int(time.Since(m.lastActivity).Seconds())
-			if idleSec < 0 {
-				idleSec = 0
-			}
+			// Seat is actively receiving input (ext-idle-notify-v1 has not fired idled).
+			idleSec = 0
 		}
 	} else {
 		idleSec = int(time.Since(m.lastActivity).Seconds())
+	}
+	if idleSec < 0 {
+		idleSec = 0
 	}
 	saverActive := m.screensaverActive
 	wpActive := m.wallpaperActive

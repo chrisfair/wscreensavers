@@ -67,14 +67,17 @@ func TestIdleMonitorAndTelemetry(t *testing.T) {
 }
 
 func TestWaylandIdleCalculation(t *testing.T) {
+	// Continuous typing/activity: waylandActive=true and waylandIdle=false must report 0s idle
+	// even if lastActivity is old (because ext-idle-notify-v1 never fires resumed without a prior idled).
 	mon := &Monitor{
 		waylandActive: true,
-		lastActivity:  time.Now(),
+		waylandIdle:   false,
+		lastActivity:  time.Now().Add(-15 * time.Minute),
 	}
 
-	st := mon.Status(false, false)
-	if st.IdleSeconds > 2 {
-		t.Errorf("expected small idle seconds while active, got %d", st.IdleSeconds)
+	st := mon.StatusLight()
+	if st.IdleSeconds != 0 {
+		t.Errorf("expected 0 idle seconds while Wayland seat is active, got %d", st.IdleSeconds)
 	}
 
 	mon.mu.Lock()
@@ -82,15 +85,15 @@ func TestWaylandIdleCalculation(t *testing.T) {
 	mon.idleStartedAt = time.Now().Add(-120 * time.Second)
 	mon.mu.Unlock()
 
-	stIdle := mon.Status(false, false)
+	stIdle := mon.StatusLight()
 	if stIdle.IdleSeconds < 119 || stIdle.IdleSeconds > 122 {
 		t.Errorf("expected ~120 idle seconds, got %d", stIdle.IdleSeconds)
 	}
 
 	mon.RecordActivity()
-	stResumed := mon.Status(false, false)
-	if stResumed.IdleSeconds > 2 {
-		t.Errorf("expected idle seconds reset to ~0 after RecordActivity, got %d", stResumed.IdleSeconds)
+	stResumed := mon.StatusLight()
+	if stResumed.IdleSeconds != 0 {
+		t.Errorf("expected idle seconds reset to 0 after RecordActivity, got %d", stResumed.IdleSeconds)
 	}
 }
 

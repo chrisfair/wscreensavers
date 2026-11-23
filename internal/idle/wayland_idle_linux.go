@@ -65,6 +65,7 @@ func startWaylandIdleListener(timeoutMs int, onIdle func(), onResume func()) *wa
 					if st == nil {
 						continue
 					}
+					onResume()
 				}
 				ev := C.wayland_idle_poll(st, 500)
 				if ev == 1 {
