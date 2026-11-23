@@ -65,4 +65,10 @@ func TestSafeForWorkFilter(t *testing.T) {
 	if len(raw) != 2 {
 		t.Fatalf("expected unfiltered IDs when safeForWork=false")
 	}
+	if got := FilterSafeForWorkSavers(nil, true); len(got) != 0 {
+		t.Fatalf("expected empty slice when filtering nil savers, got %d", len(got))
+	}
+	if got := FilterSafeForWorkIDs(nil, true); len(got) != 0 {
+		t.Fatalf("expected empty slice when filtering nil IDs, got %d", len(got))
+	}
 }

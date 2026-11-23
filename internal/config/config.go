@@ -58,6 +58,7 @@ func DefaultConfig() models.AppConfig {
 		DPMSOffMinutes:        30,
 		PreferNativeOverX11:   true,
 		XSSMaxStreamDim:       1920,
+		SafeForWork:           true,
 	}
 }
 

@@ -51,6 +51,9 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
+* Mon Nov 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.32-1
+- Release v1.1.32: default Safe for Work mode (safeForWork) to ON (opt-out) across config, Desktop Control Center, and Noctalia plugin
+
 * Mon Nov 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.31-1
 - Release v1.1.31: add Safe for Work mode (safeForWork) across daemon, CLI, Desktop Control Center, and Noctalia plugin to hide and exclude rude/NSFW hacks (handsy, webcollage, vidwhacker, noseguy, stonerview)
 

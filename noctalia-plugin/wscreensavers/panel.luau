@@ -401,7 +401,7 @@ render = function()
     local toggleAudio = callback("tAudio", function() setConfig("inhibitOnAudio", not cfg.inhibitOnAudio) end)
     local toggleFs = callback("tFs", function() setConfig("inhibitOnFullscreen", not cfg.inhibitOnFullscreen) end)
     local toggleClock = callback("tClock", function() setConfig("showClockOnSaver", not cfg.showClockOnSaver) end)
-    local toggleSfw = callback("tSfw", function() setConfig("safeForWork", not cfg.safeForWork) end)
+    local toggleSfw = callback("tSfw", function() setConfig("safeForWork", cfg.safeForWork == false) end)
 
     table.insert(children, ui.column({ gap = 8, align = "stretch", padding = 12, radius = 8, fill = "surface_variant" }, {
       ui.row({ gap = 8, align = "center" }, {
@@ -449,7 +449,7 @@ render = function()
         ui.button({ text = tr("audio_inhibit"), controlSize = "sm", variant = cfg.inhibitOnAudio and "primary" or "ghost", selected = cfg.inhibitOnAudio, onClick = toggleAudio }),
         ui.button({ text = tr("fullscreen_inhibit"), controlSize = "sm", variant = cfg.inhibitOnFullscreen and "primary" or "ghost", selected = cfg.inhibitOnFullscreen, onClick = toggleFs }),
         ui.button({ text = tr("hud_clock"), controlSize = "sm", variant = cfg.showClockOnSaver and "primary" or "ghost", selected = cfg.showClockOnSaver, onClick = toggleClock }),
-        ui.button({ text = tr("safe_for_work"), glyph = "shield-check", controlSize = "sm", variant = cfg.safeForWork and "primary" or "ghost", selected = cfg.safeForWork, onClick = toggleSfw }),
+        ui.button({ text = tr("safe_for_work"), glyph = "shield-check", controlSize = "sm", variant = (cfg.safeForWork ~= false) and "primary" or "ghost", selected = (cfg.safeForWork ~= false), onClick = toggleSfw }),
       }),
     }))
 

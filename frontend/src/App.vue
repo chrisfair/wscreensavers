@@ -839,7 +839,7 @@ const config = ref({
   enabledSavers: [],
   saverParams: {},
   dpmsOffMinutes: dpmsMinutesParam.value,
-  safeForWork: false
+  safeForWork: true
 });
 
 const otherWallpapers = ref([]);
