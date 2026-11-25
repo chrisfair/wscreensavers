@@ -189,12 +189,12 @@ func main() {
 					return
 				}
 				if *saverMode {
-					if nowMs-startedAtMs.Load() > 900 {
+					if nowMs-startedAtMs.Load() > 150 {
 						_ = srv.SetDPMS(true)
 						layershell.RequestQuit()
 					}
 				} else if *lockMode {
-					if nowMs-startedAtMs.Load() > 1500 {
+					if nowMs-startedAtMs.Load() > 350 {
 						srv.RecordWake()
 						go func() {
 							_ = srv.SetDPMS(true)

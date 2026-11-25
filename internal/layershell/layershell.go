@@ -197,6 +197,8 @@ static gint64 last_wake_eval_us = 0;
 static gint64 suppress_wake_until_us = 0;
 static gdouble last_lock_motion_x = -1.0;
 static gdouble last_lock_motion_y = -1.0;
+static gdouble last_dismiss_motion_x = -1.0;
+static gdouble last_dismiss_motion_y = -1.0;
 
 static void extract_query_param(const char *url, const char *key, char *out, size_t out_sz) {
     if (out == NULL || out_sz == 0) return;
@@ -369,9 +371,11 @@ static gboolean reload_layer_windows_idle_cb(gpointer data) {
     ReloadPayload *payload = (ReloadPayload *)data;
     if (payload == NULL) return FALSE;
     if (gtk_loop_active && payload->count > 0) {
-        suppress_wake_until_us = g_get_monotonic_time() + 1800000;
+        suppress_wake_until_us = g_get_monotonic_time() + 250000;
         last_lock_motion_x = -1.0;
         last_lock_motion_y = -1.0;
+        last_dismiss_motion_x = -1.0;
+        last_dismiss_motion_y = -1.0;
         for (int i = 0; i < layer_webview_count; i++) {
             if (layer_motion_counters[i] != NULL) {
                 *(layer_motion_counters[i]) = 0;
@@ -517,10 +521,23 @@ static gboolean on_lock_key(GtkWidget *widget, GdkEventKey *event, gpointer user
 }
 
 static gboolean on_motion_dismiss(GtkWidget *widget, GdkEventMotion *event, gpointer user_data) {
-    int *first_move = (int *)user_data;
-    if (*first_move < 3) {
-        (*first_move)++;
-        return FALSE;
+    (void)widget;
+    (void)user_data;
+    if (event != NULL) {
+        if (last_dismiss_motion_x < 0.0 || last_dismiss_motion_y < 0.0) {
+            last_dismiss_motion_x = event->x_root;
+            last_dismiss_motion_y = event->y_root;
+            return FALSE;
+        }
+        gdouble dx = event->x_root - last_dismiss_motion_x;
+        gdouble dy = event->y_root - last_dismiss_motion_y;
+        if (dx < 0.0) dx = -dx;
+        if (dy < 0.0) dy = -dy;
+        if (dx <= 3.0 && dy <= 3.0) {
+            return FALSE;
+        }
+        last_dismiss_motion_x = event->x_root;
+        last_dismiss_motion_y = event->y_root;
     }
     request_gtk_quit();
     return TRUE;
@@ -553,9 +570,11 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
     lock_window_count = 0;
     layer_window_count = 0;
     layer_webview_count = 0;
-    suppress_wake_until_us = g_get_monotonic_time() + 1800000;
+    suppress_wake_until_us = g_get_monotonic_time() + 250000;
     last_lock_motion_x = -1.0;
     last_lock_motion_y = -1.0;
+    last_dismiss_motion_x = -1.0;
+    last_dismiss_motion_y = -1.0;
 
     GdkDisplay *display = gdk_display_get_default();
     int n_monitors = 1;
@@ -684,6 +703,7 @@ static void launch_layer_windows(const char **urls, int url_count, int is_wallpa
             g_signal_connect(window, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(webview, "enter-notify-event", G_CALLBACK(on_lock_enter), webview);
             g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_dismiss), motion_counter);
+            g_signal_connect(webview, "motion-notify-event", G_CALLBACK(on_motion_dismiss), motion_counter);
             g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_dismiss), NULL);
             g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_dismiss), NULL);
             g_signal_connect(webview, "key-press-event", G_CALLBACK(on_key_dismiss), NULL);
