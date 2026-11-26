@@ -1,5 +1,5 @@
 Name:           wscreensavers
-Version:        1.1.33
+Version:        1.1.34
 Release:        1%{?dist}
 Summary:        Native Wayland version of XScreenSaver with live desktop wallpapers
 
@@ -51,8 +51,8 @@ make build
 %{_datadir}/wscreensavers/noctalia-plugins/wscreensavers/*
 
 %changelog
-* Mon Nov 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.33-1
-- Release v1.1.33: fix Wayland idle tracker launching screensaver during continuous typing (return 0 idle seconds whenever ext-idle-notify-v1 reports the seat active) and clean up remaining UI emojis
+* Mon Nov 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.34-1
+- Release v1.1.34: fix Wayland idle tracker launching screensaver during continuous typing (return 0 idle seconds whenever ext-idle-notify-v1 reports the seat active) and clean up remaining UI emojis
 
 * Mon Nov 23 2026 Christopher Patrick Fair <christopherpatrickfair@gmail.com> - 1.1.32-1
 - Release v1.1.32: default Safe for Work mode (safeForWork) to ON (opt-out) across config, Desktop Control Center, and Noctalia plugin
