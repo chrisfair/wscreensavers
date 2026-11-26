@@ -33,6 +33,7 @@ import {
 } from './mathAndAutomata.js';
 
 import { createChessOpenings } from './chessOpenings.js';
+import { createClassicMates } from './classicMates.js';
 import { createBughouse3D } from './bughouse3d.js';
 import { createSurface3D } from './functionPlotter3d.js';
 import { createCelestia } from './celestia.js';
@@ -68,6 +69,7 @@ const SAVER_FACTORIES = {
   rorschach: createRorschach,
   mystify: createMystify,
   chessopenings: createChessOpenings,
+  classicmates: createClassicMates,
   bughouse3d: createBughouse3D,
   surface3d: createSurface3D,
   celestia: createCelestia,

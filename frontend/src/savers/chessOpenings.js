@@ -279,7 +279,7 @@ const OPENINGS = [
   }
 ];
 
-const THEMES = {
+export const THEMES = {
   walnut: {
     lightTile: 0xf0d9b5,
     darkTile: 0x8a5231,
@@ -334,7 +334,7 @@ const THEMES = {
   }
 };
 
-function parseSquare(sq) {
+export function parseSquare(sq) {
   const f = sq.charCodeAt(0) - 97; // 'a' -> 0
   const r = parseInt(sq.charAt(1), 10) - 1; // '1' -> 0
   return { f, r };
@@ -353,14 +353,14 @@ function initBoardState() {
 }
 
 // Convert board coordinates (f=0..7, r=0..7) to 3D world positions (X, Z)
-function sqToWorld(f, r) {
+export function sqToWorld(f, r) {
   return {
     x: (f - 3.5) * 1.0,
     z: (3.5 - r) * 1.0
   };
 }
 
-function buildStauntonTemplates() {
+export function buildStauntonTemplates() {
   // Pawn
   const pawnPts = [
     new THREE.Vector2(0, 0),
@@ -498,7 +498,7 @@ function buildStauntonTemplates() {
   };
 }
 
-function assemblePieceGroup(type, color, templates, mat) {
+export function assemblePieceGroup(type, color, templates, mat) {
   const group = new THREE.Group();
 
   function makeMesh(geo) {

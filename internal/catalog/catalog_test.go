@@ -45,6 +45,9 @@ func TestBuiltinScreensaversCatalog(t *testing.T) {
 	if !seen["sculptures3d"] {
 		t.Errorf("expected sculptures3d (Classical Sculptures Gallery (3D)) in builtin catalog")
 	}
+	if !seen["classicmates"] {
+		t.Errorf("expected classicmates (Classic Checkmates) in builtin catalog")
+	}
 }
 
 func TestSafeForWorkFilter(t *testing.T) {
